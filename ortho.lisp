@@ -778,32 +778,43 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
    (dimension-sub-and-super-scripted-function '|$p| `(1) `(2) nil 3 form)
    result))
 		  		
-;; See A&S 22.5.55 and 22.5.56, page 780.
-
+;;; Simplifier for the polynomial H_n, not He_n; see DLMF Table Table 18.3.1. (https://dlmf.nist.gov/18.3)
+;;; For the recusion, see DLMF Table http://dlmf.nist.gov/18.9.T1. 
+;;; For special values, see DLMF Table http://dlmf.nist.gov/18.6.i
 (def-simplifier hermite (n x)
-  (cond ((integerp n)
-	 (let ((f) (d) (e))
-	   (cond (($evenp n)
-		  (setq n (/ n 2))
-		  (multiple-value-setq (f e)  
-		    ($hypergeo11 (- n) (rat 1 2) (mul x x) n))
-		  (setq d (mul (if (oddp n) -1 1) (factorial (* 2 n))
-			       (div 1 (factorial n)))))
-		 (($oddp n)
-		  (setq n (/ (- n 1) 2))
-		  (multiple-value-setq (f e)
-		    ($hypergeo11 (- n) (rat 3 2) (mul x x) n))
-		  (setq d (mul (if (oddp n) -1 1) (factorial (+ 1 (* 2 n))) 2 x
-			       (div 1 (factorial n))))))
-	   (orthopoly-return-handler d f e))) 
-	(t (give-up))))
+  (cond ((and (integerp n) (complex-number-p x #'$numberp)) ;evaluate numerically
+         ;; Call bigfloat::generic-two-term-recursion
+         (let* ((bf-x (bigfloat::to x))
+		        (f0 (bigfloat::to 1))
+				(f1 (bigfloat::* 2 bf-x))
+                (p #'(lambda (k) (declare (ignore k)) (bigfloat::* 2 bf-x)))
+                (q #'(lambda (k) (bigfloat::- (bigfloat::* 2 k))))) 
+           (multiple-value-bind (value err)
+               (bigfloat::generic-two-term-recursion p q f0 f1 n)
+             (ftake '%interval (maxima::to value) (maxima::to err)))))
+  
+        ;; reflection: hermite(n,-x) = (-1)^n hermite(n,-x)
+		((great (neg x) x)
+		  (mul (ftake 'mexpt -1 n) (ftake '%hermite n (neg x))))
 
-(putprop '$hermite
-	 '((n x)
-	   ((unk) first hermite)
-	   ((mtimes) 2 n (($hermite) ((mplus) -1 n) x)))
-	 'grad)
+        ;; hermite(2n,0) = (-1/2)^(n) pochhammer(n/2 + 1,n)
+		((and (eql 0 x) ($featurep n '$even))
+		 (let ((halfn (div n 2)))
+		 	(mul (ftake 'mexpt (div -1 2) halfn)
+			(ftake '$pochhammer (add 1 halfn) halfn))))
 
+        ;; hermite(2n+1,0) = (-1/2)^m pochhammer(n+1,n+1)
+        ((and (eql 0 x) ($featurep n '$odd))
+		 (let ((halfn (div (sub n 1) 2)))
+		 	(mul (ftake 'mexpt (div -1 2) halfn)
+			(ftake '$pochhammer (add 1 halfn) (add 1 halfn)))))
+			
+        (t (give-up))))
+
+(defgrad %hermite ($n $x)
+  nil
+  #$$ 2*n*herite(n-1,x)$
+  )
 (defprop $hermite tex-hermite tex)
 
 (defun tex-hermite (x l r)
@@ -1526,7 +1537,6 @@ variable ~:M" arg (car (last arg))))
 
 	(t (merror "A weight for ~:M isn't known to Maxima" fn))))
     
-
 (in-package #:bigfloat)
 
 ;; Extend epsilon to rationals and complex rationals
