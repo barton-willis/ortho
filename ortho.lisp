@@ -395,12 +395,40 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	   (orthopoly-return-handler d f e)))
 	(t `(($jacobi_p simp) ,n ,a ,b ,x))))
 
+(defun homogenize-floats (&rest xxx)
+	(if (some #'(lambda (s) 
+(def-simplifer jacobi_p (n a b x)
+	(cond ((and (integer n) 
+	            (complex-number-p a #'$numberp)
+				(complex-number-p b #'$numberp)
+				(complex-number-p x #'$numberp))
+		  (let ((digits (if (floatp x)
+			                  13
+							  (- $fpprec 2))))
+            (jacobi_p-numeric n a b x digits)))
+         ;; symbolic case call generic-two-term-recursion-symbolic
+		((integerp n)
+            (jacobi_p-symbolic n a b x))
+        ;; reflection
+		((great x (neg x)) ; jacobi_p(n,a,b,-x) = (-1)^n jacobi_p(n,b,a,x)
+			(mul (ftake 'mexpt -1 n) (ftake '%jacobi_p n b a (neg x))))
+
+		;; jacobi_p(n,a,b,1) = pochhammer(a+1,n)/n!
+		((eql x 1)
+			(div (ftake '$pochhamer (add a 1) n)
+			     (ftake 'mfactorial n)))
+
+		(t (give-up))))
+			   
+(defun jacobi_p-numeric (n a b x digits)
+
+
+
 (putprop '$jacobi_p
 	 '((n a b x)
-	   ((unk) first jacobi_p)
-	   ((unk)  second jacobi_p)
-	   ((unk)  third jacobi_p)
-
+       nil
+	   nil
+	   nil
 	   ((mtimes)
 	    ((mexpt) ((mplus ) a b ((mtimes ) 2 n)) -1)
 	    ((mplus)
@@ -537,16 +565,60 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 ;; See A&S 8.2.1 page 333 and 22.5.35 page 779.  We evaluate the legendre
 ;; polynomials as jacobi_p(n,0,0,x).  Eat less exercise more.
 
-(defun $legendre_p (n x)
-  (cond ((use-hypergeo n x) 
-	 (if (and (integerp n) (< n 0))
-	   ($legendre_p (- (abs n) 1) x)
-	   ($jacobi_p n 0 0 x)))
-	(t `(($legendre_p simp) ,n ,x))))
+(def-simplifier legendre_p (n x)
+   (cond ((and (integerp n) (complex-number-p x #'$numberp)) ;evaluate numerically
+         ;; Call bigfloat::generic-two-term-recursion
+         (let* ((bf-x (bigfloat::to x))
+		        (one (bigfloat::to 1))
+		        (f0 one)
+				(f1 bf-x)
+                (p #'(lambda (kk)
+				      (let ((k (bigfloat::to kk)))
+                      (bigfloat::/ (bigfloat::* 2 (bigfloat::+ (bigfloat::* 2 k) 1) bf-x) (bigfloat::+ k 1))))) ; (2k+1)x/(k+1) + 
+                (q #'(lambda (kk) 
+				  (let ((k (bigfloat::to kk)))
+				    (bigfloat::/ k (bigfloat::+ k one))))))
+           (multiple-value-bind (value err)
+               (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
+             (ftake '%interval (maxima::to value) (maxima::to err)))))
+	    
+		(t (give-up))))
 
+(defun legendre-p-numeric (n x digits)
+    (let* ((bf-x (bigfloat::to x))
+		        (one (bigfloat::to 1))
+		        (f0 one)
+				(f1 bf-x)
+				(eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
+                (p #'(lambda (kk)
+				      (let ((k (bigfloat::to kk)))
+                      (bigfloat::/ (bigfloat::* 2 (bigfloat::+ (bigfloat::* 2 k) 1) bf-x) (bigfloat::+ k 1))))) ; (2k+1)x/(k+1) + 
+                (q #'(lambda (kk) 
+				  (let ((k (bigfloat::to kk))) (bigfloat::/ k (bigfloat::+ k one))))))
+           (multiple-value-bind (value err)
+		         (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
+		           (cond ((bigfloat::relative-error-p value err eps)
+                           (maxima::to value))
+                           (t
+                 ;; If precision is insufficient, boost fpprec and convert to bigfloat
+                 (bind-fpprec (mul 2 $fpprec)
+                   (legendre-p-numeric n ($bfloat x) (- $fpprec 2)))))))
+    ;; Catch binary64 overflow and switch automatically to bigfloats
+    (arithmetic-error ()
+      (bind-fpprec $fpprec
+        (legendre-p-numeric n ($bfloat x) (- $fpprec 2)))))
+
+(defun legendre-p-symbolic (n x)
+    (let* ((f0 1)
+		   (f1 x)
+           (p #'(lambda (k) (div (mul (add (mul 2 k) 1) x) (add k 1)))) ; (2k+1)x/(k+1) 
+           (q #'(lambda (k) (div k (add k 1)))))
+	 (generic-two-term-recursion-symbolic f0 f1 p q n)))
+         
+	
 (putprop '$legendre_p 
 	 '((n x) 
-	   ((unk) first legendre_p)
+	   nil
 	   ((mtimes)
 	     ((mplus)
 	      ((mtimes) n (($legendre_p) ((mplus) -1 n) x))
@@ -777,55 +849,91 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
   (dimension-function
    (dimension-sub-and-super-scripted-function '|$p| `(1) `(2) nil 3 form)
    result))
-		  		
-;;; Simplifier for the polynomial H_n, not He_n; see DLMF Table Table 18.3.1. (https://dlmf.nist.gov/18.3)
-;;; For the recusion, see DLMF Table http://dlmf.nist.gov/18.9.T1. 
+
+;;; Simplifier for the Hermite polynomial H_n, not He_n; see DLMF Table Table 18.3.1. 
+;;; (https://dlmf.nist.gov/18.3) For the recusion, see DLMF Table http://dlmf.nist.gov/18.9.T1. 
 ;;; For special values, see DLMF Table http://dlmf.nist.gov/18.6.i
 (def-simplifier hermite (n x)
   (cond ((and (integerp n) (complex-number-p x #'$numberp)) ;evaluate numerically
-         ;; Call bigfloat::generic-two-term-recursion
-         (let* ((bf-x (bigfloat::to x))
-		        (f0 (bigfloat::to 1))
-				(f1 (bigfloat::* 2 bf-x))
-                (p #'(lambda (k) (declare (ignore k)) (bigfloat::* 2 bf-x)))
-                (q #'(lambda (k) (bigfloat::- (bigfloat::* 2 k))))) 
-           (multiple-value-bind (value err)
-               (bigfloat::generic-two-term-recursion p q f0 f1 n)
-             (ftake '%interval (maxima::to value) (maxima::to err)))))
-  
-        ;; reflection: hermite(n,-x) = (-1)^n hermite(n,-x)
+            (let ((digits (if (floatp x)
+			                  13
+							  (- $fpprec 2))))
+            (hermite-numeric n x digits)))
+         ;; symbolic case call generic-two-term-recursion-symbolic
+		((integerp n)
+            (hermite-symbolic n x))
+        ;; reflection: hermite(n,-x) = (-1)^n hermite(-n,-x)
 		((great (neg x) x)
 		  (mul (ftake 'mexpt -1 n) (ftake '%hermite n (neg x))))
-
         ;; hermite(2n,0) = (-1/2)^(n) pochhammer(n/2 + 1,n)
 		((and (eql 0 x) ($featurep n '$even))
 		 (let ((halfn (div n 2)))
 		 	(mul (ftake 'mexpt (div -1 2) halfn)
 			(ftake '$pochhammer (add 1 halfn) halfn))))
-
         ;; hermite(2n+1,0) = (-1/2)^m pochhammer(n+1,n+1)
         ((and (eql 0 x) ($featurep n '$odd))
 		 (let ((halfn (div (sub n 1) 2)))
 		 	(mul (ftake 'mexpt (div -1 2) halfn)
 			(ftake '$pochhammer (add 1 halfn) (add 1 halfn)))))
-			
         (t (give-up))))
+
+(def-simplifier hermite (n x)
+  (cond ((and (integerp n) (complex-number-p x #'$numberp)) ;evaluate numerically
+         (let ((digits (if (floatp x)
+                           13
+                           (- $fpprec 2))))
+           (hermite-numeric n x digits)))
+        ;; symbolic case call generic-two-term-recursion-symbolic
+        ((integerp n)
+         (hermite-symbolic n x))
+        ;; reflection: hermite(n,-x) = (-1)^n hermite(-n,-x)
+        ((great (neg x) x)
+         (mul (ftake 'mexpt -1 n) (ftake '%hermite n (neg x))))
+        ;; hermite(2n,0) = (-1/2)^(n) pochhammer(n/2 + 1,n)
+        ((and (eql 0 x) ($featurep n '$even))
+         (let ((halfn (div n 2)))
+           (mul (ftake 'mexpt (div -1 2) halfn)
+                (ftake '$pochhammer (add 1 halfn) halfn))))
+        ;; hermite(2n+1,0) = (-1/2)^m pochhammer(n+1,n+1)
+        ((and (eql 0 x) ($featurep n '$odd))
+         (let ((halfn (div (sub n 1) 2)))
+           (mul (ftake 'mexpt (div -1 2) halfn)
+                (ftake '$pochhammer (add 1 halfn) (add 1 halfn)))))
+        (t (give-up))))
+
+(defun hermite-numeric (n x digits)
+  (handler-case
+      (let* ((bf-x (bigfloat::to x))
+             (f0 (bigfloat::to 1))
+             (f1 (bigfloat::* 2 bf-x))
+             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
+             (p #'(lambda (k) (declare (ignore k)) (bigfloat::* 2 bf-x)))
+             (q #'(lambda (k) (bigfloat::- (bigfloat::* 2 k))))) 
+        (multiple-value-bind (value err)
+            (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
+          (cond ((bigfloat::relative-error-p value err eps)
+                 (maxima::to value))
+                (t
+                 ;; If precision is insufficient, boost fpprec and convert to bigfloat
+                 (bind-fpprec (mul 2 $fpprec)
+                   (hermite-numeric n ($bfloat x) (- $fpprec 2)))))))
+    ;; Catch binary64 overflow and switch automatically to bigfloats
+    (arithmetic-error ()
+      (bind-fpprec $fpprec
+        (hermite-numeric n ($bfloat x) (- $fpprec 2))))))
+
+(defun hermite-symbolic (n x)
+    (let* ((f0 1)
+		   (f1 (mul 2 x))
+           (p #'(lambda (k) (declare (ignore k)) (mul 2 x)))
+           (q #'(lambda (k) (mul -2 k))))
+		   (generic-two-term-recursion-symbolic p q f0 f1 x n)))
 
 (defgrad %hermite ($n $x)
   nil
   #$$ 2*n*herite(n-1,x)$
   )
-(defprop $hermite tex-hermite tex)
 
-(defun tex-hermite (x l r)
-  (tex-sub-and-super-scripted-function "H" `(0) nil nil nil 1 x l r))
-
-(setf (get '$hermite 'dimension) 'dimension-hermite)
-
-(defun dimension-hermite (form result)
- (dimension-function
-   (dimension-sub-and-super-scripted-function '|$h| `(1) nil nil 2 form)
-   result))
 
 ;; See A & S 22.5.54, page 780.  For integer n, use the identity
 ;;     binomial(n+a,n) = pochhammer(a+1,n)/pochhammer(1,n)
@@ -1537,6 +1645,21 @@ variable ~:M" arg (car (last arg))))
 
 	(t (merror "A weight for ~:M isn't known to Maxima" fn))))
     
+
+(defun generic-two-term-recursion-symbolic (p q f0 f1 x n)
+  (let* ((fm1 f0)   
+         (fi f1)    
+         (fnext))
+    (dotimes (i (- n 1))
+      (let* ((current-i (+ i 1))
+             (a (funcall p current-i))
+             (b (funcall q current-i)))        
+        (setq fnext (add (mul a fi) (mul b fm1)))
+        
+        (setq fm1 fi
+              fi fnext)))
+    ($ratdisrep ($rat fi x))))
+
 (in-package #:bigfloat)
 
 ;; Extend epsilon to rationals and complex rationals
@@ -1548,6 +1671,11 @@ variable ~:M" arg (car (last arg))))
   ;; by extracting the real part and evaluating its epsilon.
   (epsilon (cl:realpart x)))
 
+(defvar *slop* 1000000000)
+(defun relative-error-p (x err eps)
+  (<= (abs err) (* *slop* eps (+ 1 (abs x)))))
+
+#| 
 (defun hypergeo21-polynomial-numeric (n b c x) 
   "Return two values: the function value and its running error bound."
   (let* ((one (bigfloat::to 1))
@@ -1559,8 +1687,9 @@ variable ~:M" arg (car (last arg))))
     (if (eql n 0)
         (values f0 (bigfloat::to 0))
         (generic-two-term-recursion p q f0 f1 (- n)))))
+|#
 
-(defun generic-two-term-recursion (p q f0 f1 n)
+(defun generic-two-term-recursion-running-error (p q f0 f1 n)
   "Evaluates the recurrence forward while simultaneously tracking the running error bound."
   (let* ((fm1 f0)   
          (fi f1)    
@@ -1593,3 +1722,10 @@ variable ~:M" arg (car (last arg))))
 
 
 
+(defun fred (a b) 
+	(< a b))
+
+(in-package :maxima)
+ 
+(defun $fred (a b)
+  (bigfloat::fred (bigfloat::to a) (bigfloat::to b)))
