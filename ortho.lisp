@@ -796,64 +796,71 @@ q(k) = -----------------------------------------------------------------------
          2 * (k + 1) * (k + alpha + beta + 1) * (2*k + alpha + beta)
 		 
 |#
-							   
+
 (defun jacobi_p-numeric (n a b x digits)
   (handler-case
       (let* ((bf-a (bigfloat::to a))
              (bf-b (bigfloat::to b))
              (bf-x (bigfloat::to x))
+             
              (f0 (bigfloat::to 1))
-             (f1 (bigfloat::jacobi-order-one bf-a bf-b bf-x))
+             (f1 (bigfloat::/ (bigfloat::+ (bigfloat::* (bigfloat::+ bf-a bf-b 2) bf-x) 
+                                           (bigfloat::- bf-a bf-b)) 
+                              2))
+             
              (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
-             ;; Lifted out of the loop to save garbage collection overhead:
+             
+             (a+b (bigfloat::+ bf-a bf-b))
+             (a+b+1 (bigfloat::+ bf-a bf-b 1))
+             (a+b+2 (bigfloat::+ bf-a bf-b 2))
+             
+             ;; a^2 - b^2
              (a2-b2 (bigfloat::- (bigfloat::* bf-a bf-a) (bigfloat::* bf-b bf-b)))
              
              (p #'(lambda (k)
                     (let* ((bf-k (bigfloat::to k))
                            (2k (bigfloat::* 2 bf-k))
-                           (2k+a+b (bigfloat::+ 2k bf-a bf-b))
-                           (2k+a+b+1 (bigfloat::+ 2k+a+b 1))
-                           (2k+a+b+2 (bigfloat::+ 2k+a+b 2))
                            (k+1 (bigfloat::+ bf-k 1))
-                           (k+a+b+1 (bigfloat::+ bf-k bf-a bf-b 1))
-                           ;; Safe check to avoid 0/0 or x/0 when alpha + beta = 0 and k = 0
-                           (den (bigfloat::* 2 k+1 k+a+b+1 2k+a+b))
-                           (bracket (bigfloat::+ (bigfloat::* 2k+a+b+2 2k+a+b bf-x) a2-b2))
-                           (num (bigfloat::* 2k+a+b+1 bracket)))
-                      (if (bigfloat::zerop 2k+a+b)
-                          ;; Insert analytical limit for 2k+a+b = 0 here if needed
-                          (bigfloat::to 0) 
-                          (bigfloat::/ num den)))))
-
-             (q #'(lambda (k) 
+                           
+                           ;; Numerator: (2k + a + b + 1)(a^2 - b^2) + x pochhammer(2k + a + b,3)
+                           (num (bigfloat::+
+                                 (bigfloat::* (bigfloat::+ 2k a+b+1) a2-b2)
+                                 (bigfloat::* bf-x (bigfloat::+ 2k a+b) (bigfloat::+ 2k a+b+1) (bigfloat::+ 2k a+b+2))))
+                           
+                           ;; Denominator: 2(k + 1)(k + a + b + 1)(2k + a + b)
+                           (den (bigfloat::* 2 k+1 (bigfloat::+ bf-k a+b+1) (bigfloat::+ 2k a+b))))
+                      (bigfloat::/ num den))))
+             
+             (q #'(lambda (k)
                     (let* ((bf-k (bigfloat::to k))
                            (2k (bigfloat::* 2 bf-k))
-                           (2k+a+b (bigfloat::+ 2k bf-a bf-b))
-                           (2k+a+b+2 (bigfloat::+ 2k+a+b 2))
-                           (k+a (bigfloat::+ bf-k bf-a))
-                           (k+b (bigfloat::+ bf-k bf-b))
-                           (k+1 (bigfloat::+ bf-k 1))
-                           (k+a+b+1 (bigfloat::+ bf-k bf-a bf-b 1))
-                           (num (bigfloat::* 2 k+a k+b 2k+a+b+2))
-                           (den (bigfloat::* 2 k+1 k+a+b+1 2k+a+b)))
-                      (if (bigfloat::zerop 2k+a+b)
-                          (bigfloat::to 0)
-                          (bigfloat::/ num den))))))
-
-        (multiple-value-bind (value err)
-            (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
-          (cond ((bigfloat::relative-error-p value err eps)
-                 (maxima::to value))
-                (t
-                 (let ((new-fpprec (mul 2 $fpprec)))
-                   (bind-fpprec new-fpprec
-                     (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) (- new-fpprec 2))))))))
+                           (k+1 (bigfloat::+ bf-k 1))                   
+                           
+                           ;; Numerator: 2(k + a)(k + b)(2k + a + b + 2)
+                           (num (bigfloat::* -2 (bigfloat::+ bf-k bf-a) (bigfloat::+ bf-k bf-b) (bigfloat::+ 2k a+b+2)))
+                           
+                           ;; Denominator: 2(k + 1)(k + a + b + 1)(2k + a + b)
+                           (den (bigfloat::* 2 k+1 (bigfloat::+ bf-k a+b+1) (bigfloat::+ 2k a+b))))
+                      (bigfloat::/ num den)))))
+        
+        (cond ((eql n 0) (maxima::to f0))
+              ((eql n 1) (maxima::to f1))
+              (t
+               (multiple-value-bind (value err)
+                   (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
+                 (cond ((bigfloat::relative-error-p value err eps)
+                        (maxima::to value))
+                       (t
+                        (let ((new-fpprec (mul 2 $fpprec)))
+                          (bind-fpprec new-fpprec
+                            (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) (- new-fpprec 2))))))))))
     
     (arithmetic-error (c)
       (declare (ignore c))
       (let ((new-fpprec (mul 2 $fpprec)))
         (bind-fpprec new-fpprec
           (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) (- new-fpprec 2)))))))
+
 
 (defun jacobi_p-symbolic (n a b x)
   (let* ((f0 1)
@@ -883,7 +890,9 @@ q(k) = -----------------------------------------------------------------------
 					   ;; Denominator: 2(k + 1)(k + a + b + 1)(2k + a + b)
                        (den (mul 2 k+1 (add k a+b+1) (add 2k a+b))))
                   (div num den)))))
-    (generic-two-term-recursion-symbolic p q f0 f1 x n)))
+	(cond ((eql n 0) f0)
+	      ((eql n 1) f1)
+          (t (generic-two-term-recursion-symbolic p q f0 f1 x n)))))
 ;;;;;end numeric & symbolic code
 
 ;; See A & S 22.5.54, page 780.  For integer n, use the identity

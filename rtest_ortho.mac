@@ -1,0 +1,40 @@
+jacobi_p(0, a, b, x);
+1$
+
+jacobi_p(1, a, b, x);
+((a+b+2)*x+a-b)/2$
+
+jacobi_p(1, a, b, 1);
+ (2*a+2)/2$
+
+jacobi_p(2, a, b, 1);
+(a^2+3*a+2)/2$
+
+/*  Rodrigue's formulae */
+
+(jacobi_p_rodrigue(n,a,b,x) := block([ an, rho, g , t : gensym()],
+    an : (-1)^n * 2^n * n!,
+    rho : (1-t)^a * (1 + t)^b,
+    g : 1-t^2,
+    rat(subst(x,t, diff(rho * g^n,t,n) / (an * rho)))),0);
+0$
+block([n : 0], expand(jacobi_p(n,a,b,x) - jacobi_p_rodrigue(n,a,b,x)));
+0$
+
+block([n : 1], expand(jacobi_p(n,a,b,x) - jacobi_p_rodrigue(n,a,b,x)));
+0$
+
+block([n : 2], expand(jacobi_p(n,a,b,x) - jacobi_p_rodrigue(n,a,b,x)));
+0$
+
+block([n : 9, a : 2/3, b : 1/5], expand(jacobi_p(n,a,b,x) - jacobi_p_rodrigue(n,a,b,x)));
+0$
+
+block([n : 9, a : %i, b : 0], expand(jacobi_p(n,a,b,x) - jacobi_p_rodrigue(n,a,b,x)));
+0$
+
+block([n : 9, a : 1/2 + %i, b : 1/2 - %i], expand(jacobi_p(n,a,b,x) - jacobi_p_rodrigue(n,a,b,x)));
+0$
+
+block([n : 9], expand(jacobi_p(n,a,b,x) - jacobi_p_rodrigue(n,a,b,x)));
+0$
