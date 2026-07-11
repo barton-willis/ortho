@@ -11,7 +11,6 @@
 Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramowitz and Stegun (A & S). 
 |#
 
-
 (in-package :maxima)
 
 ;; If the input can be evaluated to a floating point number (either
@@ -231,10 +230,11 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 ;; Numerical evaluation of pochhammer using the bigfloat package.
 (defun pochhammer (x n)
-  (let ((acc 1))
-    (if (< n 0) (/ 1 (pochhammer (+ x n) (- n)))
-      (dotimes (k n acc)
-	(setq acc (* acc (+ k x)))))))
+  (if (minusp n) 
+      (/ 1 (pochhammer (+ x n) (- n)))
+      (let ((acc (bigfloat::to 1))) 
+        (dotimes (k n acc)
+          (setq acc (* acc (+ k x)))))))
 
 (in-package :maxima)
 
@@ -288,8 +288,6 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	   ((mtimes) (($pochhammer) x n)
 	    ((mqapply) (($psi array) 0) ((mplus) n x))))
 	 'grad)
-
-(print "At 1!")
 
 ;; pochhammer-quotient(a b x n) returns pochhammer( a,n) / pochhammer(b,n).  
 ;; Only when one of a, b, or x  is a floating point number and the others are 
