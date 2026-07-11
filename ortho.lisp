@@ -325,8 +325,6 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 ;; We're looking at (d +|- 4 n eps |d|)(f +|- e) = d (f +|- (e + 4 n eps |f|)) + 
 ;; O(eps^2). 
 
-(print "At 2!")
-
 (def-simplifier jacobi_p (n a b x)
 	(cond ((and (integerp n) 
 	            (complex-number-p a #'$numberp)
@@ -350,8 +348,6 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 		(t (give-up))))
 
-(print "At 3!")
-
 (putprop '$jacobi_p
 	 '((n a b x)
        nil
@@ -372,7 +368,6 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	    ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt ) x 2))) -1)))
 	 'grad)
  	   
-
      	  
 ;; See A&S 22.5.46, page 779.
 
@@ -471,37 +466,40 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 		(t (give-up))))
 
 (defun legendre-p-numeric (n x digits)
-    (let* ((bf-x (bigfloat::to x))
-		        (one (bigfloat::to 1))
-		        (f0 one)
-				(f1 bf-x)
-				(eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
-                (p #'(lambda (kk)
-				      (let ((k (bigfloat::to kk)))
-                      (bigfloat::/ (bigfloat::* 2 (bigfloat::+ (bigfloat::* 2 k) 1) bf-x) (bigfloat::+ k 1))))) ; (2k+1)x/(k+1) + 
-                (q #'(lambda (kk) 
-				  (let ((k (bigfloat::to kk))) (bigfloat::/ k (bigfloat::+ k one))))))
-           (multiple-value-bind (value err)
-		         (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
-		           (cond ((bigfloat::relative-error-p value err eps)
-                           (maxima::to value))
-                           (t
+  (handler-case
+      (let* ((bf-x (bigfloat::to x))
+             (one (bigfloat::to 1))
+             (f0 one)
+             (f1 bf-x)
+             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
+             (p #'(lambda (kk)
+                    (let ((k (bigfloat::to kk)))
+                      (bigfloat::/ (bigfloat::* (bigfloat::+ (bigfloat::* 2 k) 1) bf-x) (bigfloat::+ k 1))))) 
+             (q #'(lambda (kk) 
+                    (let ((k (bigfloat::to kk))) 
+                      (bigfloat::/ k (bigfloat::+ k one))))))
+        (multiple-value-bind (value err)
+            (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
+          (cond ((bigfloat::relative-error-p value err eps)
+                 (maxima::to value))
+                (t
                  ;; If precision is insufficient, boost fpprec and convert to bigfloat
                  (bind-fpprec (mul 2 $fpprec)
                    (legendre-p-numeric n ($bfloat x) (- $fpprec 2)))))))
+    
     ;; Catch binary64 overflow and switch automatically to bigfloats
-    (arithmetic-error ()
+    (arithmetic-error (c)
+      (declare (ignore c)) ; Bound 'c' to prevent compiler/runtime errors
       (bind-fpprec $fpprec
-        (legendre-p-numeric n ($bfloat x) (- $fpprec 2)))))
+        (legendre-p-numeric n ($bfloat x) (- $fpprec 2))))))
 
 (defun legendre-p-symbolic (n x)
     (let* ((f0 1)
 		   (f1 x)
            (p #'(lambda (k) (div (mul (add (mul 2 k) 1) x) (add k 1)))) ; (2k+1)x/(k+1) 
            (q #'(lambda (k) (div k (add k 1)))))
-	 (generic-two-term-recursion-symbolic f0 f1 p q n)))
+	 (generic-two-term-recursion-symbolic f0 f1 p q x n)))
          
-	
 (putprop '$legendre_p 
 	 '((n x) 
 	   nil
@@ -741,6 +739,13 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
                 (ftake '$pochhammer (add 1 halfn) (add 1 halfn)))))
         (t (give-up))))
 
+(defgrad %hermite ($n $x)
+  nil
+  #$$ 2*n*herite(n-1,x)$
+  )
+
+;; numeric and symbolic code:
+
 (defun hermite-numeric (n x digits)
   (handler-case
       (let* ((bf-x (bigfloat::to x))
@@ -770,11 +775,127 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
            (q #'(lambda (k) (mul -2 k))))
 		   (generic-two-term-recursion-symbolic p q f0 f1 x n)))
 
-(defgrad %hermite ($n $x)
-  nil
-  #$$ 2*n*herite(n-1,x)$
-  )
 
+(in-package #:bigfloat)
+(defun jacobi-order-one (a b x)
+	(* (+ a 1) (+ 1 (- (/ (* (+ b a 2) (+ 1 (- x))) (* 2 (+ 1 a))))))) 
+
+(in-package :maxima)
+
+#| Recursion for jacobi_p(n, alpha, beta,x) is (the nightmare)
+
+jacobi_p(n+1, alpha, beta,x) = p(k) jacobi_p(n, alpha, beta,x) + q(k) jacobi_p(n-1, alpha, beta,x)
+
+       (2*k + alpha + beta + 1) * [ (2*k + alpha + beta + 2) * (2*k + alpha + beta) * x + (alpha^2 - beta^2) ]
+p(k) = -------------------------------------------------------------------------------------------------------
+                               2 * (k + 1) * (k + alpha + beta + 1) * (2*k + alpha + beta)
+
+
+              2 * (k + alpha) * (k + beta) * (2*k + alpha + beta + 2)
+q(k) = -----------------------------------------------------------------------
+         2 * (k + 1) * (k + alpha + beta + 1) * (2*k + alpha + beta)
+		 
+|#
+							   
+(defun jacobi_p-numeric (n a b x digits)
+  (handler-case
+      (let* ((bf-a (bigfloat::to a))
+             (bf-b (bigfloat::to b))
+             (bf-x (bigfloat::to x))
+             (f0 (bigfloat::to 1))
+             (f1 (bigfloat::jacobi-order-one bf-a bf-b bf-x))
+             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
+             ;; Lifted out of the loop to save garbage collection overhead:
+             (a2-b2 (bigfloat::- (bigfloat::* bf-a bf-a) (bigfloat::* bf-b bf-b)))
+             
+             (p #'(lambda (k)
+                    (let* ((bf-k (bigfloat::to k))
+                           (2k (bigfloat::* 2 bf-k))
+                           (2k+a+b (bigfloat::+ 2k bf-a bf-b))
+                           (2k+a+b+1 (bigfloat::+ 2k+a+b 1))
+                           (2k+a+b+2 (bigfloat::+ 2k+a+b 2))
+                           (k+1 (bigfloat::+ bf-k 1))
+                           (k+a+b+1 (bigfloat::+ bf-k bf-a bf-b 1))
+                           ;; Safe check to avoid 0/0 or x/0 when alpha + beta = 0 and k = 0
+                           (den (bigfloat::* 2 k+1 k+a+b+1 2k+a+b))
+                           (bracket (bigfloat::+ (bigfloat::* 2k+a+b+2 2k+a+b bf-x) a2-b2))
+                           (num (bigfloat::* 2k+a+b+1 bracket)))
+                      (if (bigfloat::zerop 2k+a+b)
+                          ;; Insert analytical limit for 2k+a+b = 0 here if needed
+                          (bigfloat::to 0) 
+                          (bigfloat::/ num den)))))
+
+             (q #'(lambda (k) 
+                    (let* ((bf-k (bigfloat::to k))
+                           (2k (bigfloat::* 2 bf-k))
+                           (2k+a+b (bigfloat::+ 2k bf-a bf-b))
+                           (2k+a+b+2 (bigfloat::+ 2k+a+b 2))
+                           (k+a (bigfloat::+ bf-k bf-a))
+                           (k+b (bigfloat::+ bf-k bf-b))
+                           (k+1 (bigfloat::+ bf-k 1))
+                           (k+a+b+1 (bigfloat::+ bf-k bf-a bf-b 1))
+                           (num (bigfloat::* 2 k+a k+b 2k+a+b+2))
+                           (den (bigfloat::* 2 k+1 k+a+b+1 2k+a+b)))
+                      (if (bigfloat::zerop 2k+a+b)
+                          (bigfloat::to 0)
+                          (bigfloat::/ num den))))))
+
+        (multiple-value-bind (value err)
+            (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
+          (cond ((bigfloat::relative-error-p value err eps)
+                 (maxima::to value))
+                (t
+                 (let ((new-fpprec (mul 2 $fpprec)))
+                   (bind-fpprec new-fpprec
+                     (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) (- new-fpprec 2))))))))
+    
+    (arithmetic-error (c)
+      (declare (ignore c))
+      (let ((new-fpprec (mul 2 $fpprec)))
+        (bind-fpprec new-fpprec
+          (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) (- new-fpprec 2)))))))
+
+(defun jacobi_p-symbolic (n a b x)
+  (let* ((f0 1)
+         (f1 (div (add (mul (add a b 2) x) (sub a b)) 2))
+         
+         (p #'(lambda (k)
+                (let* ((2k (mul 2 k))
+                       (2k+a+b (add 2k a b))
+                       (2k+a+b+1 (add 2k+a+b 1))
+                       (2k+a+b+2 (add 2k+a+b 2))
+                       (k+1 (add k 1))
+                       (k+a+b+1 (add k a b 1))
+                       
+                       ;; alpha^2 - beta^2
+                       (a2-b2 (sub (mul a a) (mul b b)))
+                       
+                       ;; Numerator: (2*k + a + b + 1) * [ (2*k + a + b + 2) * (2*k + a + b) * x + (a^2 - b^2) ]
+                       (bracket (add (mul 2k+a+b+2 2k+a+b x) a2-b2))
+                       (num (mul 2k+a+b+1 bracket))
+                       
+                       ;; Denominator: 2 * (k + 1) * (k + a + b + 1) * (2*k + a + b)
+                       (den (mul 2 k+1 k+a+b+1 2k+a+b)))
+                  (div num den))))
+         
+         (q #'(lambda (k)
+                (let* ((2k (mul 2 k))
+                       (2k+a+b (add 2k a b))
+                       (2k+a+b+2 (add 2k+a+b 2))
+                       (k+a (add k a))
+                       (k+b (add k b))
+                       (k+1 (add k 1))
+                       (k+a+b+1 (add k a b 1))
+                       
+                       ;; Numerator: 2 * (k + a) * (k + beta) * (2*k + a + b + 2)
+                       (num (mul 2 k+a k+b 2k+a+b+2))
+                       
+                       ;; Denominator: 2 * (k + 1) * (k + a + b + 1) * (2*k + a + b)
+                       (den (mul 2 k+1 k+a+b+1 2k+a+b)))
+                  (div num den)))))
+    
+    (generic-two-term-recursion-symbolic p q f0 f1 x n)))
+;;;;;end numeric & symbolic code
 
 ;; See A & S 22.5.54, page 780.  For integer n, use the identity
 ;;     binomial(n+a,n) = pochhammer(a+1,n)/pochhammer(1,n)
