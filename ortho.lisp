@@ -858,42 +858,31 @@ q(k) = -----------------------------------------------------------------------
 (defun jacobi_p-symbolic (n a b x)
   (let* ((f0 1)
          (f1 (div (add (mul (add a b 2) x) (sub a b)) 2))
+		 (a+b (add a b))
+		 (a+b+1 (add a b 1))
+		 (a+b+2 (add a b 2))
+         ;; a^2 - b^2
+         (a2-b2 (sub (mul a a) (mul b b)))
          
          (p #'(lambda (k)
                 (let* ((2k (mul 2 k))
-                       (2k+a+b (add 2k a b))
-                       (2k+a+b+1 (add 2k+a+b 1))
-                       (2k+a+b+2 (add 2k+a+b 2))
-                       (k+1 (add k 1))
-                       (k+a+b+1 (add k a b 1))
-                       
-                       ;; alpha^2 - beta^2
-                       (a2-b2 (sub (mul a a) (mul b b)))
-                       
-                       ;; Numerator: (2*k + a + b + 1) * [ (2*k + a + b + 2) * (2*k + a + b) * x + (a^2 - b^2) ]
-                       (bracket (add (mul 2k+a+b+2 2k+a+b x) a2-b2))
-                       (num (mul 2k+a+b+1 bracket))
-                       
-                       ;; Denominator: 2 * (k + 1) * (k + a + b + 1) * (2*k + a + b)
-                       (den (mul 2 k+1 k+a+b+1 2k+a+b)))
+				       (k+1 (add k 1))
+                       ;; Numerator: (2k + a + b + 1)(a^2 - b^2) + x pochhammer(2k + a + b,3)
+                       (num (add
+					          (mul (add 2k a+b+1) a2-b2)
+					          (mul x (add 2k a+b) (add 2k a+b+1) (add 2k a+b+2))))
+                       ;; Denominator: 2(k + 1)(k + a + b + 1)(2k + a + b)
+                       (den (mul 2 k+1 (add k a+b+1) (add 2k a+b))))
                   (div num den))))
          
          (q #'(lambda (k)
                 (let* ((2k (mul 2 k))
-                       (2k+a+b (add 2k a b))
-                       (2k+a+b+2 (add 2k+a+b 2))
-                       (k+a (add k a))
-                       (k+b (add k b))
-                       (k+1 (add k 1))
-                       (k+a+b+1 (add k a b 1))
-                       
-                       ;; Numerator: 2 * (k + a) * (k + beta) * (2*k + a + b + 2)
-                       (num (mul 2 k+a k+b 2k+a+b+2))
-                       
-                       ;; Denominator: 2 * (k + 1) * (k + a + b + 1) * (2*k + a + b)
-                       (den (mul 2 k+1 k+a+b+1 2k+a+b)))
+				       (k+1 (add k 1))					 
+                       ;; Numerator: 2(k + a)(k + b)(2k + a + b + 2)
+                       (num (mul -2 (add k a) (add k b) (add 2k a+b+2)))
+					   ;; Denominator: 2(k + 1)(k + a + b + 1)(2k + a + b)
+                       (den (mul 2 k+1 (add k a+b+1) (add 2k a+b))))
                   (div num den)))))
-    
     (generic-two-term-recursion-symbolic p q f0 f1 x n)))
 ;;;;;end numeric & symbolic code
 
