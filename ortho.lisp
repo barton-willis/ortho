@@ -383,22 +383,38 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	   (orthopoly-return-handler d f e)))
 	(t `(($ultraspherical simp) ,n ,a ,x))))
 
+(def-simplifier ultraspherical (n a x)
+	(cond ((and (integerp n) (complex-number-p a #'$ratnump) (complex-number-p x #'$ratnump))
+	        (let ((digits (if (floatp x)
+			                  13
+							  (- $fpprec 2))))
+            (ultraspherical-numeric n a x digits)))
+
+		  ((integerp n)
+		    (ultraspherical-symbolic n a x))
+
+		((great x (neg x))
+		 (mul (ftake 'mexpt -1 n) (ftake '%ultraspherical n a (neg x))))
+
+		((eql x 1)
+	      (div (ftake '$pochhammer (mul 2 a) n) (ftake 'mfactorial n)))
+
+		(t (give-up))))
+
 (putprop '$ultraspherical 
 	 '((n a x)
-	   ((unk) first ultraspherical)
-	   ((unk)  second ultrapsherical)
+	   nil 
+	   nil
 	   ((mtimes)
 	    ((mplus)
 	     ((mtimes)
 	      (($unit_step) n)
 	      ((mplus) -1 ((mtimes) 2 a) n)
-	      (($ultraspherical) ((mplus) -1 n) a x))
-	     ((mtimes) -1 n (($ultraspherical) n a x) x))
+	      ((%ultraspherical) ((mplus) -1 n) a x))
+	     ((mtimes) -1 n ((%ultraspherical) n a x) x))
 	    ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) x 2))) -1)))
 	 'grad) 	   
 
-
-  
 (defun $chebyshev_t (n x)
   (cond ((use-hypergeo n x)
 	 (let ((f) (e))
@@ -744,7 +760,52 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
   #$$ 2*n*herite(n-1,x)$
   )
 
-;; numeric and symbolic code:
+(def-simplifier gen_laguerre (n a x)
+	(cond ((and (integerp n) (complex-number-p a #'$numberp) (complex-number-p x #'$numberp)
+	         (let ((digits (if (floatp x)
+			                  13
+							  (- $fpprec 2))))
+		    (gen_laguerre-numeric n a x digits))))
+          ;; symbolic case 
+		  ((integerp n)
+             (gen_laguerre-symbolic n a x))
+          ;; value for x=0 (see https://en.wikipedia.org/wiki/Laguerre_polynomials)
+		  ((and (eql x 0) ($featurep n '$integer))
+		   (ftake '%binomial (add n a) n))
+          ;; nothing known--noun form return
+ 		  (t (give-up))))
+
+(putprop '$gen_laguerre
+	 '((n a x)
+	   nil
+	   nil
+	   ((mtimes)
+	    ((mplus)
+	     ((mtimes) -1 ((mplus) a n)
+	      (($unit_step) n) (($gen_laguerre) ((mplus) -1 n) a x))
+	     ((mtimes) n (($gen_laguerre) n a x)))
+	    ((mexpt) x -1)))
+	 'grad)
+
+(def-simplifier laguerre (n x)
+  (cond ((use-hypergeo n x)
+	 (let ((f) (e))
+	   (multiple-value-setq (f e) ($hypergeo11 (mul -1 n) 1 x n))
+	   (orthopoly-return-handler 1 f e)))
+	(t
+	 `(($laguerre) ,n ,x))))
+
+(putprop '$laguerre
+	 '((n x)
+	   nil
+	   ((mtimes)
+	    ((mplus)
+	     ((mtimes) -1 n (($laguerre) ((mplus) -1 n) x))
+	     ((mtimes) n (($laguerre) n x)))
+	    ((mexpt) x -1)))
+	 'grad)
+
+;;; numeric and symbolic code:
 
 (defun hermite-numeric (n x digits)
   (handler-case
@@ -775,28 +836,14 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
            (q #'(lambda (k) (mul -2 k))))
 		   (generic-two-term-recursion-symbolic p q f0 f1 x n)))
 
-
 (in-package #:bigfloat)
 (defun jacobi-order-one (a b x)
 	(* (+ a 1) (+ 1 (- (/ (* (+ b a 2) (+ 1 (- x))) (* 2 (+ 1 a))))))) 
 
 (in-package :maxima)
 
-#| Recursion for jacobi_p(n, alpha, beta,x) is (the nightmare)
-
-jacobi_p(n+1, alpha, beta,x) = p(k) jacobi_p(n, alpha, beta,x) + q(k) jacobi_p(n-1, alpha, beta,x)
-
-       (2*k + alpha + beta + 1) * [ (2*k + alpha + beta + 2) * (2*k + alpha + beta) * x + (alpha^2 - beta^2) ]
-p(k) = -------------------------------------------------------------------------------------------------------
-                               2 * (k + 1) * (k + alpha + beta + 1) * (2*k + alpha + beta)
-
-
-              2 * (k + alpha) * (k + beta) * (2*k + alpha + beta + 2)
-q(k) = -----------------------------------------------------------------------
-         2 * (k + 1) * (k + alpha + beta + 1) * (2*k + alpha + beta)
-		 
-|#
-
+;;; Table 22.7 (page 782) of Abramowitz and Stegun (1964) gives the order-only recursion for 
+;;; the Jacobi polynomials.  This recursion is missing from Table 18.9.1 of the DLMF. 
 (defun jacobi_p-numeric (n a b x digits)
   (handler-case
       (let* ((bf-a (bigfloat::to a))
@@ -861,7 +908,6 @@ q(k) = -----------------------------------------------------------------------
         (bind-fpprec new-fpprec
           (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) (- new-fpprec 2)))))))
 
-
 (defun jacobi_p-symbolic (n a b x)
   (let* ((f0 1)
          (f1 (div (add (mul (add a b 2) x) (sub a b)) 2))
@@ -893,64 +939,75 @@ q(k) = -----------------------------------------------------------------------
 	(cond ((eql n 0) f0)
 	      ((eql n 1) f1)
           (t (generic-two-term-recursion-symbolic p q f0 f1 x n)))))
+
+(defun gen_laguerre-numeric (n a x digits)
+  (handler-case
+      (let* ((bf-a (bigfloat::to a))
+             (bf-x (bigfloat::to x))
+             
+             (f0 (bigfloat::to 1))
+             (f1 (bigfloat::- (bigfloat::+ bf-a 1) bf-x))
+             
+             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
+             
+             ;; Pre-cache static parameter term
+             (a+1 (bigfloat::+ bf-a 1))
+             
+             (p #'(lambda (k)
+                    (let* ((bf-k (bigfloat::to k))
+                           (k+1 (bigfloat::+ bf-k 1))
+                           ;; Numerator: 2k + a + 1 - x
+                           (num (bigfloat::- (bigfloat::+ (bigfloat::* 2 bf-k) a+1) bf-x)))
+                      (bigfloat::/ num k+1))))
+             
+             (q #'(lambda (k)
+                    (let* ((bf-k (bigfloat::to k))
+                           (k+1 (bigfloat::+ bf-k 1))
+                           ;; Numerator: k + a
+                           (num (bigfloat::+ bf-k bf-a)))
+                      (bigfloat::/ num k+1)))))
+        
+        (cond ((eql n 0) (maxima::to f0))
+              ((eql n 1) (maxima::to f1))
+              (t
+               (multiple-value-bind (value err)
+                   (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
+                 (cond ((bigfloat::relative-error-p value err eps)
+                        (maxima::to value))
+                       (t
+                        (let ((new-fpprec (mul 2 $fpprec)))
+                          (bind-fpprec new-fpprec
+                            (gen_laguerre-numeric n ($bfloat a) ($bfloat x) (- new-fpprec 2))))))))))
+    
+    (arithmetic-error (c)
+      (declare (ignore c))
+      (let ((new-fpprec (mul 2 $fpprec)))
+        (bind-fpprec new-fpprec
+          (gen_laguerre-numeric n ($bfloat a) ($bfloat x) (- new-fpprec 2)))))))
+
+(defun gen_laguerre-symbolic (n a x)
+  (let* ((f0 1)
+         (f1 (sub (add a 1) x))
+         (a+1 (add a 1))
+         (p #'(lambda (k)
+                (let* ((2k (mul 2 k))
+                       (k+1 (add k 1))
+                       ;; Numerator: 2k + a + 1 - x
+                       (num (sub (add 2k a+1) x)))
+                  (div num k+1))))
+         
+         (q #'(lambda (k)
+                (let* ((k+1 (add k 1))
+                       ;; Numerator: k + a
+                       (num (add k a)))
+                  (div num k+1)))))
+    
+    (cond ((eql n 0) f0)
+          ((eql n 1) f1)
+          (t (generic-two-term-recursion-symbolic p q f0 f1 x n)))))
+
 ;;;;;end numeric & symbolic code
 
-;; See A & S 22.5.54, page 780.  For integer n, use the identity
-;;     binomial(n+a,n) = pochhammer(a+1,n)/pochhammer(1,n)
-
-(defun $gen_laguerre (n a x)
-  (if (and (integerp a) (integerp n) (<= (- n) a) (< a 0))
-    ;; For (- n) <= a < 0, avoid problems with (a + k) in denominator of unsimplified expression.
-    (let ((a-gensym (gensym "a")))
-      ($ratsimp ($substitute a a-gensym ($ratsimp (gen_laguerre-1 n a-gensym x)))))
-    (gen_laguerre-1 n a x)))
-
-(defun gen_laguerre-1 (n a x)
-  (cond ((use-hypergeo n x)
-	 (let ((f) (d) (e))
-	   ;(setq d (div ($pochhammer (add a 1) n) ($pochhammer 1 n)))
-	   (setq d (pochhammer-quotient (add a 1) 1 x n))
-	   (multiple-value-setq (f e)
-	     ($hypergeo11 (mul -1 n) (add 1 a) x n))
-	   (setq e (if e (+ e (* 4 (abs f) +flonum-epsilon+ n)) nil))
-	   (orthopoly-return-handler d f e)))
-	(t
-	 `(($gen_laguerre) ,n ,a ,x))))
-
-(putprop '$gen_laguerre
-	 '((n a x)
-	   ((unk) first gen_laguerre)
-	   ((unk) second gen_laguerre)
-	   ((mtimes)
-	    ((mplus)
-	     ((mtimes) -1 ((mplus) a n)
-	      (($unit_step) n) (($gen_laguerre) ((mplus) -1 n) a x))
-	     ((mtimes) n (($gen_laguerre) n a x)))
-	    ((mexpt) x -1)))
-	 'grad)
-	 	 
-
-
-;; See A & S 22.5.16, page 778.
-
-(defun $laguerre (n x)
-  (cond ((use-hypergeo n x)
-	 (let ((f) (e))
-	   (multiple-value-setq (f e) ($hypergeo11 (mul -1 n) 1 x n))
-	   (orthopoly-return-handler 1 f e)))
-	(t
-	 `(($laguerre) ,n ,x))))
-
-(putprop '$laguerre
-	 '((n x)
-	   ((unk) first laguerre)
-	   ((mtimes)
-	    ((mplus)
-	     ((mtimes) -1 n (($laguerre) ((mplus) -1 n) x))
-	     ((mtimes) n (($laguerre) n x)))
-	    ((mexpt) x -1)))
-	 'grad)
-	 
 (defun $spherical_hankel1 (n x)
   (let ((f) (d) (e))
     (cond ((and (integerp n) (< n 0))
@@ -1532,9 +1589,9 @@ variable ~:M" arg (car (last arg))))
 	      ((mtimes ) -1 $inf) $inf))))
 
 	(t (merror "A weight for ~:M isn't known to Maxima" fn))))
-    
 
 (defun generic-two-term-recursion-symbolic (p q f0 f1 x n)
+  (declare (ignore x))
   (let* ((fm1 f0)   
          (fi f1)    
          (fnext))
@@ -1546,7 +1603,7 @@ variable ~:M" arg (car (last arg))))
         
         (setq fm1 fi
               fi fnext)))
-    ($ratdisrep ($rat fi x))))
+    fi))
 
 (in-package #:bigfloat)
 
