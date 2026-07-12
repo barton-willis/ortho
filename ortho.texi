@@ -1,3 +1,42 @@
+@node Introduction to Orthogonal Polynomials, Definitions for Orthogonal Polynomials, Top, Top
+@section Introduction to Orthogonal Polynomials
+
+This package provides functions for evaluating and working with classical orthogonal polynomials. 
+
+The primary mathematical reference for these definitions and identities is the @i{Digital Library of Mathematical Functions} (DLMF). The secondary reference is Abramowitz and Stegun's @i{Handbook of Mathematical Functions}.
+
+The package supports the following orthogonal polynomials:
+@itemize @bullet
+@item Chebyshev polynomials of the first kind (@code{chebyshev_t})
+@item Chebyshev polynomials of the second kind (@code{chebyshev_u})
+@item Gegenbauer (ultraspherical) polynomials (@code{gegenbauer_c} or @code{ultraspherical})
+@item Hermite polynomials (@code{hermite})
+@item Jacobi polynomials (@code{jacobi_p})
+@item Laguerre polynomials (@code{laguerre})
+@item Generalized Laguerre polynomials (@code{assoc_laguerre})
+@item Legendre polynomials (@code{legendre_p})
+@item Associated Legendre functions (@code{legendre_q})
+@end itemize
+
+For integer orders, the code performs full numeric evaluation. This supports real and complex values across three numeric representations: standard rational and complex rational numbers, fluid floating-point numbers (floats), and arbitrary-precision big floats (bigfloats).
+
+@node Definitions for Orthogonal Polynomials, , Introduction to Orthogonal Polynomials, Top
+@section Definitions for Orthogonal Polynomials
+
+@anchor{chebyshev_t}
+@deffn {Function} chebyshev_t (@var{n}, @var{x})
+
+Returns the $n$-th order Chebyshev polynomial of the first kind $T_n(x)$ evaluated at @var{x}.
+Defined recursively by:
+$$T_0(x) = 1$$
+$$T_1(x) = x$$
+$$T_n(x) = 2x T_{n-1}(x) - T_{n-2}(x) \quad \text{for } n \ge 2$$
+
+@opencatbox
+@category{Orthogonal polynomials} @category{Special functions}
+@closecatbox
+@end deffn
+
 @anchor{chebyshev_t}
 @deffn {Function} chebyshev_t (@var{n}, @var{x})
 
