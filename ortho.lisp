@@ -529,13 +529,13 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
            (q #'(lambda (k) (div k (add k 1)))))
 	 (generic-two-term-recursion-symbolic f0 f1 p q x n)))
          
-(putprop '$legendre_p 
+(putprop '%legendre_p 
 	 '((n x) 
 	   nil
 	   ((mtimes)
 	     ((mplus)
-	      ((mtimes) n (($legendre_p) ((mplus) -1 n) x))
-	      ((mtimes) -1 n (($legendre_p) n x) x))
+	      ((mtimes) n ((%legendre_p) ((mplus) -1 n) x))
+	      ((mtimes) -1 n ((%legendre_p) n x) x))
 	     ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) x 2))) -1)))
 	 'grad)
   
@@ -1134,7 +1134,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 ;; For analytic continuation, see A&S 10.1.35.
  
-(defun $spherical_bessel_y (n x)
+(defun $spherical_bessel_y$spherical_bessel_y (n x)
   (cond ((and (use-float x) (integerp n))
 	 (let ((d 1) (xr) (xi) (z))
 	   (setq x ($rectform ($float x)))

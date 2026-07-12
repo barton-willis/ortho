@@ -1,0 +1,129 @@
+ultraspherical
+
+   Y def-simplifier 
+   P numeric 
+   Y symbolic 
+   Y grad
+   N doc
+   N testing
+   
+chebyshev_t 
+   N def-simplifier 
+   N numeric (need to convert to new style)
+   N symbolic (need to convert to new style)
+   N grad 
+   N doc
+   N testing 
+
+chebyshev_u
+   N def-simplifier 
+   N numeric (need to convert to new style)
+   N symbolic (need to convert to new style)
+   N grad 
+   N doc
+   N testing 
+
+legendre_p
+   Y def-simplifier 
+   P numeric (need to convert to new style)
+   P symbolic (need to convert to new style)
+   Y grad 
+   N doc
+   N testing 
+
+legendre_q
+   N def-simplifier 
+   N numeric (need to convert to new style)
+   N symbolic (need to convert to new style)
+   N grad 
+   N doc
+   N testing 
+
+assoc_legendre_q
+   N def-simplifier 
+   N numeric (need to convert to new style)
+   N symbolic (need to convert to new style)
+   N grad 
+   N doc
+   N testing
+   
+assoc_legendre_q
+   N def-simplifier 
+   N numeric (need to convert to new style)
+   N symbolic (need to convert to new style)
+   N grad 
+   N doc
+   N testing
+   
+hermite
+   Y def-simplifier 
+   Y numeric (need to convert to new style)
+   Y symbolic (need to convert to new style)
+   Y grad 
+   N doc
+   N testing 
+
+gen_laguerre
+   Y def-simplifier 
+   Y numeric (need to convert to new style)
+   Y symbolic (need to convert to new style)
+   Y grad 
+   N doc
+   N testing 
+
+laguerre
+   N def-simplifier 
+   N numeric 
+   N symbolic 
+   N grad 
+   N doc
+   N testing 
+
+jacobi_p
+   Y def-simplifier 
+   Y numeric 
+   Y symbolic 
+   Y grad 
+   N doc
+   N testing (need numeric testing)
+
+spherical_hankel1
+   N def-simplifier 
+   N numeric 
+   N symbolic 
+   N grad 
+   N doc
+   N testing 
+
+spherical_hankel2
+   N def-simplifier 
+   N numeric 
+   N symbolic 
+   N grad 
+   N doc
+   N testing 
+
+spherical_bessel_j
+   N def-simplifier 
+   N numeric 
+   N symbolic 
+   N grad 
+   N doc
+   N testing 
+
+spherical_bessel_y
+   N def-simplifier 
+   N numeric 
+   N symbolic 
+   N grad 
+   N doc
+   N testing
+   
+spherical_harmonic
+   N def-simplifier 
+   N numeric 
+   N symbolic 
+   N grad 
+   N doc
+   N testing
+

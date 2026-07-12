@@ -83,3 +83,4 @@ block([ans : jacobi_p(2,2,3,x), dans : jacobi_p(n,2,3,x)],
   ans : diff(ans,x,2),
   ratsimp(ans - subst(n=2, dans)));
 0$
+
