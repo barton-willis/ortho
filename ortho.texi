@@ -13,7 +13,7 @@ The package supports the following orthogonal polynomials and special functions:
 @item Associated Legendre functions of the second kind (@code{assoc_legendre_q})
 @item Chebyshev polynomials of the first kind (@code{chebyshev_t})
 @item Chebyshev polynomials of the second kind (@code{chebyshev_u})
-@item Gegenbauer (ultraspherical) polynomials (@code{gegenbauer_c} or @code{ultraspherical})
+@item Ultraspherical (Gegenbauer) polynomials (@code{ultraspherical})
 @item Generalized Laguerre polynomials (@code{gen_laguerre})
 @item Hermite polynomials (@code{hermite})
 @item Jacobi polynomials (@code{jacobi_p})
@@ -27,8 +27,30 @@ The package supports the following orthogonal polynomials and special functions:
 @item Spherical harmonic functions (@code{spherical_harmonic})
 @end itemize
 
-For explicit integer orders, the code performs numeric evaluation for all rational, float, and big float 
-real and complex.
+These functions are defined by their initial two terms and their three-term recurrence relations. For 
+alternative definitions (integral representations, Rodrigues' formula, explicit summation, etc.), consult the DLMF."
+
+For explicit integer orders, the function carries out numeric evaluation for all rational, float, and 
+bigfloat inputs either real or complex and returns the result in rectangular form. Numeric evaluation follows 
+Maxima’s standard contagion rules. The Hermite polynomials provide a representative example:
+
+Examples:
+@example
+(%i1) hermite(5,1/2 + %i/4);
+                                 121 %i   861
+(%o1)                            ────── + ───
+                                   32     16
+(%i2) hermite(5,1/2 + %i/4.0);
+(%o2)                        3.78125 %i + 53.8125
+(%i3) hermite(5,1/2 + %i/4.0b0);
+(%o3)                      3.78125b0 %i + 5.38125b1
+(%i4) hermite(5,0.5 + %i/4);
+(%o4)                        3.78125 %i + 53.8125
+(%i5) hermite(5,0.5b0 + %i/4);
+(%o5)                      3.78125b0 %i + 5.38125b1
+
+@end
+For explicit integer orders and a symbolic main variable, the result is an polynomial.
 
 @node Definitions for Orthogonal Polynomials, , Introduction to Orthogonal Polynomials, Top
 @section Definitions for Orthogonal Polynomials

@@ -736,7 +736,6 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
       (let ((new-fpprec (mul 2 $fpprec)))
         (bind-fpprec new-fpprec
           (legendre_p-numeric n m ($bfloat x) (- new-fpprec 2)))))))
-
 	   
 ;;; Simplifier for the Hermite polynomial H_n, not He_n; see DLMF Table Table 18.3.1. 
 ;;; (https://dlmf.nist.gov/18.3) For the recusion, see DLMF Table http://dlmf.nist.gov/18.9.T1. 
@@ -746,9 +745,9 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
            (let* ((digits (if (floatp x)
 			                  13
 							  (- $fpprec 2)))
-		        (one (multiplicative-identity a b x)))
+		        (one (multiplicative-identity x)))
 			(if one 
-			    (number-coerce (hermite n x digits) one)
+			    (number-coerce (hermite-numeric n x digits) one)
 				(give-up))))
         ;; symbolic case call generic-two-term-recursion-symbolic
         ((integerp n)
