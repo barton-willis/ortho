@@ -283,3 +283,29 @@ $$n C_n^{(a)}(x) = 2(n + a - 1)x C_{n-1}^{(a)}(x) - (n + 2a - 2)C_{n-2}^{(a)}(x)
 @category{Orthogonal polynomials} @category{Special functions}
 @closecatbox
 @end deffn
+
+@anchor{unit_step}
+@deffn {Function} unit_step (@var{x})
+
+Returns the left-continuous unit step function (also known as the Heaviside step function) evaluated at @var{x}. 
+
+It is defined mathematically as:
+$$ \text{unit\_step}(x) = \begin{cases} 0 & \text{for } x \le 0 \\ 1 & \text{for } x > 0 \end{cases} $$
+
+This function differs from the expression @code{(1 + signum(x))/2}. The @code{signum}-based expression evaluates to $1/2$ at $x = 0$, meaning it is neither left- nor right-continuous at the origin. Because @code{unit_step(0)} evaluates to $0$, it maintains left-continuity.
+
+Examples:
+@example
+(%i1) unit_step(-5);
+(%o1)                           0
+(%i2) unit_step(0);
+(%o2)                           0
+(%i3) unit_step(5);
+(%o3)                           1
+@end example
+
+@opencatbox
+@category{Mathematical functions}
+@closecatbox
+
+@end deffn

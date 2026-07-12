@@ -17,12 +17,44 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 ;;       unit_step(x) = 0 for x <= 0 and 1 for x > 0.  
 ;;
 ;; This function differs from (1 + signum(x))/2 which isn't left or right
-;; continuous at 0.
+;; continuous at 0. We do not attempt to give unit_step a grad property.
 (def-simplifier unit_step (x)
   (let ((sgn ($csign x)))
 	 (cond ((member sgn '($neg $nz $zero)) 0)
 	       ((eq sgn '$pos) 1)
 	       (t (give-up)))))
+
+;; A sign function for unit_step. When the argument to unit_step is declared to be negative or positive,
+;; unit_step is simplified away before it arrives here--so returning pz is safe. For now, unit_step(%i)
+;; is a nounform, so sign(unit_step(%i)) => pz.
+(defun unit_step-sign-function (x)
+   (declare (ignore x))
+   (setq sign '$pz))
+(setf (get '%unit_step 'sign-function) 'unit_step-sign-function)
+
+;; antiderivative of unit_step
+(putprop '%unit_step
+  '((x) ((mtimes) ((rat) 1 4) x ((mplus) x ((mabs) x))))  'integral)
+
+(defun simplim%unit_step (e x pt)  
+ "Return limit(unit_step(X),x, pt)."
+  (let* ((*preserve-direction* t) 
+         (z (cadr e))
+         (lim (limit z x pt 'think)))
+     (cond ((eq lim '$ind)
+	        (cond ((eq t (mgrp 0 z)) 0)
+                  ((eq t (mgrp z 0)) 1)
+			      (t '$ind)))
+           ((eq lim '$minf) 0)
+		   ((eq lim '$inf)) 1)
+		   ((eq lim '$zerob) 0)
+           ((eq lim '$zeroa) 1)
+           ((or (eq lim '$und) (eq lim '$infinity)) (throw 'limit nil)) ; don't know
+           (t (ftake '%unit_step lim)))) ; use direct substitution
+(setf (get '%unit_step 'simplim%function) 'simplim%unit_step)
+
+
+
 
 (defmvar $pochhammer_max_index 100)
 

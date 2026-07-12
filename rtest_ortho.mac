@@ -1,4 +1,29 @@
-/* edge cases*/
+/* unit_step */
+
+block([ans : unit_step(x)],
+   [op(ans), args(ans)]);
+[unit_step, [x]]$
+
+unit_step(-42);
+0$
+
+unit_step(0);
+0$
+
+unit_step(zerob);
+0$
+
+unit_step(zeroa);
+1$
+
+unit_step(107);
+1$
+
+sign(unit_step(x));
+pz$
+
+
+/* jacobi polynomial edge cases*/
 jacobi_p(0, a, b, x);
 1$
 
