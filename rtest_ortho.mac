@@ -1,3 +1,4 @@
+/* edge cases*/
 jacobi_p(0, a, b, x);
 1$
 
@@ -7,8 +8,31 @@ jacobi_p(1, a, b, x);
 jacobi_p(1, a, b, 1);
  (2*a+2)/2$
 
-jacobi_p(2, a, b, 1);
+ratsimp(jacobi_p(2, a, b, 1),x);
 (a^2+3*a+2)/2$
+
+/* value at x = 1 */
+jacobi_p(n,a,b,1);
+pochhammer(a+1,n)/n!$
+
+rectform(subst(x=1, jacobi_p(6,%i,2/3,x)) - pochhammer(%i+1,6)/6!);
+0$
+
+/* reflection */
+
+block([ans],
+ declare(n,even),
+ ans : jacobi_p(n,a,b,x) - jacobi_p(n,b,a,-x),
+ remove(n,even),
+ ans);
+0$
+
+block([ans],
+ declare(n,odd),
+ ans : jacobi_p(n,a,b,x) + jacobi_p(n,b,a,-x),
+ remove(n,odd),
+ ans);
+0$
 
 /*  Rodrigue's formulae */
 
@@ -18,6 +42,7 @@ jacobi_p(2, a, b, 1);
     g : 1-t^2,
     rat(subst(x,t, diff(rho * g^n,t,n) / (an * rho)))),0);
 0$
+
 block([n : 0], expand(jacobi_p(n,a,b,x) - jacobi_p_rodrigue(n,a,b,x)));
 0$
 
@@ -41,8 +66,20 @@ block([n : 9], expand(jacobi_p(n,a,b,x) - jacobi_p_rodrigue(n,a,b,x)));
 
 /* check jacobi polynomial gradient */
 
+ratsimp(subst(n=2, diff(jacobi_p(n,2/3,1/6,x),x,3)));
+0$
+
+ratsimp(subst(n=3, diff(jacobi_p(n,a,b,x),x,4)));
+0$
+
 block([ans : jacobi_p(10,2,3,x), dans : jacobi_p(n,2,3,x)],
   dans : diff(dans,x),
-  ans : diff(ans,x)
-  ratsimp(ans- subst(x=10, dans)));
+  ans : diff(ans,x),
+  ratsimp(ans - subst(n=10, dans)));
+0$
+
+block([ans : jacobi_p(2,2,3,x), dans : jacobi_p(n,2,3,x)],
+  dans : diff(dans,x,2),
+  ans : diff(ans,x,2),
+  ratsimp(ans - subst(n=2, dans)));
 0$
