@@ -1,5 +1,5 @@
 
-
+(defprop $unit_step "\\Theta" texword)
 ;; TeX a function with subscripts and superscripts.  The string fn is the
 ;; function name, the list sub holds the positions of the subscripts, the list
 ;; sup holds the positions of the superscripts, and i is the position of the 

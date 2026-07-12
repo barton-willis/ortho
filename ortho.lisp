@@ -76,15 +76,11 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 ;; This function differs from (1 + signum(x))/2 which isn't left or right
 ;; continuous at 0.
 
-(defprop $unit_step "\\Theta" texword)
-
-(defun simp-unit-step (a y z)
-  (oneargcheck a)
-  (setq y (simpcheck (cadr a) z))
-  (let ((s (csign y)))
-    (cond ((or (eq s '$nz) (eq s '$zero) (eq s '$neg)) 0)
-	  ((eq s '$pos) 1)
-	  (t `(($unit_step simp) ,y)))))
+(def-simplifier unit_step (x)
+  (let ((sgn ($csign x)))
+	 (cond ((member sgn '($neg $nz $zero)) 0)
+	       ((eq sgn '$pos) 1)
+	       (t (give-up)))))
 
 ;; We barely support intervals; these functions aren't for user-level use.
 ;; The function intervalp returns true iff its argument is an interval.
@@ -313,6 +309,20 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
       ($featurep n '$integer)))
 ;      (and ($featurep n '$integer) ($ratnump x))))
 
+(defun multiplicative-identity (&rest a)
+  (flet ((local-one (s) 
+           (cond ((complex-number-p s #'$ratnump) 1)
+                 ((complex-number-p s #'(lambda (q) (or ($ratnump q) (floatp q)))) 1.0d0)
+                 ((complex-number-p s #'(lambda (q) (or ($ratnump q) (floatp q) ($bfloatp q)))) *bigfloatone*)
+                 (t nil)))) ;not a complex number, return nil
+    (let ((ones (mapcar #'local-one a)))
+      (unless (member nil ones) ; If any element failed the check, abort numeric calculation
+        (fapply 'mtimes ones)))))
+
+(defun number-coerce (x one)
+	(cond (($ratnump one) ($rationalize x))
+	      ((floatp one) ($float x))
+		  (t ($bfloat x))))
 ;; See A&S 22.5.42, page 779. For integer n, use the identity
 ;;     binomial(n+a,n) = pochhammer(a+1,n)/pochhammer(1,n)
 
@@ -330,15 +340,18 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	            (complex-number-p a #'$numberp)
 				(complex-number-p b #'$numberp)
 				(complex-number-p x #'$numberp))
-		  (let ((digits (if (floatp x)
+		  (let* ((digits (if (floatp x)
 			                  13
-							  (- $fpprec 2))))
-            (jacobi_p-numeric n a b x digits)))
+							  (- $fpprec 2)))
+		        (one (multiplicative-identity a b x)))
+			(if one 
+			    (number-coerce (jacobi_p-numeric n a b x digits) one)
+				(give-up))))
          ;; symbolic case call generic-two-term-recursion-symbolic
 		((integerp n)
             (jacobi_p-symbolic n a b x))
         ;; reflection
-		((great x (neg x)) ; jacobi_p(n,a,b,-x) = (-1)^n jacobi_p(n,b,a,x)
+		((great (neg x) x) ; jacobi_p(n,a,b,-x) = (-1)^n jacobi_p(n,b,a,x)
 			(mul (ftake 'mexpt -1 n) (ftake '%jacobi_p n b a (neg x))))
 
 		;; jacobi_p(n,a,b,1) = pochhammer(a+1,n)/n!
@@ -348,7 +361,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 		(t (give-up))))
 
-(putprop '$jacobi_p
+(putprop '%jacobi_p
 	 '((n a b x)
        nil
 	   nil
@@ -357,10 +370,10 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	    ((mexpt) ((mplus ) a b ((mtimes ) 2 n)) -1)
 	    ((mplus)
 	     ((mtimes) 2
-	      (($unit_step) n)
+	      ((%unit_step) n)
 	      ((mplus) a n) ((mplus) b n)
-	      (($jacobi_p) ((mplus) -1 n) a b x))
-	     ((mtimes) n (($jacobi_p) n a b x)
+	      ((%jacobi_p) ((mplus) -1 n) a b x))
+	     ((mtimes) n ((%jacobi_p) n a b x)
 	      ((mplus) a ((mtimes ) -1 b)
 	       ((mtimes)
 		((mplus) ((mtimes) -1 a) ((mtimes ) -1 b)
@@ -393,7 +406,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 		  ((integerp n)
 		    (ultraspherical-symbolic n a x))
 
-		((great x (neg x))
+		((great (neg x) x)
 		 (mul (ftake 'mexpt -1 n) (ftake '%ultraspherical n a (neg x))))
 
 		((eql x 1)
@@ -408,7 +421,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	   ((mtimes)
 	    ((mplus)
 	     ((mtimes)
-	      (($unit_step) n)
+	      ((%unit_step) n)
 	      ((mplus) -1 ((mtimes) 2 a) n)
 	      ((%ultraspherical) ((mplus) -1 n) a x))
 	     ((mtimes) -1 n ((%ultraspherical) n a x) x))
@@ -453,7 +466,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	   ((mtimes)
 	    ((mplus)
 	     ((mtimes)
-	      (($unit_step) n)
+	      ((%unit_step) n)
 	      ((mplus) 1 n) (($chebyshev_u) ((mplus) -1 n) x))
 	     ((mtimes) -1 n (($chebyshev_u) n x) x))
 	    ((mexpt) ((mplus ) 1 ((mtimes) -1 ((mexpt) x 2))) -1)))
@@ -698,7 +711,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	   ((unk) second assoc_legendre_p)
 	   ((mtimes simp)
 	    ((mplus simp)
-	     ((mtimes simp) -1 ((mplus simp) m n) (($unit_step) n)
+	     ((mtimes simp) -1 ((mplus simp) m n) ((%unit_step) n)
 	      (($assoc_legendre_p simp) ((mplus simp) -1 n) m x))
 	     ((mtimes simp) n (($assoc_legendre_p simp) n m x) x))
 	    ((mexpt simp) ((mplus simp) -1 ((mexpt simp) x 2)) -1))) 
@@ -709,34 +722,13 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 ;;; For special values, see DLMF Table http://dlmf.nist.gov/18.6.i
 (def-simplifier hermite (n x)
   (cond ((and (integerp n) (complex-number-p x #'$numberp)) ;evaluate numerically
-            (let ((digits (if (floatp x)
+           (let* ((digits (if (floatp x)
 			                  13
-							  (- $fpprec 2))))
-            (hermite-numeric n x digits)))
-         ;; symbolic case call generic-two-term-recursion-symbolic
-		((integerp n)
-            (hermite-symbolic n x))
-        ;; reflection: hermite(n,-x) = (-1)^n hermite(-n,-x)
-		((great (neg x) x)
-		  (mul (ftake 'mexpt -1 n) (ftake '%hermite n (neg x))))
-        ;; hermite(2n,0) = (-1/2)^(n) pochhammer(n/2 + 1,n)
-		((and (eql 0 x) ($featurep n '$even))
-		 (let ((halfn (div n 2)))
-		 	(mul (ftake 'mexpt (div -1 2) halfn)
-			(ftake '$pochhammer (add 1 halfn) halfn))))
-        ;; hermite(2n+1,0) = (-1/2)^m pochhammer(n+1,n+1)
-        ((and (eql 0 x) ($featurep n '$odd))
-		 (let ((halfn (div (sub n 1) 2)))
-		 	(mul (ftake 'mexpt (div -1 2) halfn)
-			(ftake '$pochhammer (add 1 halfn) (add 1 halfn)))))
-        (t (give-up))))
-
-(def-simplifier hermite (n x)
-  (cond ((and (integerp n) (complex-number-p x #'$numberp)) ;evaluate numerically
-         (let ((digits (if (floatp x)
-                           13
-                           (- $fpprec 2))))
-           (hermite-numeric n x digits)))
+							  (- $fpprec 2)))
+		        (one (multiplicative-identity a b x)))
+			(if one 
+			    (number-coerce (hermite n x digits) one)
+				(give-up))))
         ;; symbolic case call generic-two-term-recursion-symbolic
         ((integerp n)
          (hermite-symbolic n x))
@@ -782,7 +774,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	   ((mtimes)
 	    ((mplus)
 	     ((mtimes) -1 ((mplus) a n)
-	      (($unit_step) n) (($gen_laguerre) ((mplus) -1 n) a x))
+	      ((%unit_step) n) (($gen_laguerre) ((mplus) -1 n) a x))
 	     ((mtimes) n (($gen_laguerre) n a x)))
 	    ((mexpt) x -1)))
 	 'grad)
