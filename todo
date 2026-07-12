@@ -1,5 +1,15 @@
-ultraspherical
+unit_step
+   Y def-simplifier 
+   Y doc
+   N sign function
+   N conjugate function
+   Y limit function
+   N/A grad (don't intended to do it)
+   N antiderivative
+   Y testing
 
+
+ultraspherical
    Y def-simplifier 
    P numeric 
    Y symbolic 
