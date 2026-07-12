@@ -12,200 +12,17 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 |#
 
 (in-package :maxima)
-
-;; If the input can be evaluated to a floating point number (either
-;; real or complex), convert the input to a Common Lisp complex number.
-;; When the input doesn't evaluate to a float, return the input.
-
-(defun maxima-to-lisp-complex-float (a)
-  (let* (($ratprint nil)
-	 (b ($rectform a))
-	 (br ($float ($realpart b)))
-	 (bi ($float ($imagpart b))))
-    (cond ((and (numberp br) (numberp bi))
-	   (if (= bi 0) (float br)
-	     (complex (float br) 
-		      (float bi))))
-	  (t a))))
-
-;; Return true iff a is a float or a complex number with either a
-;; real or imaginary part that is a float.
-
-(defun xcomplexp (a)
-  (or (floatp a)
-      (and (complexp a) (or (floatp (realpart a)) (floatp (imagpart a))))))
-
-;; Convert a Lisp complex number into a Maxima complex number. When the
-;; input isn't a Lisp complex number, return the argument.
-
-(defun lisp-complex-to-maxima (x)
-  (if (complexp x) (add (realpart x) (mul '$%i (imagpart x))) x))
-   
-;; When orthopoly_returns_intervals is true, floating point evaluation 
-;; returns an interval using the form (($interval) c r), where c is the 
-;; center of the interval and r is its radius.  We don't provide the user
-;; with any tools for working with intervals.
-
-(defmvar $orthopoly_returns_intervals nil)
-
-(defun orthopoly-return-handler (d f e)
-  (cond ((or (floatp f) (complexp f))
-	 (let ((df (maxima-to-lisp-complex-float d))
-	       (ef))
-	   (setq f (lisp-complex-to-maxima
-		    (if (numberp df) (* df f) (mul d f))))
-	   (setq ef (if (and (numberp df) (numberp e)) (abs (* df e)) nil))
-	   (cond ((and $orthopoly_returns_intervals (floatp ef))
-		  `(($interval simp) ,f ,ef))
-		 (t f))))
-	(t (mul d f))))
-		    	     
-;; When a user requests the derivative of an a function in this package
-;; with respect to the order or some other parameter, return a form 
-;; ((unk) input from user). We "simplify" this form by printing an error.
-
-(defprop unk simp-unk operators)
-(defun simp-unk (x y z)
-  (declare (ignore y z))
-  (merror "Maxima doesn't know the derivative of ~:M with respect the ~:M argument" (nth 2 x) (nth 1 x)))
-
 ;; A left continuous unit step function; thus 
 ;;
 ;;       unit_step(x) = 0 for x <= 0 and 1 for x > 0.  
 ;;
 ;; This function differs from (1 + signum(x))/2 which isn't left or right
 ;; continuous at 0.
-
 (def-simplifier unit_step (x)
   (let ((sgn ($csign x)))
 	 (cond ((member sgn '($neg $nz $zero)) 0)
 	       ((eq sgn '$pos) 1)
 	       (t (give-up)))))
-
-;; We barely support intervals; these functions aren't for user-level use.
-;; The function intervalp returns true iff its argument is an interval.
-
-(defun $intervalp (a)
-  (and (consp a) (consp (car a)) (eq (caar a) '$interval)))
-
-;; Multiply x by a, where x isn't an interval and a might be an 
-;; interval.  When a isn't an interval or x is an interval, return
-;; x * a.  The optional argument dx is an upper bound for the 
-;; relative error in x.
-
-(defun interval-mult (x a &optional dx)
-  (if (null dx) (setq dx 0))
-  (cond ((and ($intervalp a) (not ($intervalp x)))
-	 (let ((p (nth 1 a))
-	       (q (nth 2 a)))
-	   (if (or (floatp p) (floatp q)) 
-	       (setq x ($float ($rectform x))))
-	   (setq p ($expand (mult x p)))
-	   (setq q ($expand (mult x (add q (simplify `((mabs) ,(mul p dx)))))))
-	   (setq q (simplify `((mabs) ,q)))
-	   `(($interval) ,p ,q)))
-	(t (mult x a))))
-	   
-
- 
-;; Return true iff 
-;;   (1) each member of the list a evaluates to a floating
-;;       point number (using $float) and 
-;;   (2) at least one member of a has a real or imaginary part that is a 
-;;       floating point number *or* a bigfloat.
-;; When we find an member of a that doesn't evaluate to a float, 
-;; immediately bail out and return nil.
-
-(defun use-float (&rest a)
-  (let ((xr) (xi) (float-found nil) (okay t))
-    (dolist (x a)
-      (setq x ($rectform x))
-      (setq xr ($realpart x))
-      (setq xi ($imagpart x))
-      (setq float-found (or float-found (floatp xr) (floatp xi)
-			    ($bfloatp xr) ($bfloatp xi)))
-      (setq okay (and (floatp ($float xr)) (floatp ($float xi))))
-      (if (not okay) (return)))
-    (and okay float-found)))
-	 
-;; When n is a nonnegative integer, return 1F1(a,b,x); that is return
-;; sum(pochhammer(a,k) * x^k /pochhammer(b,k),k,0,n). Regardless of the
-;; value of n,  when x = 0, immediately return 1.
-
-;; Any orthopoly function that calls hypergeo should check that n is an
-;; integer with n > -1; thus the summation code shouldn't get called for
-;; any orthopoly function.  It wouldn't be terrible if it happened -- I
-;; think the summation form isn't useful and a user can get into trouble
-;; with things like subst(0,x,sum(x^k,k,0,n)).
-
-(defun $hypergeo11 (a b x n)
-  (cond ((like x 0) 1)
-	((and (integerp n) (> n -1))
-	 (cond ((and (like a (- n)) (use-float b x))
-		(let ((f) (e))
-		  (multiple-value-setq (f e)
-		    (hypergeo11-float (- n) (maxima-to-lisp-complex-float b)
-				      (maxima-to-lisp-complex-float x)))
-		  (values f e)))
-	       (t
-		(let ((sum 1) (cf 1))
-		  (dotimes (i n sum)
-		    (setq cf (div (mul cf (add i a) x) (mul (add i b) (+ 1 i))))
-		    (setq sum (add cf sum)))))))
-	(t
-; The following is replaced with simplifying code.
-;	 `((%sum )
-;	   ((mtimes) ((mexpt) ((mfactorial) ,$genindex) -1)
-;	    (($pochhammer) ,a ,$genindex)
-;	    ((mexpt) (($pochhammer ) ,b ,$genindex) -1) 
-;	    ((mexpt) ,x ,$genindex)) ,$genindex 0 ,n))))
-         (let ((index (gensumindex)))
-           (simplify
-             (list '(%sum)
-                   (mul (inv (take '(mfactorial) index))
-                        (take '($pochhammer) a index)
-                        (inv (take '($pochhammer) b index))
-                        (power x index))
-                   index 0 n))))))
-
-;; return the F[2,1] hypergeometic sum from 0 to n. Use genindex as the 
-;; sum index; genindex is defined in asum.lisp
-
-(defun $hypergeo21 (a b c x n)
-  (cond ((like x 0) 1)
-	((and (integerp n) (> n -1))
-	 (cond ((and (like a (- n)) (use-float b c x))
-		(let ((f) (e))
-		  (multiple-value-setq (f e)
-		    (hypergeo21-float (- n) 
-				      (maxima-to-lisp-complex-float b)
-				      (maxima-to-lisp-complex-float c)
-				      (maxima-to-lisp-complex-float x)))
-		  (values f e)))
-	       (t
-		(let ((sum 1) (cf 1))
-		  (dotimes (i n sum)
-		    (setq cf (div (mul cf (add i a) (add i b) x) (mul (+ 1 i) 
-								      (add i c))))
-		    (setq sum (add cf sum)))))))
-	
-	(t
-; The following is replaced with simplifying code.
-;	 `((%sum)
-;	   ((mtimes) (($pochhammer) ,a ,$genindex) (($pochhammer) ,b ,$genindex)
-;	    ((mexpt) (($pochhammer) ,c ,$genindex) -1)
-;	    ((mexpt) ((mfactorial) ,$genindex) -1)
-;	    ((mexpt) ,x ,$genindex)) 
-;	   ,$genindex 0 ,n))))
-	 (let ((index (gensumindex)))
-           (simplify
-             (list '(%sum)
-                   (mul (take '($pochhammer) a index)
-                        (take '($pochhammer) b index)
-                        (inv (take '($pochhammer) c index))
-                        (inv (take '(mfactorial) index))
-                        (power x index))
-                   index 0 n))))))
 
 (defmvar $pochhammer_max_index 100)
 
@@ -218,9 +35,6 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	      (progn
 		(mtell "The value of `pochhammer_max_index' must be an integer.~%")
 		'munbindp))))
-
-(defun $pochhammer (x n)
-  (take '($pochhammer) x n))
 
 (in-package #:bigfloat)
 
@@ -285,30 +99,6 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	    ((mqapply) (($psi array) 0) ((mplus) n x))))
 	 'grad)
 
-;; pochhammer-quotient(a b x n) returns pochhammer( a,n) / pochhammer(b,n).  
-;; Only when one of a, b, or x  is a floating point number and the others are 
-;; numeric types (that is when (use-float a b x) evaluates to true) does this 
-;; function differ from using (div ($pochhammer a n) ($pochhammer b n)).  
-;; In the floating point case, we arrange the operations to reduce rounding 
-;; errors and to reduce over and underflows.
-
-(defun pochhammer-quotient (a b x n)
-  (cond ((mminusp n)
-	 (pochhammer-quotient b a x (neg n)))
-	((and (integerp n) (use-float a b x))
-	 (let ((acc 1.0))
-	   (setq a (maxima-to-lisp-complex-float a))
-	   (setq b (maxima-to-lisp-complex-float b))
-	   (dotimes (i n (lisp-float-to-maxima-float acc))
-	     (setq acc (* acc (/ (+ i a) (+ i b)))))))
-	(t (div ($pochhammer a n) ($pochhammer b n)))))
-  
-(defun use-hypergeo (n x)
-  (declare (ignore x))
-  (or (and (integerp n) (> n -1))
-      ($featurep n '$integer)))
-;      (and ($featurep n '$integer) ($ratnump x))))
-
 (defun multiplicative-identity (&rest a)
   (flet ((local-one (s) 
            (cond ((complex-number-p s #'$ratnump) 1)
@@ -323,17 +113,6 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	(cond (($ratnump one) ($rationalize x))
 	      ((floatp one) ($float x))
 		  (t ($bfloat x))))
-;; See A&S 22.5.42, page 779. For integer n, use the identity
-;;     binomial(n+a,n) = pochhammer(a+1,n)/pochhammer(1,n)
-
-;; The condition number of the pochhammer function is 
-;;     |1 + x/(x+1) + x/(x+2) + ... + x/(x+n-1)| <= n.
-;; The relative floating point error in computing the pochhammer 
-;; function is bounded by 3 n eps.  Putting these errors together,
-;; the error in d is bounded 4 n |d| eps.
-
-;; We're looking at (d +|- 4 n eps |d|)(f +|- e) = d (f +|- (e + 4 n eps |f|)) + 
-;; O(eps^2). 
 
 (def-simplifier jacobi_p (n a b x)
 	(cond ((and (integerp n) 
@@ -381,21 +160,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	    ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt ) x 2))) -1)))
 	 'grad)
  	   
-     	  
 ;; See A&S 22.5.46, page 779.
-
-(defun $ultraspherical (n a x)
-  (cond ((use-hypergeo n x)
-	 (let ((f) (d) (e))
-	   ;(setq d (div ($pochhammer (mul 2 a) n) ($pochhammer 1 n)))
-	   (setq d (pochhammer-quotient (mul 2 a) 1 x n))
-	   (multiple-value-setq (f e)
-	     ($hypergeo21 (mul -1 n) (add n (mul 2 a)) (add a (div 1 2))
-			  (div (add 1 (mul -1 x)) 2) n))
-	   (setq e (if e (+ e (* 4 n (abs f) +flonum-epsilon+)) nil))
-	   (orthopoly-return-handler d f e)))
-	(t `(($ultraspherical simp) ,n ,a ,x))))
-
 (def-simplifier ultraspherical (n a x)
 	(cond ((and (integerp n) (complex-number-p a #'$ratnump) (complex-number-p x #'$ratnump))
 	        (let ((digits (if (floatp x)
@@ -414,7 +179,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 		(t (give-up))))
 
-(putprop '$ultraspherical 
+(putprop '%ultraspherical 
 	 '((n a x)
 	   nil 
 	   nil
@@ -1228,100 +993,6 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	   ((mtimes) $%i m (($spherical_harmonic) n m theta phi)))
 	 'grad)
 	  	   	  	 				 	
-(defun maxima-float-to-lisp-float (y)
-  (let* ((x ($rectform y))
-	 (xr ($realpart x))
-	 (xi ($imagpart x)))
-    (cond ((or (floatp xr) (floatp xi))
-	   (setq xr (float xr)
-		 xi (float xi))
-	   (if (= 0.0 xi) xr (complex xr xi)))
-	  (t
-	   y))))
-
-(defun lisp-float-to-maxima-float (x)
-  (if (complexp x)
-      (add (realpart x) (mul '$%i (imagpart x)))
-    x))
-     
-(defun hypergeo11-float (n b x)
-  (let ((f0) (fm1) (f) (i 0) (k) (dk) (ak) (bk) (err)
-	(as (make-array (- 1 n) 
-			:initial-element 0.0))
-	(bs (make-array (- 1 n) 
-			:initial-element 0.0))
-	(fs (make-array (- 1 n)
-			:initial-element 0.0))
-	(u) (u0) (um1))
-
-    (setq f0 1.0)
-    (setq fm1 0.0)
-    (setq x (- b x))
-    (setq n (- n))
-    (while (< i n)
-      (setf (aref fs i) f0)
-      (setq dk (+ b i))
-      (setq ak (/ (+ (* 2 i) x) dk))
-      (setq bk (/ (- i) dk))
-      (setq f (+ (* ak f0) (* bk fm1)))
-      (setf (aref as i) ak)
-      (setf (aref bs i) bk)
-      (setq fm1 f0)
-      (setq f0 f)
-      (incf i))
-    (setf (aref fs i) f0)
-    (setq i 1)
-    (setq err 1.0)
-    (setq u0 1.0)
-    (setq um1 0.0)
-    (while (< i n)
-      (setq k (- n i))
-      (setq u (+ (* (aref as k) u0)
-		 (* (aref bs (+ 1 k)) um1)))
-      (setq um1 u0)
-      (setq u0 u)
-      (setq err (+ err (abs (* u0 (aref fs k)))))
-      (incf i))
-    (values f0 (* 12 +flonum-epsilon+ err))))
-    
-(defun hypergeo21-float (n b c x)
-  (let ((f0) (fm1) (f) (i 0) (k) (dk) (ak) (bk) (err)
-	(as (make-array (- 1 n) 
-			:initial-element 0.0))
-	(bs (make-array (- 1 n) 
-			:initial-element 0.0))
-	(fs (make-array (- 1 n)
-			:initial-element 0.0))
-	(u) (u0) (um1))
-
-    (setq f0 1.0)
-    (setq fm1 0.0)
-    (setq n (- n))
-    (while (< i n)
-      (setf (aref fs i) f0)
-      (setq dk (+ c i))
-      (setq ak (/ (+ (* 2 i) c (- (* x (+ b i)))) dk))
-      (setq bk (/ (* i (- x 1)) dk))
-      (setq f (+ (* ak f0) (* bk fm1)))
-      (setf (aref as i) ak)
-      (setf (aref bs i) bk)
-      (setq fm1 f0)
-      (setq f0 f)
-      (incf i))
-    (setf (aref fs i) f0)
-    (setq i 1)
-    (setq err 1.0)
-    (setq u0 1.0)
-    (setq um1 0.0)
-    (while (< i n)
-      (setq k (- n i))
-      (setq u (+ (* (aref as k) u0)
-		 (* (aref bs (+ 1 k)) um1)))
-      (setq um1 u0)
-      (setq u0 u)
-      (incf i)
-      (setq err (+ err (abs (* (aref fs k) u0)))))
-    (values f0 (* 12 +flonum-epsilon+ err))))
     
 ;; For recursion relations, see A & S 22.7 page 782. 
 

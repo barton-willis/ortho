@@ -4,7 +4,7 @@ ultraspherical
    P numeric 
    Y symbolic 
    Y grad
-   N doc
+   Y doc
    N testing
    
 chebyshev_t 
@@ -12,7 +12,7 @@ chebyshev_t
    N numeric (need to convert to new style)
    N symbolic (need to convert to new style)
    N grad 
-   N doc
+   Y doc
    N testing 
 
 chebyshev_u
@@ -20,7 +20,7 @@ chebyshev_u
    N numeric (need to convert to new style)
    N symbolic (need to convert to new style)
    N grad 
-   N doc
+   Y doc
    N testing 
 
 legendre_p
@@ -28,7 +28,7 @@ legendre_p
    P numeric (need to convert to new style)
    P symbolic (need to convert to new style)
    Y grad 
-   N doc
+   Y doc
    N testing 
 
 legendre_q
@@ -36,15 +36,15 @@ legendre_q
    N numeric (need to convert to new style)
    N symbolic (need to convert to new style)
    N grad 
-   N doc
+   Y doc
    N testing 
 
-assoc_legendre_q
+assoc_legendre_p
    N def-simplifier 
    N numeric (need to convert to new style)
    N symbolic (need to convert to new style)
    N grad 
-   N doc
+   Y doc
    N testing
    
 assoc_legendre_q
@@ -52,7 +52,7 @@ assoc_legendre_q
    N numeric (need to convert to new style)
    N symbolic (need to convert to new style)
    N grad 
-   N doc
+   Y doc
    N testing
    
 hermite
@@ -60,7 +60,7 @@ hermite
    Y numeric (need to convert to new style)
    Y symbolic (need to convert to new style)
    Y grad 
-   N doc
+   Y doc
    N testing 
 
 gen_laguerre
@@ -68,7 +68,7 @@ gen_laguerre
    Y numeric (need to convert to new style)
    Y symbolic (need to convert to new style)
    Y grad 
-   N doc
+   Y doc
    N testing 
 
 laguerre
@@ -76,7 +76,7 @@ laguerre
    N numeric 
    N symbolic 
    N grad 
-   N doc
+   Y doc
    N testing 
 
 jacobi_p
@@ -84,15 +84,15 @@ jacobi_p
    Y numeric 
    Y symbolic 
    Y grad 
-   N doc
+   Y doc
    N testing (need numeric testing)
 
-spherical_hankel1
+spherical_hankel1spherical_hankel1
    N def-simplifier 
    N numeric 
    N symbolic 
    N grad 
-   N doc
+   Y doc
    N testing 
 
 spherical_hankel2
@@ -100,7 +100,7 @@ spherical_hankel2
    N numeric 
    N symbolic 
    N grad 
-   N doc
+   Y doc
    N testing 
 
 spherical_bessel_j
@@ -108,7 +108,7 @@ spherical_bessel_j
    N numeric 
    N symbolic 
    N grad 
-   N doc
+   Y doc
    N testing 
 
 spherical_bessel_y
@@ -116,7 +116,7 @@ spherical_bessel_y
    N numeric 
    N symbolic 
    N grad 
-   N doc
+   Y doc
    N testing
    
 spherical_harmonic
@@ -124,6 +124,6 @@ spherical_harmonic
    N numeric 
    N symbolic 
    N grad 
-   N doc
+   Y doc
    N testing
 
