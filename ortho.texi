@@ -1,37 +1,44 @@
 @node Introduction to Orthogonal Polynomials, Definitions for Orthogonal Polynomials, Top, Top
 @section Introduction to Orthogonal Polynomials
 
-This package provides functions for evaluating and working with classical orthogonal polynomials. 
+This package provides functions for evaluating and working with classical orthogonal polynomials, the
+Bessel polynomials, and some related such functions.
 
 The primary mathematical reference for these functions is the @i{Digital Library of Mathematical Functions} (DLMF). 
 The secondary reference is Abramowitz and Stegun's @i{Handbook of Mathematical Functions}.
 
-The package supports the following orthogonal polynomials:
-The package supports the following orthogonal polynomials and special functions:
+The package supports the following classical orthogonal polynomials from Chapter 18 of the DLMF:
 @itemize @bullet
-@item Associated Legendre functions of the first kind (@code{assoc_legendre_p})
-@item Associated Legendre functions of the second kind (@code{assoc_legendre_q})
+@item Jacobi polynomials (@code{jacobi_p})
+@item Ultraspherical (Gegenbauer) polynomials (@code{ultraspherical})
 @item Chebyshev polynomials of the first kind (@code{chebyshev_t})
 @item Chebyshev polynomials of the second kind (@code{chebyshev_u})
-@item Ultraspherical (Gegenbauer) polynomials (@code{ultraspherical})
-@item Generalized Laguerre polynomials (@code{gen_laguerre})
-@item Hermite polynomials (@code{hermite})
-@item Jacobi polynomials (@code{jacobi_p})
+@item Legendre polynomials (@code{legendre_p})
 @item Laguerre polynomials (@code{laguerre})
-@item Legendre polynomials of the first kind (@code{legendre_p})
-@item Legendre functions of the second kind (@code{legendre_q})
+@item Hermite polynomials (@code{hermite})
+@end itemize
+Each of these polynomials are implemented as simplifying functions. The simplifications 
+include the facts listed in Table 18.6.1 of the DLMF. 
+
+Additionally, the package supports the spherical Bessel fuctions (DLMF, Chapter 10). These functions are
+
+@itemize @bullet
 @item Spherical Bessel functions of the first kind (@code{spherical_bessel_j})
 @item Spherical Bessel functions of the second kind (@code{spherical_bessel_y})
 @item Spherical Hankel functions of the first kind (@code{spherical_hankel1})
 @item Spherical Hankel functions of the second kind (@code{spherical_hankel2})
-@item Spherical harmonic functions (@code{spherical_harmonic})
+
+Finally, the package supports the following related functions:
+@itemize @bullet
+@item Associated Legendre functions of the first kind (@code{assoc_legendre_p})
+@item Associated Legendre functions of the second kind (@code{assoc_legendre_q})
+@item Generalized Laguerre polynomials (@code{gen_laguerre})
+@item Legendre functions of the second kind (@code{legendre_q})
+@item Spherical harmonic functions (DLMF Chapter 14) (@code{spherical_harmonic})
 @end itemize
 
-These functions are defined by their initial two terms and their three-term recurrence relations. For 
-alternative definitions (integral representations, Rodrigues' formula, explicit summation, etc.), consult the DLMF."
-
-For explicit integer orders, the function carries out numeric evaluation for all rational, float, and 
-bigfloat inputs either real or complex and returns the result in rectangular form. Numeric evaluation follows 
+For all supported functions with explicit integer orders, all supported functions carries out numeric evaluation for all rational, float, and 
+big float inputs for either real or complex and returns the result in rectangular form. Numeric evaluation follows 
 Maxima’s standard contagion rules. The Hermite polynomials provide a representative example:
 
 Examples:
