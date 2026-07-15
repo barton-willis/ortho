@@ -1,3 +1,7 @@
+
+(approx_equal(a,b,eps) := is(abs(a-b) < eps*(1 + abs(a))),0);
+  0$
+
 /* unit_step */
 
 block([ans : unit_step(x)],
@@ -21,7 +25,6 @@ unit_step(107);
 
 sign(unit_step(x));
 pz$
-
 
 /* jacobi polynomial edge cases*/
 jacobi_p(0, a, b, x);
@@ -109,3 +112,31 @@ block([ans : jacobi_p(2,2,3,x), dans : jacobi_p(n,2,3,x)],
   ratsimp(ans - subst(n=2, dans)));
 0$
 
+/* Jacobi numerical tests */
+
+(af : 0.7, bf: 0.8, xf : 0.5, a : rationalize(af), b : rationalize(bf), x : rationalize(xf),0);
+0$
+
+xreduce("and", makelist(approx_equal(jacobi_p(k,a,b,x), jacobi_p(k, af,bf,xf),1.0e-15),k,0,128));
+true$
+
+(af : 0.7, bf: -0.8, xf : 10.5, a : rationalize(af), b : rationalize(bf), x : rationalize(xf),0);
+0$
+
+xreduce("and", makelist(approx_equal(jacobi_p(k,a,b,x), jacobi_p(k, af,bf,xf),1.0e-14),k,0,128));
+true$
+
+(af : 0.7, bf: 1.0*%i, xf : 10.5, a : rationalize(af), b : rationalize(bf), x : rationalize(xf),0);
+0$
+
+xreduce("and", makelist(approx_equal(jacobi_p(k,a,b,x), jacobi_p(k, af,bf,xf),1.0e-14),k,0,32));
+true$
+
+(af : 0.7, bf: 1.0*%i, xf : -10.5, a : rationalize(af), b : rationalize(bf), x : rationalize(xf),0);
+0$
+
+xreduce("and", makelist(approx_equal(jacobi_p(k,a,b,x), jacobi_p(k, af,bf,xf),1.0e-14),k,0,32));
+true$
+
+(remvalue(a,b,x,af,bf,xf),0);
+0$

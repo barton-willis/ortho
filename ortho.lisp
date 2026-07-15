@@ -676,18 +676,12 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	     ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) x 2))) -1))))
 	 'grad) 
 	    
-;; See A & S 22.5.37 page 779, A & S 8.6.6 (second equation) page 334, and 
-;; A & S 8.2.5 page 333.  For n < 0, see A&S 8.2.1 page 333.
-#|
 (def-simplifier assoc_legendre_p (n m x)
 	(cond ((and (integerp n) (integerp m) (complex-number-p x #'$ratnump))
-	           (let ((digits (if (floatp x)
-			                  13
-							  (- $fpprec 2))))
-              (assoc_legendre_q-numeric n m a x digits)))
+              (assoc_legendre_p-numeric n m x))
 
            ((and (integerp n) (integerp m)
-                (assoc_legendre_q-numeric n m a x)))
+                (assoc_legendre_q-symbolic n m a x)))
 
 		   (t (give-up))))
   
@@ -706,21 +700,6 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	    ((mexpt simp) ((mplus simp) -1 ((mexpt simp) x 2)) -1))) 
 	   'grad)
 	   
-(defun assoc_legendre_p-symbolic (n m x)
-  (let* ((f0 (cond ((eql m 0) 1)
-                   (t 0)))
-         (f1 (cond ((eql m 0) x)
-                   ((eql m 1) (mul -1 (power (sub 1 (mul x x)) (div 1 2))))
-                   (t 0)))
-         (p #'(lambda (k)
-                (div (mul x (add (mul 2 k) 1))
-                     (sub (add k 1) m))))
-         (q #'(lambda (k)
-                (div (sub 0 (add k m))
-                     (sub (add k 1) m)))))
-    (cond ((eql n 0) f0)
-          ((eql n 1) f1)
-          (t (generic-two-term-recursion-symbolic p q f0 f1 x n)))))
 
 (defun assoc_legendre_p-numeric (n m x digits)
   (handler-case
@@ -765,7 +744,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
         (bind-fpprec new-fpprec
           (legendre_p-numeric n m ($bfloat x) (- new-fpprec 2)))))))
 
- |#   
+ 
 ;;; Simplifier for the Hermite polynomial H_n, not He_n; see DLMF Table Table 18.3.1. 
 ;;; (https://dlmf.nist.gov/18.3) For the recusion, see DLMF Table http://dlmf.nist.gov/18.9.T1. 
 ;;; For special values, see DLMF Table http://dlmf.nist.gov/18.6.i
@@ -1571,9 +1550,9 @@ variable ~:M" arg (car (last arg))))
   ;; by extracting the real part and evaluating its epsilon.
   (epsilon (cl:realpart x)))
 
-(defvar *slop* 1)
+(defvar *safety* 6)
 (defun relative-error-p (x err eps)
-  (<= (abs err) (* *slop* eps (+ 1 (abs x)))))
+  (<= (abs (* *safety* err)) (* eps (+ 1 (abs x)))))
 
 #| 
 (defun hypergeo21-polynomial-numeric (n b c x) 
