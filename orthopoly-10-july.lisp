@@ -1474,7 +1474,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 		   ((,fn) ,n ,x) ,x)))
 		,z)))))
 
-	((member fn '($assoc_legendre_p $assoc_legendre_q) :test 'eq)
+	((member fn '($assoc_legendre_p) :test 'eq)
 	 (check-arg-length fn 3 (- (length arg) 1))
 	 (let ((n (nth 1 arg))
 	       (m (nth 2 arg))

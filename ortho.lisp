@@ -44,6 +44,9 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
  |#
 (in-package :maxima)
 
+(defun symbolic-clean-up (p x)
+	(let (($ratfac t) ($algebraic t))  ($ratdisrep ($rat p x))))
+
 (defmvar *binary64-digits* (floor (* (float-digits 1.0d0) (log 2 10))))
 ;; A left continuous unit step function; thus 
 ;;
@@ -51,11 +54,26 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 ;;
 ;; This function differs from (1 + signum(x))/2 which isn't left or right
 ;; continuous at 0. We do not attempt to give unit_step a grad property.
-(def-simplifier unit_step (x)
-  (let ((sgn ($csign x)))
-	 (cond ((member sgn '($neg $nz $zero)) 0)
-	       ((eq sgn '$pos) 1)
-	       (t (give-up)))))
+
+;(defmfun $unit_step (x)
+ ; (ftake '%unit_step x))
+  
+;(def-simplifier unit_step (x)
+ ; (let ((sgn ($csign x)))
+;	 (cond ((member sgn '($neg $nz $zero)) 0)
+	;;       ((eq sgn '$pos) 1)
+	 ;      (t (give-up)))))
+
+(defun simp-unit-step (a y z)
+  (oneargcheck a)
+  (setq y (simpcheck (cadr a) z))
+  (let ((s (csign y)))
+    (cond ((or (eq s '$nz) (eq s '$zero) (eq s '$neg)) 0)
+	  ((eq s '$pos) 1)
+	  (t `(($unit_step simp) ,y)))))
+(setf (get '$unit_step 'operators) 'simp-unit-step)
+(setf (get '%unit_step 'operators) 'simp-unit-step)
+(print "at 1")
 
 ;; A sign function for unit_step. When the argument to unit_step is declared to be negative or positive,
 ;; unit_step is simplified away before it arrives here--so returning pz is safe. For now, unit_step(%i)
@@ -67,7 +85,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 ;; antiderivative of unit_step
 (putprop '%unit_step
-  '((x) ((mtimes) ((rat) 1 4) x ((mplus) x ((mabs) x))))  'integral)
+  '((x) ((mtimes) ((rat) 1 2) ((mplus) x ((mabs) x))))  'integral)
 
 (defun simplim%unit_step (e x pt)  
  "Return limit(unit_step(X),x, pt)."
@@ -86,80 +104,6 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
            (t (ftake '%unit_step lim))))) ; use direct substitution
 
 (setf (get '%unit_step 'simplim%function) 'simplim%unit_step)
-
-(defmvar $pochhammer_max_index 100)
-
-;; This disallows noninteger assignments to $pochhammer_max_index.
-(setf (get '$pochhammer_max_index 'assign)
-      #'(lambda (a b) 
-	  (declare (ignore a))
-	  (if (not (and (atom b) (integerp b)))
-	      (progn
-		(mtell "The value of `pochhammer_max_index' must be an integer.~%")
-		'munbindp))))
-
-(in-package #:bigfloat)
-
-;; Numerical evaluation of pochhammer using the bigfloat package.
-(defun pochhammer (x n)
-  (if (minusp n) 
-      (/ 1 (pochhammer (+ x n) (- n)))
-      (let ((acc (bigfloat::to 1))) 
-        (dotimes (k n acc)
-          (setq acc (* acc (+ k x)))))))
-
-(in-package :maxima)
-
-(defun simp-pochhammer (e y z)
-  (declare (ignore y))
-  (let ((x) (n) (return-a-rat))
-    (twoargcheck e)
-    (setq return-a-rat ($ratp (second e)))
-    (setq x (simplifya (specrepcheck (second e)) z))
-    (setq n (simplifya (specrepcheck (third e)) z))
- 
-    (cond ((or ($taylorp (second e)) ($taylorp (third e)))
-	   (setq x (simplifya (second e) z))
-	   (setq n (simplifya (third e) z))
-	   ($taylor (div (take '(%gamma) (add x n)) (take '(%gamma) x))))
-	   
-	  ((eql n 0) 1)
-	  
-	  ;; pochhammer(1,n) = n! (factorial is faster than bigfloat::pochhammer.)
-	  ((eql x 1) (take '(mfactorial) n))
-     
-	  ;; pure numeric evaluation--use numeric package.
-	  ((and (integerp n) (complex-number-p x '$numberp))
-	   (maxima::to (bigfloat::pochhammer (bigfloat::to x) (bigfloat::to n))))
-
-	  ((and (integerp (mul 2 n)) (integerp (mul 2 x)) (> (mul 2 n) 0) (> (mul 2 x) 0))
-	   (div (take '(%gamma) (add x n)) (take '(%gamma) x)))
-
-	  ;; Use a reflection identity when (great (neg n) n) is true. Specifically,
-	  ;; use pochhammer(x,-n) * pochhammer(x-n,n) = 1; thus pochhammer(x,n) = 1/pochhammer(x+n,-n).
-	  ((great (neg n) n)
-	   (div 1 (take '($pochhammer) (add x n) (neg n))))
-	  
-	  ;; Expand when n is an integer and either abs(n) < $expop or abs(n) < $pochhammer_max_index.
-	  ;; Let's give $expand a bit of early help.
-	  ((and (integerp n) (or (< (abs n) $expop) (< (abs n) $pochhammer_max_index)))
-	   (if (< n 0) (div 1 (take '($pochhammer) (add x n) (neg n)))
-	     (let ((acc 1))
-	       (if (or (< (abs n) $expop) return-a-rat) (setq acc ($rat acc) x ($rat x)))
-	       (dotimes (k n (if return-a-rat acc ($ratdisrep acc)))
-		 (setq acc (mul acc (add k x)))))))
-	   
-	  ;; return a nounform.
-	  (t `(($pochhammer simp) ,x ,n)))))
-
-(putprop '$pochhammer
-	 '((x n)
-	   ((mtimes) (($pochhammer) x n)
-	    ((mplus) ((mtimes) -1 ((mqapply) (($psi array) 0) x))
-	     ((mqapply) (($psi array) 0) ((mplus) n x)))) 
-	   ((mtimes) (($pochhammer) x n)
-	    ((mqapply) (($psi array) 0) ((mplus) n x))))
-	 'grad)
 
 (defun multiplicative-identity (&rest a)
   "Return the appropriate multiplicative identity (1 for rational numbers, 1.0do for binary64, and 1.0b0 for bigfloats)
@@ -192,6 +136,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 				(give-up))))
          ;; symbolic case call generic-two-term-recursion-symbolic
 		((integerp n)
+		    (mtell "n = ~M ; a = ~M ; b = ~M ; x = ~M ~%" n a b x)
             (jacobi_p-symbolic n a b x))
         ;; reflection
 		((great (neg x) x) ; jacobi_p(n,a,b,-x) = (-1)^n jacobi_p(n,b,a,x)
@@ -226,6 +171,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
  	   
 ;; See A&S 22.5.46, page 779.
 (def-simplifier ultraspherical (n a x)
+    (mtell "n = ~M ; a = ~M ; x = ~M ~%" n a x)
 	(cond ((and (integerp n) (complex-number-p a #'$ratnump) (complex-number-p x #'$ratnump))
             (let* ((digits (if (floatp x)
 			                  (- *binary64-digits* 2)
@@ -241,8 +187,13 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 		((great (neg x) x)
 		 (mul (ftake 'mexpt -1 n) (ftake '%ultraspherical n a (neg x))))
 
-		((eql x 1)
-	      (div (ftake '$pochhammer (mul 2 a) n) (ftake 'mfactorial n)))
+        ((eql x 1)
+	      (div (ftake '%pochhammer (mul 2 a) n) (ftake 'mfactorial n)))
+
+        ;; see http://dlmf.nist.gov/18.7.E2 & http://dlmf.nist.gov/18.7.E3
+		((and (eql a 0));;; (integerp n) (>= n 0))
+			(mul (ftake '%ultraspherical n 0 1) 
+			     (ftake '%chebyshev_t n x))) 
 
 		(t (give-up))))
 
@@ -527,20 +478,20 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
                 (t
                  ;; If precision is insufficient, boost fpprec and convert to bigfloat
                  (bind-fpprec (mul 2 $fpprec)
-                   (legendre-p-numeric n ($bfloat x) (- $fpprec 2)))))))
+                   (legendre_p-numeric n ($bfloat x) (- $fpprec 2)))))))
     
     ;; Catch binary64 overflow and switch automatically to bigfloats
     (arithmetic-error (c)
       (declare (ignore c)) ; Bound 'c' to prevent compiler/runtime errors
       (bind-fpprec $fpprec
-        (legendre-p-numeric n ($bfloat x) (- $fpprec 2))))))
+        (legendre_p-numeric n ($bfloat x) (- $fpprec 2))))))
 
 (defun legendre-p-symbolic (n x)
     (let* ((f0 1)
 		   (f1 x)
            (p #'(lambda (k) (div (mul (add (mul 2 k) 1) x) (add k 1)))) ; (2k+1)x/(k+1) 
-           (q #'(lambda (k) (div k (add k 1)))))
-	 (generic-two-term-recursion-symbolic f0 f1 p q x n)))
+           (q #'(lambda (k) (mul -1 (div k (add k 1))))))
+	 (generic-two-term-recursion-symbolic p q f0 f1 x n)))
          
 (putprop '%legendre_p 
 	 '((n x) 
@@ -580,6 +531,8 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 ;; Return assoc_legendre(0,m,x). This isn't a user-level function; we 
 ;; don't check that m is a positive integer.
+
+(print "at 3")
 
 (defun q0m (m x)
   (cond ((< m 0)
@@ -637,54 +590,70 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 ;; See A&S 8.5.3. When i = m in the while loop, we have a special
 ;; case.  For negative order, see A&S 8.2.6.
 
-(defun $assoc_legendre_q (n m x)
-  (cond ((and (integerp n) (> n -1) (integerp m) (<= (abs m) n))
-	 (cond ((< m 0)
-		(mul (div (factorial (+ n m)) (factorial (- n m)))
-		     ($assoc_legendre_q n (- m) x)))
-	       (t
-		(if (not (or (floatp x) ($bfloatp x))) (setq x ($rat x)))
-		(let* ((q0 (q0m m x))
-		       (q1 (if (= n 0) q0 (q1m m x)))
-		       (q) (i 2)
-		       (use-rat (or ($ratp x) (floatp x) ($bfloatp x))))
-		  
-		  (while (<= i n)
-		    (setq q (if (= i m) (assoc-legendre-q-nn i x) 
-			      (div (sub (mul (- (* 2 i) 1) x q1) 
-					(mul (+ i -1 m) q0)) (- i m))))
-		    (setq q0 q1)
-		    (setq q1 q)
-		    (incf i))
-		  (if use-rat q1 ($ratsimp q1))))))
-	(t `(($assoc_legendre_q simp) ,n ,m ,x))))
+(def-simplifier assoc_legendre_q (n m x)
+  (give-up))
 
 ;; See G & R, 8.733, page 1005 first equation.
 
-(putprop '$assoc_legendre_q
+(putprop '%assoc_legendre_q
 	 '((n m x)
-	   ((unk) first assoc_legendre_q)
-	   ((unk) second assoc_legendre_q)
-	   
+	   nil
+	   nil
 	   ((mplus)
 	    ((mtimes)
 	     ((mplus)
 	      ((mtimes) -1 ((mplus) 1 ((mtimes) -1 m) n)
-	       (($assoc_legendre_q ) ((mplus ) 1 n) m x))
+	       ((%assoc_legendre_q ) ((mplus ) 1 n) m x))
 	      ((mtimes) ((mplus) 1 n)
-	       (($assoc_legendre_q ) n m x) x))
+	       ((%assoc_legendre_q ) n m x) x))
 	     ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) x 2))) -1))))
 	 'grad) 
-	    
-(def-simplifier assoc_legendre_p (n m x)
-	(cond ((and (integerp n) (integerp m) (complex-number-p x #'$ratnump))
-              (assoc_legendre_p-numeric n m x))
 
-           ((and (integerp n) (integerp m)
-                (assoc_legendre_q-symbolic n m a x)))
+;;fred(l,m,x) := (-1)^m * (1-x^2)^(m/2) * ultraspherical(l-m,m+1/2,x);
 
-		   (t (give-up))))
-  
+(def-simplifier assoc_legendre_p (l m x)
+  (cond ((and (integerp l) (integerp m) (<= (abs m) l) (complex-number-p x #'$ratnump))
+           (let* ((digits (if (floatp x)
+			                        (- *binary64-digits* 2)
+							                (- $fpprec 2)))
+		        (one (multiplicative-identity x)))
+		    	(if one 
+			        (number-coerce (assoc_legendre_p-numeric l m x digits) one)
+				      (give-up))))
+
+        ((and (integerp l) (integerp m) (<= (abs m) l))
+          (assoc_legendre_p-symbolic l m x))
+        (t  (give-up))))
+
+(defun assoc_legendre_p-numeric (l m x digits)
+  (cond ((< m 0)
+          (mul 
+              (div 1 (ftake 'mfactorial (sub l m)))
+              (ftake 'mexpt -1 (div (- m) 2))
+              (ftake 'mfactorial (add l m))
+              (assoc_legendre_p-numeric l (- m) x digits)))
+        (t 
+          (let ((bf-x (bigfloat::to x)))
+                (mul 
+                   (if (evenp m) 1 -1)
+                   (maxima::to (bigfloat::sqrt (bigfloat::- 1 (bigfloat::* bf-x bf-x))))
+                   (ultraspherical-numeric (sub l m) (add m (div 1 2)) x digits))))))
+            
+
+(defun assoc_legendre_p-symbolic (l m x)
+    (cond ((< m 0)
+           (mul 
+              (div 1 (ftake 'mfactorial (sub l m)))
+              (if (evenp m) 1 -1)
+              (ftake 'mfactorial (add l m))
+              (assoc_legendre_p-symbolic l (- m) x)))
+        (t 
+           (mul 
+               (if (evenp m) 1 -1)
+               (ftake '%genfact (- (* 2 m) 1) (- m 1) 2)
+               (ftake 'mexpt (sub 1 (mul x x)) (div m 2))
+               (ftake '%ultraspherical (sub l m) (add m (div 1 2)) x)))))
+
 ;; For the derivative of the associated legendre p function, see
 ;; A & S 8.5.4 page 334.
 
@@ -700,56 +669,11 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	    ((mexpt simp) ((mplus simp) -1 ((mexpt simp) x 2)) -1))) 
 	   'grad)
 	   
-
-(defun assoc_legendre_p-numeric (n m x digits)
-  (handler-case
-      (let* ((bf-x (bigfloat::to x))
-             (bf-m (bigfloat::to m))
-             
-             (f0 (cond ((eql m 0) (bigfloat::to 1))
-                       (t (bigfloat::to 0))))
-             (f1 (cond ((eql m 0) bf-x)
-                       ((eql m 1) (bigfloat::* -1 (bigfloat::sqrt (bigfloat::- 1 (bigfloat::* bf-x bf-x)))))
-                       (t (bigfloat::to 0))))
-             
-             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
-             
-             (p #'(lambda (k)
-                    (let* ((bf-k (bigfloat::to k))
-                           (num (bigfloat::* bf-x (bigfloat::+ (bigfloat::* 2 bf-k) 1)))
-                           (den (bigfloat::- (bigfloat::+ bf-k 1) bf-m)))
-                      (bigfloat::/ num den))))
-             
-             (q #'(lambda (k)
-                    (let* ((bf-k (bigfloat::to k))
-                           (num (bigfloat::- 0 (bigfloat::+ bf-k bf-m)))
-                           (den (bigfloat::- (bigfloat::+ bf-k 1) bf-m)))
-                      (bigfloat::/ num den)))))
-        
-        (cond ((eql n 0) (maxima::to f0))
-              ((eql n 1) (maxima::to f1))
-              (t
-               (multiple-value-bind (value err)
-                   (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
-                 (cond ((bigfloat::relative-error-p value err eps)
-                        (maxima::to value))
-                       (t
-                        (let ((new-fpprec (mul 2 $fpprec)))
-                          (bind-fpprec new-fpprec
-                            (legendre_p-numeric n m ($bfloat x) (- new-fpprec 2))))))))))
-    
-    (arithmetic-error (c)
-      (declare (ignore c))
-      (let ((new-fpprec (mul 2 $fpprec)))
-        (bind-fpprec new-fpprec
-          (legendre_p-numeric n m ($bfloat x) (- new-fpprec 2)))))))
-
- 
 ;;; Simplifier for the Hermite polynomial H_n, not He_n; see DLMF Table Table 18.3.1. 
 ;;; (https://dlmf.nist.gov/18.3) For the recusion, see DLMF Table http://dlmf.nist.gov/18.9.T1. 
 ;;; For special values, see DLMF Table http://dlmf.nist.gov/18.6.i
 (def-simplifier hermite (n x)
-  (cond ((and (integerp n) (complex-number-p x #'$numberp)) ;evaluate numerically
+  (cond ((and (integerp n) (>= n 0) (complex-number-p x #'$numberp)) ;evaluate numerically
            (let* ((digits (if (floatp x)
 			                  (- *binary64-digits* 2)
 							  (- $fpprec 2)))
@@ -759,7 +683,9 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 				(give-up))))
         ;; symbolic case call generic-two-term-recursion-symbolic
         ((integerp n)
-         (hermite-symbolic n x))
+           (if (< n 0)
+		     (give-up)
+		    (hermite-symbolic n x)))
         ;; reflection: hermite(n,-x) = (-1)^n hermite(-n,-x)
         ((great (neg x) x)
          (mul (ftake 'mexpt -1 n) (ftake '%hermite n (neg x))))
@@ -767,12 +693,12 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
         ((and (eql 0 x) ($featurep n '$even))
          (let ((halfn (div n 2)))
            (mul (ftake 'mexpt (div -1 2) halfn)
-                (ftake '$pochhammer (add 1 halfn) halfn))))
+                (ftake '%pochhammer (add 1 halfn) halfn))))
         ;; hermite(2n+1,0) = (-1/2)^m pochhammer(n+1,n+1)
         ((and (eql 0 x) ($featurep n '$odd))
          (let ((halfn (div (sub n 1) 2)))
            (mul (ftake 'mexpt (div -1 2) halfn)
-                (ftake '$pochhammer (add 1 halfn) (add 1 halfn)))))
+                (ftake '%pochhammer (add 1 halfn) (add 1 halfn)))))
         (t (give-up))))
 
 (defgrad %hermite ($n $x)
@@ -866,10 +792,10 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 (defun hermite-symbolic (n x)
     (let* ((f0 1)
-		   (f1 (mul 2 x))
+		       (f1 (mul 2 x))
            (p #'(lambda (k) (declare (ignore k)) (mul 2 x)))
            (q #'(lambda (k) (mul -2 k))))
-		   (generic-two-term-recursion-symbolic p q f0 f1 x n)))
+		    (generic-two-term-recursion-symbolic p q f0 f1 x n)))
 
 (in-package #:bigfloat)
 (defun jacobi-order-one (a b x)
@@ -944,6 +870,40 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
           (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) (- new-fpprec 2)))))))
 
 (defun jacobi_p-symbolic (n a b x)
+  ;; explict summation:
+  (let ((s 0))
+		(dotimes (k (+ 1 n))
+			(setq s 
+			      (add s
+			         (mul
+                       (ftake '%binomial (sub n a) (sub n k))
+			           (ftake '%binomial (add n b) k)
+                       (ftake 'mexpt (div (sub x 1) 2) k)
+			           (ftake 'mexpt (div (add x 1) 2) (sub n k))))))
+	(symbolic-clean-up s x)))
+
+(defun jacobi_p-symbolic (n a b x)
+  (let* ((xp (div (add x 1) 2))      ; (x+1)/2
+         (ratio (div (sub x 1) (add x 1))) ; (x-1)/(x+1)
+         (t0 (mul
+               (ftake '%binomial (sub n a) n)
+               (ftake 'mexpt xp n)))
+         (term t0)
+         (sum 0))
+    (dotimes (k (+ n 1))
+      (setq sum (add sum term))
+      (when (< k n)
+        (setq term
+              (mul term
+                   (div (add (sub n k) b)
+                        (add k 1))
+                   (div (sub k a)
+                        (sub n k))
+                   ratio))))
+    (symbolic-clean-up sum x)))
+
+
+(defun jacobi_p-symbolic-recursion (n a b x)
   (let* ((f0 1)
          (f1 (div (add (mul (add a b 2) x) (sub a b)) 2))
 		 (a+b (add a b))
@@ -998,8 +958,8 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
              (q #'(lambda (k)
                     (let* ((bf-k (bigfloat::to k))
                            (k+1 (bigfloat::+ bf-k 1))
-                           ;; Numerator: k + a
-                           (num (bigfloat::+ bf-k bf-a)))
+                           ;; Numerator: -(k + a)
+                           (num (bigfloat::- (bigfloat::+ bf-k bf-a))))
                       (bigfloat::/ num k+1)))))
         
         (cond ((eql n 0) (maxima::to f0))
@@ -1034,7 +994,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
          (q #'(lambda (k)
                 (let* ((k+1 (add k 1))
                        ;; Numerator: k + a
-                       (num (add k a)))
+                       (num (mul -1 (add k a))))
                   (div num k+1)))))
     
     (cond ((eql n 0) f0)
@@ -1186,7 +1146,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
        0
 	   (let (($besselexpand t)
 	         (ans (div (mul (ftake 'mexpt '$%pi (div 1 2))
-			                (ftake '%bessel_j (add n (div 1 2))))
+			                (ftake '%bessel_j (add n (div 1 2)) x))
 					   (ftake 'mexpt (mul 2 x) (div 1 2)))))
 		ans)))
 	    
@@ -1205,7 +1165,8 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	     ((mtimes) -1 ((mplus) 1 n)
 	      ((%spherical_bessel_y) ((mplus) 1 n) x)))))
 	 'grad)
- 
+
+(print "at lal")
 #|  
 ;; Compute P_n^m(cos(theta)).  See Merzbacher, 9.59 page 184
 ;; and 9.64 page 185, and A & S 22.5.37 page 779.  This function
@@ -1438,6 +1399,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	 
 	(t (merror "A recursion relation for ~:M isn't known to Maxima" fn))))
     
+(print "at 4")
 ;; See A & S Table 22.2, page 774.
 
 (defun $orthopoly_weight (fn arg)
@@ -1525,19 +1487,22 @@ variable ~:M" arg (car (last arg))))
 	(t (merror "A weight for ~:M isn't known to Maxima" fn))))
 
 (defun generic-two-term-recursion-symbolic (p q f0 f1 x n)
-  (declare (ignore x))
-  (let* ((fm1 f0)   
-         (fi f1)    
-         (fnext))
-    (dotimes (i (- n 1))
-      (let* ((current-i (+ i 1))
-             (a (funcall p current-i))
-             (b (funcall q current-i)))        
-        (setq fnext (add (mul a fi) (mul b fm1)))
-        
-        (setq fm1 fi
-              fi fnext)))
-    fi))
+  (cond ((eql n 0)
+         f0)
+        ((eql n 1)
+         f1)
+        (t
+         (let ((fm1 f0)
+               (fi  f1))
+           (do ((i 1 (1+ i)))
+               ((> i (1- n)) fi)
+             (let* ((a (funcall p i))
+                    (b (funcall q i))
+                    (new (add (mul a fi)
+                              (mul b fm1))))
+               (setq fm1 fi
+                     fi  new)))
+			(let (($ratfac t))	($ratdisrep ($rat fi x)))))))
 
 (in-package #:bigfloat)
 
@@ -1550,9 +1515,9 @@ variable ~:M" arg (car (last arg))))
   ;; by extracting the real part and evaluating its epsilon.
   (epsilon (cl:realpart x)))
 
-(defvar *safety* 6)
+
 (defun relative-error-p (x err eps)
-  (<= (abs (* *safety* err)) (* eps (+ 1 (abs x)))))
+  (< (abs err) (* eps (max 1 (abs x)))))
 
 #| 
 (defun hypergeo21-polynomial-numeric (n b c x) 
@@ -1599,4 +1564,139 @@ variable ~:M" arg (car (last arg))))
     ;; Return both computed results using standard Lisp values
     (values fi err-i)))
 
+(in-package :maxima)
+;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; See A & S 8.6.7 and 8.2.6 pages 333 and 334. I chose the 
+;; definition that is real valued on (-1,1).  
+
+;; For negative m, A & S 8.2.6 page 333 and  G & R 8.706 page 1000
+;; disagree; the factor of exp(i m pi) in A & S 8.1.6 suggests to me that
+;; A & S  8.2.6 is bogus.  As further evidence, Macsyma 2.4 seems to 
+;; agree with G & R 8.706. I'll use G & R.
+
+;; Return assoc_legendre(0,m,x). This isn't a user-level function; we 
+;; don't check that m is a positive integer.
+
+(defun q0m (m x)
+  (cond ((< m 0)
+	 (merror "function q0m called with negative order. File a bug report"))
+   	((= m 0)
+	 (div (simplify `((%log) ,(div (add 1 x) (sub 1 x)))) 2))
+	(t
+	 (mul (factorial (- m 1)) `((rat simp) 1 2)
+	      (if (oddp m) -1 1) (power (sub 1 (mult x x)) (div m 2))
+	      (add 
+	       (mul (if (oddp m) 1 -1) (power (add 1 x) (neg m)))
+	       (power (sub 1 x) (neg m)))))))
+  
+;; Return assoc_legendre(1,m,x).  This isn't a user-level function; we 
+;; don't check that m is a positive integer; we don't check that m is 
+;; a positive integer.
+
+(defun q1m (m x)
+  (cond ((< m 0)
+	 (merror "function q1m called with negative order. File a bug report"))
+	((= m 0)
+	 (sub (mul x (q0m 0 x)) 1))
+	((= m 1)
+	 (mul -1 (power (sub 1 (mult x x)) `((rat simp) 1 2))
+	      (sub (q0m 0 x) (div x (sub (mul x x) 1)))))
+	(t
+	 (mul (if (oddp m) -1 1) (power (sub 1 (mult x x)) (div m 2))
+	      (add
+	       (mul (factorial (- m 2)) `((rat simp) 1 2) (if (oddp m) -1 1)
+		    (sub (power (add x 1) (sub 1 m))
+			 (power (sub x 1) (sub 1 m))))
+	       
+	       (mul (factorial (- m 1)) `((rat simp) 1 2) (if (oddp m) -1 1)
+		    (add (power (add x 1) (neg m)) 
+			 (power (sub x 1) (neg m)))))))))
+
+;; Return assoc_legendre_q(n,n,x). I don't have a reference that gives
+;; a formula for assoc_legendre_q(n,n,x). To figure one out,  I used
+;; A&S 8.2.1 and a formula for assoc_legendre_p(n,n,x).  
+
+;; After finishing the while loop, q = int(1/(1-t^2)^(n+1),t,0,x). 
+
+(defun assoc-legendre-q-nn (n x)
+  (let ((q) 
+	(z (sub 1 (mul x x))) 
+	(i 1))
+    (setq q (div (simplify `((%log) ,(div (add 1 x) (sub 1 x)))) 2))
+    (while (<= i n)
+      (setq q (add (mul (sub 1 `((rat) 1 ,(* 2 i))) q)
+		   (div x (mul 2 i (power z i)))))
+      (incf i))
+    (mul (expt -2 n) (factorial n) (power z (div n 2)) q)))
+
+;; Use degree recursion to find the assoc_legendre_q function. 
+;; See A&S 8.5.3. When i = m in the while loop, we have a special
+;; case.  For negative order, see A&S 8.2.6.
+
+(defun $assoc_legendre_q (n m x)
+  (cond ((and (integerp n) (> n -1) (integerp m) (<= (abs m) n))
+	 (cond ((< m 0)
+		(mul (div (factorial (+ n m)) (factorial (- n m)))
+		     ($assoc_legendre_q n (- m) x)))
+	       (t
+		(if (not (or (floatp x) ($bfloatp x))) (setq x ($rat x)))
+		(let* ((q0 (q0m m x))
+		       (q1 (if (= n 0) q0 (q1m m x)))
+		       (q) (i 2)
+		       (use-rat (or ($ratp x) (floatp x) ($bfloatp x))))
+		  
+		  (while (<= i n)
+		    (setq q (if (= i m) (assoc-legendre-q-nn i x) 
+			      (div (sub (mul (- (* 2 i) 1) x q1) 
+					(mul (+ i -1 m) q0)) (- i m))))
+		    (setq q0 q1)
+		    (setq q1 q)
+		    (incf i))
+		  (if use-rat q1 ($ratsimp q1))))))
+	(t `(($assoc_legendre_q simp) ,n ,m ,x))))
+
+;; See G & R, 8.733, page 1005 first equation.
+
+(putprop '$assoc_legendre_q
+	 '((n m x)
+	   ((unk) first assoc_legendre_q)
+	   ((unk) second assoc_legendre_q)
+	   
+	   ((mplus)
+	    ((mtimes)
+	     ((mplus)
+	      ((mtimes) -1 ((mplus) 1 ((mtimes) -1 m) n)
+	       (($assoc_legendre_q ) ((mplus ) 1 n) m x))
+	      ((mtimes) ((mplus) 1 n)
+	       (($assoc_legendre_q ) n m x) x))
+	     ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) x 2))) -1))))
+	 'grad) 
+
+
+;; patches for hyp.lisp 
+
+;; Jacobi polynomial
+(defun jacobpol (n a b x)
+  (ftake '%jacobi_p n a b x))
+;; Gegenbauer (Ultraspherical) polynomial.  We use ultraspherical to
+;; match specfun.
+(defun gegenpol (n v x)
+   (ftake '%ultraspherical n v x))
+
+;; Legendre polynomial
+(defun legenpol (n x)
+	(ftake '%legendre_p n x))
+
+;; Chebyshev polynomial
+(defun tchebypol (n x)
+	(ftake '%chebyshev_t n x))
+
+(defun hermpol (n arg)
+  (let ((fact (inv (power 2 (div n 2))))
+        (x (mul arg (inv (power 2 '((rat simp) 1 2))))))
+    (mul fact (ftake '%hermite n x))))
+
+;; Generalized Laguerre polynomial
+(defun lagpol (n a arg)
+	(ftake '%gen_laguerre n a arg))

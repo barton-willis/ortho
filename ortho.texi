@@ -17,8 +17,22 @@ The package supports the following classical orthogonal polynomials from Chapter
 @item Laguerre polynomials (@code{laguerre})
 @item Hermite polynomials (@code{hermite})
 @end itemize
-Each of these polynomials are implemented as simplifying functions. The simplifications 
+
+Notes:
+@itemize @bullet
+
+@item Each of these polynomials are implemented as *simplifying* functions. The known simplifications 
 include the facts listed in Table 18.6.1 of the DLMF. 
+
+@item Even when an extension to negative degree is known, these functions do not extend to negative degrees.
+
+@item For an explicit nonnegative degree, each of these functions automatically return an explicit polynomial.
+
+@item For an explicit nonnegative degree and all other arguments numeric (either real or a complex number in
+rectangular form), these functions return
+
+
+@end itemize
 
 Additionally, the package supports the spherical Bessel fuctions (DLMF, Chapter 10). These functions are
 
@@ -38,7 +52,7 @@ Finally, the package supports the following related functions:
 @end itemize
 
 For all supported functions with explicit integer orders, all supported functions carries out numeric evaluation for all rational, float, and 
-big float inputs for either real or complex and returns the result in rectangular form. Numeric evaluation follows 
+bigfloat inputs for either real or complex and returns the result in rectangular form. Numeric evaluation follows 
 Maxima’s standard contagion rules. The Hermite polynomials provide a representative example:
 
 Examples:

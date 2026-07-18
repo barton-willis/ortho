@@ -1,5 +1,7 @@
 
-(approx_equal(a,b,eps) := is(abs(a-b) < eps*(1 + abs(a))),0);
+(approx_equal(exact,approx,eps) := block([],
+    exact : if bfloatp(approx) then bfloat(exact) else float(exact),
+    is(abs(exact-approx) < eps*max(1.0, abs(exact)))),0);
   0$
 
 /* unit_step */
@@ -114,29 +116,141 @@ block([ans : jacobi_p(2,2,3,x), dans : jacobi_p(n,2,3,x)],
 
 /* Jacobi numerical tests */
 
+(eps : 1.0e-14, N : 128,0);
+0$
+
+/* binary64 case */
 (af : 0.7, bf: 0.8, xf : 0.5, a : rationalize(af), b : rationalize(bf), x : rationalize(xf),0);
 0$
 
-xreduce("and", makelist(approx_equal(jacobi_p(k,a,b,x), jacobi_p(k, af,bf,xf),1.0e-15),k,0,128));
+xreduce("and", makelist(approx_equal(jacobi_p(k,a,b,x), jacobi_p(k,af,bf,xf), eps),k,0,N));
 true$
 
+/* same for bigfloats with fpprec : 64 */
+(fpprec : 64, af : 0.7b0, bf: 0.8b0, xf : 0.5b0, a : rationalize(af), b : rationalize(bf), x : rationalize(xf),0);
+0$
+
+xreduce("and", makelist(approx_equal(jacobi_p(k,a,b,x), jacobi_p(k,af,bf,xf), eps),k,0,N));
+true$
+
+/* binary64 case */
 (af : 0.7, bf: -0.8, xf : 10.5, a : rationalize(af), b : rationalize(bf), x : rationalize(xf),0);
 0$
 
-xreduce("and", makelist(approx_equal(jacobi_p(k,a,b,x), jacobi_p(k, af,bf,xf),1.0e-14),k,0,128));
+xreduce("and", makelist(approx_equal(jacobi_p(k,a,b,x), jacobi_p(k, af,bf,xf),eps),k,0,N));
 true$
 
+/* bigfloat case */
+(af : 0.7b0, bf: -0.8b0, xf : 10.5b0, a : rationalize(af), b : rationalize(bf), x : rationalize(xf),0);
+0$
+
+xreduce("and", makelist(approx_equal(jacobi_p(k,a,b,x), jacobi_p(k, af,bf,xf),eps),k,0,N));
+true$
+
+/* binary64 case */
 (af : 0.7, bf: 1.0*%i, xf : 10.5, a : rationalize(af), b : rationalize(bf), x : rationalize(xf),0);
 0$
 
-xreduce("and", makelist(approx_equal(jacobi_p(k,a,b,x), jacobi_p(k, af,bf,xf),1.0e-14),k,0,32));
+xreduce("and", makelist(approx_equal(jacobi_p(k,a,b,x), jacobi_p(k, af,bf,xf),eps),k,0,N));
 true$
 
+/* bigfloat  case */
+(af : 0.7b0, bf: 1.0b0*%i, xf : 10.5b0, a : rationalize(af), b : rationalize(bf), x : rationalize(xf),0);
+0$
+
+xreduce("and", makelist(approx_equal(jacobi_p(k,a,b,x), jacobi_p(k, af,bf,xf),eps),k,0,N));
+true$
+
+/* binary64 case */
 (af : 0.7, bf: 1.0*%i, xf : -10.5, a : rationalize(af), b : rationalize(bf), x : rationalize(xf),0);
 0$
 
-xreduce("and", makelist(approx_equal(jacobi_p(k,a,b,x), jacobi_p(k, af,bf,xf),1.0e-14),k,0,32));
+xreduce("and", makelist(approx_equal(jacobi_p(k,a,b,x), jacobi_p(k, af,bf,xf),eps),k,0,N));
+true$
+
+/* bigfloat case */
+(af : 0.7b0, bf: 1.0b0*%i, xf : -10.5b0, a : rationalize(af), b : rationalize(bf), x : rationalize(xf),0);
+0$
+
+xreduce("and", makelist(approx_equal(jacobi_p(k,a,b,x), jacobi_p(k, af,bf,xf),eps),k,0,N));
 true$
 
 (remvalue(a,b,x,af,bf,xf),0);
 0$
+
+/* Hermite tests */
+(hermite_rod(n,x) := block([an, rho, g],
+   an : (-1)^n,
+   rho : exp(-t^2),
+   g : 1,
+  rat(subst(x,t, diff(rho * g^n,t,n) / (an * rho)))),0);
+  0$
+
+block([ans : hermite(%pi,0)], [op(ans), args(ans)]);
+ [hermite, [%pi, 0]]$
+
+errcatch(hermite());
+[]$
+
+errcatch(hermite(42));
+[]$
+
+errcatch(hermite(1,2,3));
+[]$
+
+hermite(0, x);
+1$
+
+hermite(1, x);
+2*x$
+
+hermite(2, x);
+-(2*(1-2*x^2))$
+
+hermite(3, x);
+ -(12*x*(1-(2*x^2)/3))$
+
+hermite(4, x);
+12*((4*x^4)/3-4*x^2+1)$
+
+hermite(5, x);
+120*x*((4*x^4)/15-(4*x^2)/3+1)$
+
+hermite(3, 0);
+0$
+
+hermite(4, 0);
+12$
+
+hermite(5, 1);
+-8$
+
+hermite(6, -1);
+184$
+
+hermite(6,-1)-subst(x=-1, hermite(6,x));
+0$
+
+/* --- Orthogonality checks (weight exp(-x^2)) --- */
+
+integrate(hermite(2,x)*hermite(3,x)*exp(-x^2), x, -inf, inf);
+0$
+
+integrate(hermite(2,x)^2*exp(-x^2), x, -inf, inf);
+2^2 * 2! * sqrt(%pi)$
+
+block([ans : hermite(-1, x)], [op(ans), args(ans)]);
+[hermite, [- 1, x]]$
+
+block([ans : hermite(-1, 42)], [op(ans), args(ans)]);
+[hermite, [- 1, 42]]$
+
+
+/* Legendre polynomials */
+
+(legendre_rod(n,x) := (1/(2^n * n!)) * diff((1-x^2)^n,x,n),0);(legendre_rod(n,x) := (1/(2^n * n!)) * diff((1-x^2)^n,x,n),0);
+0$
+
+makelist(rat(legendre_p(k,x) - legendre_rod(k,x)),k,0,12);
+
+
