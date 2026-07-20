@@ -27,12 +27,12 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
                 (t
                  ;; If precision is insufficient, boost fpprec and convert to bigfloat
                  (bind-fpprec (mul 2 $fpprec)
-                   (...-numeric n ($bfloat x) (- $fpprec 2)))))))
+                   (...-numeric n ($bfloat x) digits))))))
     ;; Catch binary64 overflow and switch automatically to bigfloats
     (arithmetic-error (c)
 	  (declare (ignore c))
       (bind-fpprec $fpprec
-        (...-numeric n ($bfloat x) (- $fpprec 2))))))
+        (...-numeric n ($bfloat x) digits)))))
 
 (defun ...-symbolic (n x)
     (let* ((f0 ...)
@@ -44,9 +44,19 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
  |#
 (in-package :maxima)
 
-(defun orthopoly-polynomial-simp (p x)
-"Intended solely to “clean up” the output of orthogonal‑polynomial constructors."
-	(let (($ratfac t) ($algebraic t)) ($expand ($ratdisrep ($rat p x)) 0 0)))
+(defun orthopoly-default-simp (p x)
+  "Default cleanup for orthogonal polynomials. Applies rat conversion, ratdisrep, and expand."
+  (let (($ratfac t) ($algebraic t))
+    ($expand ($ratdisrep ($rat p x)) 0 0)))
+
+(defun orthopoly-horner-simp (p x)
+  ($horner p x))
+
+(defun orthopoly-polynomial-simp (p x &optional (simp-fn #'orthopoly-default-simp))
+  "Apply SIMP-FN to P.  If SIMP-FN is NIL, return P unchanged."
+  (if simp-fn
+      (funcall simp-fn p x)
+    p))
 
 (defmvar *binary64-digits* (floor (* (float-digits 1.0d0) (log 2 10))))
 ;; A left continuous unit step function; thus 
@@ -85,7 +95,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 ;; antiderivative of unit_step
 (putprop '%unit_step
-  '((x) ((mtimes) ((rat) 1 2) ((mplus) x ((mabs) x))))  'integral)
+  '((x) ((mtimes) ((rat) 1 2) ((mplus) x ((mabs) x)))) 'integral)
 
 (defun simplim%unit_step (e x pt)  
  "Return limit(unit_step(X),x, pt)."
@@ -105,8 +115,6 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 (setf (get '%unit_step 'simplim%function) 'simplim%unit_step)
 
-
-(print "at 1")
 (defun multiplicative-identity (&rest a)
   "Return the appropriate multiplicative identity (1 for rational numbers, 1.0do for binary64, and 1.0b0 for bigfloats)
   for the numbers in the list a."
@@ -120,63 +128,150 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
         (fapply 'mtimes ones)))))
 
 (defun number-coerce (x one)
+  "Coerce the number `x` to the numeric type indicated by `one`.
+   If `one` is an Maxima ratnump number, return an exact rationalized version of `x`.
+   If `one` is a float, convert `x` to an IEEE float. Otherwise convert X 
+   to a bigfloat."
 	(cond (($ratnump one) ($rationalize x))
 	      ((floatp one) ($float x))
-		  (t ($bfloat x))))
+		    (t ($bfloat x))))
 
+;;; simplifier for the Jacobi polynomials
 (def-simplifier jacobi_p (n a b x)
-	(cond ((and (integerp n) 
-	            (complex-number-p a #'$numberp)
-				(complex-number-p b #'$numberp)
-				(complex-number-p x #'$numberp))
-		  (let* ((digits (if (floatp x)
-			                  13
-							  (- $fpprec 2)))
-		        (one (multiplicative-identity a b x)))
-			(if one 
-			    (number-coerce (jacobi_p-numeric n a b x digits) one)
-				(give-up))))
-         ;; symbolic case call generic-two-term-recursion-symbolic
-		((integerp n)
-            (jacobi_p-symbolic n a b x))
-        ;; reflection
-		((great (neg x) x) ; jacobi_p(n,a,b,-x) = (-1)^n jacobi_p(n,b,a,x)
-			(mul (ftake 'mexpt -1 n) (ftake '%jacobi_p n b a (neg x))))
+  (cond
+    ;; Numeric evaluation: all arguments are numeric (complex-number-p)
+    ((and (integerp n)
+          (complex-number-p a #'$numberp)
+          (complex-number-p b #'$numberp)
+          (complex-number-p x #'$numberp))
+     (let* ((digits (if (floatp x)
+                        (- *binary64-digits* 2)
+                        digits))
+            (one (multiplicative-identity a b x)))
+       (if one
+           (number-coerce
+             (jacobi_p-numeric n a b x digits)
+             one)
+           (give-up))))
 
-		;; jacobi_p(n,a,b,1) = pochhammer(a+1,n)/n!
-		((eql x 1)
-			(div (ftake '$pochhammer (add a 1) n)
-			     (ftake 'mfactorial n)))
+    ;; Symbolic case
+    ((integerp n)
+      (if (> n -1)
+         (jacobi_p-symbolic n a b x)
+         (give-up)))
 
-		(t (give-up))))
+    ;; reflection: jacobi_p(n,a,b,x) = (-1)^n * jacobi_p(n,b,a,-x); 
+    ;; see DLMF http://dlmf.nist.gov/18.6.E1
+    ((great (neg x) x)
+     (mul (ftake 'mexpt -1 n) (ftake '%jacobi_p n b a (neg x))))
 
-(putprop '%jacobi_p
-	 '((n a b x)
-       nil
-	   nil
-	   nil
-	   ((mtimes)
-	    ((mexpt) ((mplus ) a b ((mtimes ) 2 n)) -1)
-	    ((mplus)
-	     ((mtimes) 2
-	      ((%unit_step) n)
-	      ((mplus) a n) ((mplus) b n)
-	      ((%jacobi_p) ((mplus) -1 n) a b x))
-	     ((mtimes) n ((%jacobi_p) n a b x)
-	      ((mplus) a ((mtimes ) -1 b)
-	       ((mtimes)
-		((mplus) ((mtimes) -1 a) ((mtimes ) -1 b)
-		 ((mtimes) -2 n)) x))))
-	    ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt ) x 2))) -1)))
-	 'grad)
- 	   
+    ;; special value: jacobi_p(n,a,b,1) = pochhammer(a+1,n) / n!;
+    ;; see DLMF http://dlmf.nist.gov/18.6.E1
+    ((eql x 1)
+     (div (ftake '$pochhammer (add a 1) n) (ftake 'mfactorial n)))
+
+    ;; Otherwise, no simplification available
+    (t
+     (give-up))))
+
+;; Derivatives of the Jacobi polynomials. 
+(defgrad %jacobi_p ($n $a $b $x)
+  nil
+  nil
+  nil
+  #$$ (n*jacobi_p(n,a,b,x)*((-(2*n)-b-a)*x-b+a)+2*jacobi_p(n-1,a,b,x)*(n+a)*(n+b)*unit_step(n))/((2*n+b+a)*(1-x^2))$)
+
+(in-package #:bigfloat)
+(defun jacobi-order-one (a b x)
+	(* (+ a 1) (+ 1 (- (/ (* (+ b a 2) (+ 1 (- x))) (* 2 (+ 1 a))))))) 
+
+(in-package :maxima)
+
+;;; Table 22.7 (page 782) of Abramowitz and Stegun (1964) gives the order-only recursion for 
+;;; the Jacobi polynomials.  This recursion is missing from Table 18.9.1 of the DLMF. 
+(defun jacobi_p-numeric (n a b x digits)
+  (handler-case
+      (let* ((bf-a (bigfloat::to a))
+             (bf-b (bigfloat::to b))
+             (bf-x (bigfloat::to x))
+             
+             (f0 (bigfloat::to 1))
+             (f1 (bigfloat::/ (bigfloat::+ (bigfloat::* (bigfloat::+ bf-a bf-b 2) bf-x) 
+                                           (bigfloat::- bf-a bf-b)) 
+                              2))
+             
+             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
+             
+             (a+b (bigfloat::+ bf-a bf-b))
+             (a+b+1 (bigfloat::+ bf-a bf-b 1))
+             (a+b+2 (bigfloat::+ bf-a bf-b 2))
+             
+             ;; a^2 - b^2
+             (a2-b2 (bigfloat::- (bigfloat::* bf-a bf-a) (bigfloat::* bf-b bf-b)))
+             
+             (p #'(lambda (k)
+                    (let* ((bf-k (bigfloat::to k))
+                           (2k (bigfloat::* 2 bf-k))
+                           (k+1 (bigfloat::+ bf-k 1))
+                           
+                           ;; Numerator: (2k + a + b + 1)(a^2 - b^2) + x pochhammer(2k + a + b,3)
+                           (num (bigfloat::+
+                                 (bigfloat::* (bigfloat::+ 2k a+b+1) a2-b2)
+                                 (bigfloat::* bf-x (bigfloat::+ 2k a+b) (bigfloat::+ 2k a+b+1) (bigfloat::+ 2k a+b+2))))
+                           
+                           ;; Denominator: 2(k + 1)(k + a + b + 1)(2k + a + b)
+                           (den (bigfloat::* 2 k+1 (bigfloat::+ bf-k a+b+1) (bigfloat::+ 2k a+b))))
+                      (bigfloat::/ num den))))
+             
+             (q #'(lambda (k)
+                    (let* ((bf-k (bigfloat::to k))
+                           (2k (bigfloat::* 2 bf-k))
+                           (k+1 (bigfloat::+ bf-k 1))                   
+                           
+                           ;; Numerator: 2(k + a)(k + b)(2k + a + b + 2)
+                           (num (bigfloat::* -2 (bigfloat::+ bf-k bf-a) (bigfloat::+ bf-k bf-b) (bigfloat::+ 2k a+b+2)))
+                           
+                           ;; Denominator: 2(k + 1)(k + a + b + 1)(2k + a + b)
+                           (den (bigfloat::* 2 k+1 (bigfloat::+ bf-k a+b+1) (bigfloat::+ 2k a+b))))
+                      (bigfloat::/ num den)))))
+        
+        (cond ((eql n 0) (maxima::to f0))
+              ((eql n 1) (maxima::to f1))
+              (t
+               (multiple-value-bind (value err)
+                   (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
+                 (cond ((bigfloat::relative-error-p value err eps)
+                        (maxima::to value))
+                       (t
+                        (let ((new-fpprec (mul 2 $fpprec)))
+                          (bind-fpprec new-fpprec
+                            (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) (- new-fpprec 2))))))))))
+    
+    (arithmetic-error (c)
+      (declare (ignore c))
+      (let ((new-fpprec (mul 2 $fpprec)))
+        (bind-fpprec new-fpprec
+          (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) (- new-fpprec 2)))))))
+
+(defun jacobi_p-symbolic (n a b x)
+  ;; explict summation: see http://dlmf.nist.gov/18.5.E8 
+  (let ((s 0))
+		(dotimes (k (+ 1 n))
+			(setq s 
+			      (add s
+			         (mul
+                       (ftake '%binomial (add n a) k)
+			           (ftake '%binomial (add n b) (sub n k))
+                       (ftake 'mexpt (div (sub x 1) 2) (sub n k))
+			           (ftake 'mexpt (div (add x 1) 2) k)))))
+	(orthopoly-polynomial-simp s x)))
+
 ;; See A&S 22.5.46, page 779.
 (def-simplifier ultraspherical (n a x)
-    (mtell "n = ~M ; a = ~M ; x = ~M ~%" n a x)
 	(cond ((and (integerp n) (complex-number-p a #'$ratnump) (complex-number-p x #'$ratnump))
             (let* ((digits (if (floatp x)
 			                  (- *binary64-digits* 2)
-							  (- $fpprec 2)))
+							  digits))
 		        (one (multiplicative-identity a x)))
 			(if one 
 			    (number-coerce (ultraspherical-numeric n a x digits) one)
@@ -274,19 +369,18 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
                 (t
                  ;; If precision is insufficient, boost fpprec and convert to bigfloat
                  (bind-fpprec (mul 2 $fpprec)
-                   (ultraspherical-numeric n ($bfloat lam) ($bfloat x) (- $fpprec 2)))))))
+                   (ultraspherical-numeric n ($bfloat lam) ($bfloat x) digits))))))
     ;; Catch binary64 overflow and switch automatically to bigfloats
     (arithmetic-error (c)
       (declare (ignore c))
       (bind-fpprec $fpprec
-        (ultraspherical-numeric n ($bfloat lam) ($bfloat x) (- $fpprec 2))))))
+        (ultraspherical-numeric n ($bfloat lam) ($bfloat x) digits)))))
 
-(print "at 3")
 (def-simplifier chebyshev_t (n x)
   (cond ((and (integerp n) (complex-number-p x #'$ratnump))
             (let* ((digits (if (floatp x)
 			                  (- *binary64-digits* 2)
-							  (- $fpprec 2)))
+							  digits))
 		        (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (chebyshev_t-numeric n x digits) one)
@@ -351,7 +445,6 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
         (bind-fpprec new-fpprec
           (chebyshev_t-numeric n ($bfloat x) (- new-fpprec 2)))))))
 
-(print "at 4")
 (putprop '$chebyshev_t 
 	 '((n x)
 	   nil
@@ -367,7 +460,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
    (cond ((and (integerp n) (complex-number-p x #'$ratnump))
              (let* ((digits (if (floatp x)
 			                  (- *binary64-digits* 2)
-							  (- $fpprec 2)))
+							  digits))
 		        (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (chebyshev_u-numeric n x digits) one)
@@ -436,7 +529,6 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
         (bind-fpprec new-fpprec
           (chebyshev_u-numeric n ($bfloat x) (- new-fpprec 2)))))))
 
-
 (putprop '%chebyshev_u
 	 '((n x)
 	    nil
@@ -453,7 +545,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
    (cond ((and (integerp n) (complex-number-p x #'$numberp)) ;evaluate numerically
             (let* ((digits (if (floatp x)
 			                  (- *binary64-digits* 2)
-							  (- $fpprec 2)))
+							  digits))
 		        (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (legendre_p-numeric n x digits) one)
@@ -484,13 +576,13 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
                 (t
                  ;; If precision is insufficient, boost fpprec and convert to bigfloat
                  (bind-fpprec (mul 2 $fpprec)
-                   (legendre_p-numeric n ($bfloat x) (- $fpprec 2)))))))
+                   (legendre_p-numeric n ($bfloat x) digits))))))
     
     ;; Catch binary64 overflow and switch automatically to bigfloats
     (arithmetic-error (c)
       (declare (ignore c)) ; Bound 'c' to prevent compiler/runtime errors
       (bind-fpprec $fpprec
-        (legendre_p-numeric n ($bfloat x) (- $fpprec 2))))))
+        (legendre_p-numeric n ($bfloat x) digits)))))
 
 (defun legendre-p-symbolic (n x)
     (let* ((f0 1)
@@ -498,8 +590,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
            (p #'(lambda (k) (div (mul (add (mul 2 k) 1) x) (add k 1)))) ; (2k+1)x/(k+1) 
            (q #'(lambda (k) (mul -1 (div k (add k 1))))))
 	 (generic-two-term-recursion-symbolic p q f0 f1 x n)))
-         
-(print "at 5")
+
 (putprop '%legendre_p 
 	 '((n x) 
 	   nil
@@ -510,15 +601,11 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	     ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) x 2))) -1)))
 	 'grad)
   
-
-
-;;fred(l,m,x) := (-1)^m * (1-x^2)^(m/2) * ultraspherical(l-m,m+1/2,x);
-
 (def-simplifier assoc_legendre_p (l m x)
   (cond ((and (integerp l) (integerp m) (<= (abs m) l) (complex-number-p x #'$ratnump))
            (let* ((digits (if (floatp x)
 			                        (- *binary64-digits* 2)
-							                (- $fpprec 2)))
+							                digits))
 		        (one (multiplicative-identity x)))
 		    	(if one 
 			        (number-coerce (assoc_legendre_p-numeric l m x digits) one)
@@ -541,7 +628,6 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
                    (if (evenp m) 1 -1)
                    (maxima::to (bigfloat::sqrt (bigfloat::- 1 (bigfloat::* bf-x bf-x))))
                    (ultraspherical-numeric (sub l m) (add m (div 1 2)) x digits))))))
-            
 
 (defun assoc_legendre_p-symbolic (l m x)
     (cond ((< m 0)
@@ -581,7 +667,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
   (cond ((and (integerp n) (>= n 0) (complex-number-p x #'$numberp)) ;evaluate numerically
            (let* ((digits (if (floatp x)
 			                  (- *binary64-digits* 2)
-							  (- $fpprec 2)))
+							  digits))
 		        (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (hermite-numeric n x digits) one)
@@ -608,14 +694,13 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 (defgrad %hermite ($n $x)
   nil
-  #$$ 2*n*herite(n-1,x)$
-  )
+  #$$ 2*n*herite(n-1,x)$)
 
 (def-simplifier gen_laguerre (n a x)
 	(cond ((and (integerp n) (complex-number-p a #'$numberp) (complex-number-p x #'$numberp)
               (let* ((digits (if (floatp x)
 			                  (- *binary64-digits* 2)
-							  (- $fpprec 2)))
+							  digits))
 		        (one (multiplicative-identity a x)))
 			(if one 
 			    (number-coerce (gen_laguerre-numeric n a x digits) one)
@@ -645,7 +730,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
   (cond ((and (integerp n) (complex-number-p x #'$numberp))
           (let* ((digits (if (floatp x)
 			                  (- *binary64-digits* 2)
-							  (- $fpprec 2)))
+							  digits))
 		        (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (laguerre-numeric n x digits) one)
@@ -688,12 +773,12 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
                 (t
                  ;; If precision is insufficient, boost fpprec and convert to bigfloat
                  (bind-fpprec (mul 2 $fpprec)
-                   (hermite-numeric n ($bfloat x) (- $fpprec 2)))))))
+                   (hermite-numeric n ($bfloat x) digits))))))
     ;; Catch binary64 overflow and switch automatically to bigfloats
     (arithmetic-error (c)
 	  (declare (ignore c))
       (bind-fpprec $fpprec
-        (hermite-numeric n ($bfloat x) (- $fpprec 2))))))
+        (hermite-numeric n ($bfloat x) digits)))))
 
 (defun hermite-symbolic (n x)
     (let* ((f0 1)
@@ -701,91 +786,6 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
            (p #'(lambda (k) (declare (ignore k)) (mul 2 x)))
            (q #'(lambda (k) (mul -2 k))))
 		    (generic-two-term-recursion-symbolic p q f0 f1 x n)))
-
-(in-package #:bigfloat)
-(defun jacobi-order-one (a b x)
-	(* (+ a 1) (+ 1 (- (/ (* (+ b a 2) (+ 1 (- x))) (* 2 (+ 1 a))))))) 
-
-(in-package :maxima)
-
-;;; Table 22.7 (page 782) of Abramowitz and Stegun (1964) gives the order-only recursion for 
-;;; the Jacobi polynomials.  This recursion is missing from Table 18.9.1 of the DLMF. 
-(defun jacobi_p-numeric (n a b x digits)
-  (handler-case
-      (let* ((bf-a (bigfloat::to a))
-             (bf-b (bigfloat::to b))
-             (bf-x (bigfloat::to x))
-             
-             (f0 (bigfloat::to 1))
-             (f1 (bigfloat::/ (bigfloat::+ (bigfloat::* (bigfloat::+ bf-a bf-b 2) bf-x) 
-                                           (bigfloat::- bf-a bf-b)) 
-                              2))
-             
-             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
-             
-             (a+b (bigfloat::+ bf-a bf-b))
-             (a+b+1 (bigfloat::+ bf-a bf-b 1))
-             (a+b+2 (bigfloat::+ bf-a bf-b 2))
-             
-             ;; a^2 - b^2
-             (a2-b2 (bigfloat::- (bigfloat::* bf-a bf-a) (bigfloat::* bf-b bf-b)))
-             
-             (p #'(lambda (k)
-                    (let* ((bf-k (bigfloat::to k))
-                           (2k (bigfloat::* 2 bf-k))
-                           (k+1 (bigfloat::+ bf-k 1))
-                           
-                           ;; Numerator: (2k + a + b + 1)(a^2 - b^2) + x pochhammer(2k + a + b,3)
-                           (num (bigfloat::+
-                                 (bigfloat::* (bigfloat::+ 2k a+b+1) a2-b2)
-                                 (bigfloat::* bf-x (bigfloat::+ 2k a+b) (bigfloat::+ 2k a+b+1) (bigfloat::+ 2k a+b+2))))
-                           
-                           ;; Denominator: 2(k + 1)(k + a + b + 1)(2k + a + b)
-                           (den (bigfloat::* 2 k+1 (bigfloat::+ bf-k a+b+1) (bigfloat::+ 2k a+b))))
-                      (bigfloat::/ num den))))
-             
-             (q #'(lambda (k)
-                    (let* ((bf-k (bigfloat::to k))
-                           (2k (bigfloat::* 2 bf-k))
-                           (k+1 (bigfloat::+ bf-k 1))                   
-                           
-                           ;; Numerator: 2(k + a)(k + b)(2k + a + b + 2)
-                           (num (bigfloat::* -2 (bigfloat::+ bf-k bf-a) (bigfloat::+ bf-k bf-b) (bigfloat::+ 2k a+b+2)))
-                           
-                           ;; Denominator: 2(k + 1)(k + a + b + 1)(2k + a + b)
-                           (den (bigfloat::* 2 k+1 (bigfloat::+ bf-k a+b+1) (bigfloat::+ 2k a+b))))
-                      (bigfloat::/ num den)))))
-        
-        (cond ((eql n 0) (maxima::to f0))
-              ((eql n 1) (maxima::to f1))
-              (t
-               (multiple-value-bind (value err)
-                   (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
-                 (cond ((bigfloat::relative-error-p value err eps)
-                        (maxima::to value))
-                       (t
-                        (let ((new-fpprec (mul 2 $fpprec)))
-                          (bind-fpprec new-fpprec
-                            (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) (- new-fpprec 2))))))))))
-    
-    (arithmetic-error (c)
-      (declare (ignore c))
-      (let ((new-fpprec (mul 2 $fpprec)))
-        (bind-fpprec new-fpprec
-          (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) (- new-fpprec 2)))))))
-
-(defun jacobi_p-symbolic (n a b x)
-  ;; explict summation: see http://dlmf.nist.gov/18.5.E8 
-  (let ((s 0))
-		(dotimes (k (+ 1 n))
-			(setq s 
-			      (add s
-			         (mul
-                       (ftake '%binomial (add n a) k)
-			           (ftake '%binomial (add n b) (sub n k))
-                       (ftake 'mexpt (div (sub x 1) 2) (sub n k))
-			           (ftake 'mexpt (div (add x 1) 2) k)))))
-	(orthopoly-polynomial-simp s x)))
 
 (defun gen_laguerre-numeric (n a x digits)
   (handler-case
@@ -862,7 +862,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 		  ((and (integerp n) (complex-number-p x #'$numberp))
             (let* ((digits (if (floatp x)
 			                  (- *binary64-digits* 2)
-							  (- $fpprec 2)))
+							  digits))
 		        (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (spherical_hankel1-numeric n x digits) one)
@@ -874,10 +874,10 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 ;; f(n+1) = (2n +1) f(n)/x - f(n-1,z).  
 (defun spherical_hankel1-symbolic (n x)
     (let* ((cis (ftake 'mexpt '$%e (mul '$%i x)))
-	       (f0 (div (mul -1 '$%i cis) x))
-		   (f1 (mul (div (add (div '$%i x) 1) x) cis))
-		   (p #'(lambda (k) (div (add (mul 2 k) 1) x)))
-		   (q #'(lambda (k) (declare (ignore k)) -1)))
+	         (f0 (div (mul -1 '$%i cis) x))
+		       (f1 (mul (div (add (div '$%i x) 1) x) cis))
+		       (p #'(lambda (k) (div (add (mul 2 k) 1) x)))
+		       (q #'(lambda (k) (declare (ignore k)) -1)))
 		 (generic-two-term-recursion-symbolic f0 f1 p q x n)))
 
 (in-package #:bigfloat)
@@ -912,12 +912,12 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
                 (t
                  ;; If precision is insufficient, boost fpprec and convert to bigfloat
                  (bind-fpprec (mul 2 $fpprec)
-                   (spherical_hankel1-numeric n ($bfloat x) (- $fpprec 2)))))))
+                   (spherical_hankel1-numeric n ($bfloat x) digits))))))
     ;; Catch binary64 overflow and switch automatically to bigfloats
     (arithmetic-error (c)
 	  (declare (ignore c))
       (bind-fpprec $fpprec
-        (spherical_hankel1-numeric n ($bfloat x) (- $fpprec 2))))))
+        (spherical_hankel1-numeric n ($bfloat x) digits)))))
 
 (putprop '%spherical_hankel1
 	 '((n x)
@@ -929,25 +929,22 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 ;; See A & S 10.1.36.
 
-(defun $spherical_hankel2 (n x)
-  (declare (ignore n x))
-  (merror "Yikes"))
-  
+(def-simplifier spherical_hankel2 (n x)
+  (give-up))
 
 (putprop '%spherical_hankel2
 	 '((n x)
-	   ((unk) first spherical_hankel2)
+	   nil
 	   ((mplus simp) ((%spherical_hankel2) ((mplus) -1 n) x)
 	    ((mtimes simp) -1 ((mplus) 1 n)
 	     ((%spherical_hankel2) n x) ((mexpt) x -1))))
 	 'grad)
 
-
 (def-simplifier spherical_bessel_j (n x)
-    (cond ((and (integerp n) (complex-number-p x))
+    (cond ((and (integerp n) (complex-number-p x #'$numberp))
              (let* ((digits (if (floatp x)
 			                  (- *binary64-digits* 2)
-							  (- $fpprec 2)))
+							  digits))
 		        (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (spherical_bessel_j-numeric n x digits) one)
@@ -972,35 +969,72 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	 'grad)
  
 (defun spherical_bessel_j-numeric (n x digits)
+  "Numeric spherical Bessel j_n(x) using bigfloat recurrence.
+   j_0(x) = sin(x)/x
+   j_1(x) = sin(x)/x^2 - cos(x)/x
+   j_{n+1}(x) = ((2n+1)/x) * j_n(x) - j_{n-1}(x)."
   (handler-case
-      (let* ((bf-x (bigfloat::to x))
-             (f0 (bigfloat::to 1))
-             (f1 (bigfloat::* 2 bf-x))
-             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
-             (p #'(lambda (k) (declare (ignore k)) (bigfloat::* 2 bf-x)))
-             (q #'(lambda (k) (bigfloat::- (bigfloat::* 2 k))))) 
+      (let* ((bf-x   (bigfloat::to x))
+             (bf-one (bigfloat::to 1))
+             (bf-two (bigfloat::to 2))
+
+             ;; j_0(x) = sin(x)/x
+             (f0 (bigfloat::/ (bigfloat::sin bf-x) bf-x))
+
+             ;; j_1(x) = sin(x)/x^2 - cos(x)/x
+             (f1 (bigfloat::-
+                  (bigfloat::/
+                   (bigfloat::sin bf-x)
+                   (bigfloat::expt bf-x 2))
+                  (bigfloat::/
+                   (bigfloat::cos bf-x)
+                   bf-x)))
+
+             ;; eps = 10^(-digits)
+             (eps (bigfloat::to (ftake 'mexpt 10 (- digits))))
+
+             ;; p(k) = (2k+1)/x
+             (p #'(lambda (k)
+                    (bigfloat::/
+                     (bigfloat::+
+                      (bigfloat::* bf-two (bigfloat::to k))
+                      bf-one)
+                     bf-x)))
+
+             ;; q(k) = -1
+             (q #'(lambda (k)
+                    (bigfloat::to -1))))
+
+        ;; Run the recurrence with error tracking
         (multiple-value-bind (value err)
             (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
           (cond ((bigfloat::relative-error-p value err eps)
+                 ;; Convert back to Maxima number
                  (maxima::to value))
                 (t
-                 ;; If precision is insufficient, boost fpprec and convert to bigfloat
+                 ;; Precision insufficient → boost fpprec and retry
                  (bind-fpprec (mul 2 $fpprec)
-                   (hermite-numeric n ($bfloat x) (- $fpprec 2)))))))
-    ;; Catch binary64 overflow and switch automatically to bigfloats
+                   (spherical_bessel_j-numeric n ($bfloat x) digits))))))
+
+    ;; IEEE overflow → switch to bigfloat automatically
     (arithmetic-error (c)
-	  (declare (ignore c))
+      (declare (ignore c))
       (bind-fpprec $fpprec
-        (hermite-numeric n ($bfloat x) (- $fpprec 2))))))
+        (spherical-bessel-j-numeric n ($bfloat x) digits)))))
 
 (defun spherical_bessel_j-symbolic (n x)
-   (if (eql x 0)
-       0
-	   (let (($besselexpand t)
-	         (ans (div (mul (ftake 'mexpt '$%pi (div 1 2))
-			                (ftake '%bessel_j (add n (div 1 2)) x))
-					   (ftake 'mexpt (mul 2 x) (div 1 2)))))
-		ans)))
+  "Symbolic spherical Bessel j_n(x) using the standard two-term recurrence.
+   j_0(x) = sin(x)/x
+   j_1(x) = sin(x)/x^2 - cos(x)/x
+   j_{n+1}(x) = ((2n+1)/x) * j_n(x) - j_{n-1}(x)."
+  (let* ((f0 (div (ftake '%sin x) x))
+         (f1 (add (div (ftake '%sin x) (ftake 'mexpt x 2))
+                  (mul -1 (div (ftake '%cos x) x))))
+         ;; p(k) = ((2k+1)/x)
+         (p #'(lambda (k) (div (add (mul 2 k) 1) x)))
+         ;; q(k) = -1
+         (q #'(lambda (k) (declare (ignore k)) -1)))
+    (generic-two-term-recursion-symbolic p q f0 f1 x n)))
 	    
 ;; For analytic continuation, see A&S 10.1.35.
  
@@ -1365,23 +1399,8 @@ variable ~:M" arg (car (last arg))))
   ;; by extracting the real part and evaluating its epsilon.
   (epsilon (cl:realpart x)))
 
-
 (defun relative-error-p (x err eps)
   (< (abs err) (* eps (max 1 (abs x)))))
-
-#| 
-(defun hypergeo21-polynomial-numeric (n b c x) 
-  "Return two values: the function value and its running error bound."
-  (let* ((one (bigfloat::to 1))
-         (f0 one)
-         (f1 (- one (/ (* b x) c)))
-         (p #'(lambda (i) (/ (+ (* 2 i) c (- (* x (+ b i)))) (+ c i))))
-         (q #'(lambda (i) (/ (* i (- x 1)) (+ c i)))))
-    
-    (if (eql n 0)
-        (values f0 (bigfloat::to 0))
-        (generic-two-term-recursion p q f0 f1 (- n)))))
-|#
 
 (defun generic-two-term-recursion-running-error (p q f0 f1 n)
   "Evaluates the recurrence forward while simultaneously tracking the running error bound."
@@ -1420,7 +1439,7 @@ variable ~:M" arg (car (last arg))))
   (cond ((and (integerp n) (> n -1) (complex-number-p x #'$numberp))
           (let* ((digits (if (floatp x)
 			                  (- *binary64-digits* 2)
-							  (- $fpprec 2)))
+							  digits))
 		        (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (legendre_q-numeric n x digits) one)
@@ -1502,11 +1521,14 @@ variable ~:M" arg (car (last arg))))
 	     ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) x 2))) -1))))
 	 'grad) 
 
+(defun $assoc_legendre_q (n m x)
+  (ftake '%assoc_legendre_q n m x))
+  
 (def-simplifier assoc_legendre_q (n m x)
   (cond ((and (integerp n) (integerp m) (complex-number-p x #'$numberp) (> n -1) (<= (abs m) n))
            (let* ((digits (if (floatp x)
 			                  (- *binary64-digits* 2)
-							  (- $fpprec 2)))
+							  digits))
 		        (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (assoc_legendre_q-numeric n m x digits) one)
