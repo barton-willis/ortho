@@ -45,7 +45,8 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 (in-package :maxima)
 
 (defun orthopoly-polynomial-simp (p x)
-	(let (($ratfac t) ($algebraic t)) ($ratdisrep ($rat p x))))
+"Intended solely to “clean up” the output of orthogonal‑polynomial constructors."
+	(let (($ratfac t) ($algebraic t)) ($expand ($ratdisrep ($rat p x)) 0 0)))
 
 (defmvar *binary64-digits* (floor (* (float-digits 1.0d0) (log 2 10))))
 ;; A left continuous unit step function; thus 
@@ -104,6 +105,8 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 (setf (get '%unit_step 'simplim%function) 'simplim%unit_step)
 
+
+(print "at 1")
 (defun multiplicative-identity (&rest a)
   "Return the appropriate multiplicative identity (1 for rational numbers, 1.0do for binary64, and 1.0b0 for bigfloats)
   for the numbers in the list a."
@@ -198,6 +201,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 		(t (give-up))))
 
+(print "at 2")
 (putprop '%ultraspherical 
 	 '((n a x)
 	   nil 
@@ -277,6 +281,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
       (bind-fpprec $fpprec
         (ultraspherical-numeric n ($bfloat lam) ($bfloat x) (- $fpprec 2))))))
 
+(print "at 3")
 (def-simplifier chebyshev_t (n x)
   (cond ((and (integerp n) (complex-number-p x #'$ratnump))
             (let* ((digits (if (floatp x)
@@ -346,7 +351,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
         (bind-fpprec new-fpprec
           (chebyshev_t-numeric n ($bfloat x) (- new-fpprec 2)))))))
 
-
+(print "at 4")
 (putprop '$chebyshev_t 
 	 '((n x)
 	   nil
@@ -494,6 +499,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
            (q #'(lambda (k) (mul -1 (div k (add k 1))))))
 	 (generic-two-term-recursion-symbolic p q f0 f1 x n)))
          
+(print "at 5")
 (putprop '%legendre_p 
 	 '((n x) 
 	   nil
@@ -504,109 +510,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	     ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) x 2))) -1)))
 	 'grad)
   
-(defun $legendre_q (n x)
-  (if (and (integerp n) (> n -1)) 
-      ($assoc_legendre_q n 0 x)
-    `(($legendre_q simp) ,n ,x)))
 
-(putprop '$legendre_q 
-	 '((n x) 
-	   nil 
-	   ((mplus)
-	    ((mtimes) -1 ((%kron_delta) 0 n)
-	     ((mexpt) ((mplus) -1 ((mexpt) x 2)) -1)) 
-	    ((mtimes)
-	     ((mplus)
-	      ((mtimes) n ((%legendre_q) ((mplus) -1 n) x))
-	      ((mtimes) -1 n ((%legendre_q) n x) x))
-	     ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) x 2))) -1))))
-	 'grad)
-
-;; See A & S 8.6.7 and 8.2.6 pages 333 and 334. I chose the 
-;; definition that is real valued on (-1,1).  
-
-;; For negative m, A & S 8.2.6 page 333 and  G & R 8.706 page 1000
-;; disagree; the factor of exp(i m pi) in A & S 8.1.6 suggests to me that
-;; A & S  8.2.6 is bogus.  As further evidence, Macsyma 2.4 seems to 
-;; agree with G & R 8.706. I'll use G & R.
-
-;; Return assoc_legendre(0,m,x). This isn't a user-level function; we 
-;; don't check that m is a positive integer.
-
-(defun q0m (m x)
-  (cond ((< m 0)
-	 (merror "function q0m called with negative order. File a bug report"))
-   	((= m 0)
-	 (div (simplify `((%log) ,(div (add 1 x) (sub 1 x)))) 2))
-	(t
-	 (mul (factorial (- m 1)) `((rat simp) 1 2)
-	      (if (oddp m) -1 1) (power (sub 1 (mult x x)) (div m 2))
-	      (add 
-	       (mul (if (oddp m) 1 -1) (power (add 1 x) (neg m)))
-	       (power (sub 1 x) (neg m)))))))
-  
-;; Return assoc_legendre(1,m,x).  This isn't a user-level function; we 
-;; don't check that m is a positive integer; we don't check that m is 
-;; a positive integer.
-
-(defun q1m (m x)
-  (cond ((< m 0)
-	 (merror "function q1m called with negative order. File a bug report"))
-	((= m 0)
-	 (sub (mul x (q0m 0 x)) 1))
-	((= m 1)
-	 (mul -1 (power (sub 1 (mult x x)) `((rat simp) 1 2))
-	      (sub (q0m 0 x) (div x (sub (mul x x) 1)))))
-	(t
-	 (mul (if (oddp m) -1 1) (power (sub 1 (mult x x)) (div m 2))
-	      (add
-	       (mul (factorial (- m 2)) `((rat simp) 1 2) (if (oddp m) -1 1)
-		    (sub (power (add x 1) (sub 1 m))
-			 (power (sub x 1) (sub 1 m))))
-	       
-	       (mul (factorial (- m 1)) `((rat simp) 1 2) (if (oddp m) -1 1)
-		    (add (power (add x 1) (neg m)) 
-			 (power (sub x 1) (neg m)))))))))
-
-;; Return assoc_legendre_q(n,n,x). I don't have a reference that gives
-;; a formula for assoc_legendre_q(n,n,x). To figure one out,  I used
-;; A&S 8.2.1 and a formula for assoc_legendre_p(n,n,x).  
-
-;; After finishing the while loop, q = int(1/(1-t^2)^(n+1),t,0,x). 
-
-(defun assoc-legendre-q-nn (n x)
-  (let ((q) 
-	(z (sub 1 (mul x x))) 
-	(i 1))
-    (setq q (div (simplify `((%log) ,(div (add 1 x) (sub 1 x)))) 2))
-    (while (<= i n)
-      (setq q (add (mul (sub 1 `((rat) 1 ,(* 2 i))) q)
-		   (div x (mul 2 i (power z i)))))
-      (incf i))
-    (mul (expt -2 n) (factorial n) (power z (div n 2)) q)))
-
-;; Use degree recursion to find the assoc_legendre_q function. 
-;; See A&S 8.5.3. When i = m in the while loop, we have a special
-;; case.  For negative order, see A&S 8.2.6.
-
-(def-simplifier assoc_legendre_q (n m x)
-  (give-up))
-
-;; See G & R, 8.733, page 1005 first equation.
-
-(putprop '%assoc_legendre_q
-	 '((n m x)
-	   nil
-	   nil
-	   ((mplus)
-	    ((mtimes)
-	     ((mplus)
-	      ((mtimes) -1 ((mplus) 1 ((mtimes) -1 m) n)
-	       ((%assoc_legendre_q ) ((mplus ) 1 n) m x))
-	      ((mtimes) ((mplus) 1 n)
-	       ((%assoc_legendre_q ) n m x) x))
-	     ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) x 2))) -1))))
-	 'grad) 
 
 ;;fred(l,m,x) := (-1)^m * (1-x^2)^(m/2) * ultraspherical(l-m,m+1/2,x);
 
@@ -1511,18 +1415,9 @@ variable ~:M" arg (car (last arg))))
     (values fi err-i)))
 
 (in-package :maxima)
-;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-
-
-
-;; Use degree recursion to find the assoc_legendre_q function. 
-;; See A&S 8.5.3. When i = m in the while loop, we have a special
-;; case.  For negative order, see A&S 8.2.6.
 
 (def-simplifier legendre_q (n x)
-  (cond ((and (integerp n) (> n -1) (complex-number-p x #'$ratnump))
+  (cond ((and (integerp n) (> n -1) (complex-number-p x #'$numberp))
           (let* ((digits (if (floatp x)
 			                  (- *binary64-digits* 2)
 							  (- $fpprec 2)))
@@ -1531,10 +1426,28 @@ variable ~:M" arg (car (last arg))))
 			    (number-coerce (legendre_q-numeric n x digits) one)
 				(give-up))))
 		((and (integerp n) (> n -1))
-		 (legendre_q-symbolic n x))
-
+		   (legendre_q-symbolic n x))
+        ((and (eql x 0) ($featurep n '$integer) (or  ($featurep n '$even) ($featurep n '$odd)))
+           (legendre_q-at-zero n))
 		(t (give-up))))
 
+(defun legendre_q-numeric (n x digits)
+	(let* ((g (gensym))
+	       (f (legendre_q-symbolic n g)))
+	  (mfuncall '$nfloat f (ftake 'mlist (ftake 'mequal g x)) digits)))
+
+(defun legendre_q-at-zero (n)
+  (if ($featurep n '$even)
+      0
+      (let* ((k (div (sub n 1) 2))
+             (num (mul (ftake 'mexpt 2 (mul 2 k))
+                       (ftake 'mfactorial k)
+                       (ftake 'mfactorial k)))
+             (den (ftake 'mfactorial (add (mul 2 k) 1)))
+             (sgn (ftake 'mexpt -1 k)))
+        (div (mul sgn num) den))))
+
+;; See http://dlmf.nist.gov/14.7.E3
 (defun legendre_q-symbolic (n x)
   "Return sum_{s=0}^{n-1} (n+s)!*(psi(n+1) - psi(s+1)) * (x-1)^s/(2^s * (n-s)!*(s!)^2)+(1/2) * P_n(x) * log((1+x)/(1-x))."
 
@@ -1547,9 +1460,6 @@ variable ~:M" arg (car (last arg))))
 
     (let ((sum 0)
           (psi-n (psi 0 (add n 1))))
-
-	  (mtell "psi-n = ~M ~%" psi-n)
-
       ;; main sum: s = 0 .. n-1
       (dotimes (s n)
         (let* ((ns  (ftake 'mfactorial (add n s)))
@@ -1578,10 +1488,59 @@ variable ~:M" arg (car (last arg))))
 
 ;; See G & R, 8.733, page 1005 first equation.
 
-(putprop '$assoc_legendre_q
+(putprop '%assoc_legendre_q
 	 '((n m x)
-       nil
+     nil
 	   nil	   
+	   ((mplus)
+	    ((mtimes)
+	     ((mplus)
+	      ((mtimes) -1 ((mplus) 1 ((mtimes) -1 m) n)
+	       ((%assoc_legendre_q ) ((mplus ) 1 n) m x))
+	      ((mtimes) ((mplus) 1 n)
+	       ((%assoc_legendre_q ) n m x) x))
+	     ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) x 2))) -1))))
+	 'grad) 
+
+(def-simplifier assoc_legendre_q (n m x)
+  (cond ((and (integerp n) (integerp m) (complex-number-p x #'$numberp) (> n -1) (<= (abs m) n))
+           (let* ((digits (if (floatp x)
+			                  (- *binary64-digits* 2)
+							  (- $fpprec 2)))
+		        (one (multiplicative-identity x)))
+			(if one 
+			    (number-coerce (assoc_legendre_q-numeric n m x digits) one)
+				(give-up))))
+
+      ((and (integerp n) (integerp m) (> n -1) (<= (abs m) n))
+       (assoc_legendre_q-symbolic n m x))
+
+      ((eql m 0)
+        (ftake '%legendre_q n x))
+
+      (t (give-up))))
+
+(defun assoc_legendre_q-symbolic (n m x)
+  (let* ((g (gensym))
+         (f (ftake '%legendre_q n g)))
+
+    (orthopoly-polynomial-simp 
+        (maxima-substitute x g
+           (mul (ftake 'mexpt -1 m)
+            (ftake 'mexpt (sub 1 (mul x x)) (div m 2))
+            ($diff f g m))) x)))
+
+(defun assoc_legendre_q-numeric (n m x digits)
+    (let* ((g (gensym))
+           (f (assoc_legendre_q-symbolic n m g)))
+      (nfloat f (ftake 'mlist (ftake 'mequal g x)) digits $max_fpprec)))
+      
+;; See G & R, 8.733, page 1005 first equation.
+
+(putprop '%assoc_legendre_q
+	 '((n m x)
+	   nil
+	   nil
 	   ((mplus)
 	    ((mtimes)
 	     ((mplus)
