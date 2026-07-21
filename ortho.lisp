@@ -149,77 +149,23 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
   nil
   #$$ (n*jacobi_p(n,a,b,x)*((-(2*n)-b-a)*x-b+a)+2*jacobi_p(n-1,a,b,x)*(n+a)*(n+b)*unit_step(n))/((2*n+b+a)*(1-x^2))$)
 
-(in-package #:bigfloat)
-(defun jacobi-order-one (a b x)
-	(* (+ a 1) (+ 1 (- (/ (* (+ b a 2) (+ 1 (- x))) (* 2 (+ 1 a))))))) 
-
-(in-package :maxima)
-
 ;;; Table 22.7 (page 782) of Abramowitz and Stegun (1964) gives the order-only recursion for 
-;;; the Jacobi polynomials. This recursion is missing from Table 18.9.1 of the DLMF. 
+;;; the Jacobi polynomials. This recursion is missing from Table 18.9.1 of the DLMF. But 
+;;; the recursion suffers from vanishing denominators. Without trickery, the 2F1 
+;;; representation http://dlmf.nist.gov/18.5.E7 is not defined for some negative integers.
+
+;;; Let's turn this over to nfloat.
+
 (defun jacobi_p-numeric (n a b x digits)
-  (handler-case
-      (let* ((bf-a (bigfloat::to a))
-             (bf-b (bigfloat::to b))
-             (bf-x (bigfloat::to x))
-             
-             (f0 (bigfloat::to 1))
-             (f1 (bigfloat::/ (bigfloat::+ (bigfloat::* (bigfloat::+ bf-a bf-b 2) bf-x) 
-                                           (bigfloat::- bf-a bf-b)) 
-                              2))
-             
-             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
-             
-             (a+b (bigfloat::+ bf-a bf-b))
-             (a+b+1 (bigfloat::+ bf-a bf-b 1))
-             (a+b+2 (bigfloat::+ bf-a bf-b 2))
-             
-             ;; a^2 - b^2
-             (a2-b2 (bigfloat::- (bigfloat::* bf-a bf-a) (bigfloat::* bf-b bf-b)))
-             
-             (p #'(lambda (k)
-                    (let* ((bf-k (bigfloat::to k))
-                           (2k (bigfloat::* 2 bf-k))
-                           (k+1 (bigfloat::+ bf-k 1))
-                           
-                           ;; Numerator: (2k + a + b + 1)(a^2 - b^2) + x pochhammer(2k + a + b,3)
-                           (num (bigfloat::+
-                                 (bigfloat::* (bigfloat::+ 2k a+b+1) a2-b2)
-                                 (bigfloat::* bf-x (bigfloat::+ 2k a+b) (bigfloat::+ 2k a+b+1) (bigfloat::+ 2k a+b+2))))
-                           
-                           ;; Denominator: 2(k + 1)(k + a + b + 1)(2k + a + b)
-                           (den (bigfloat::* 2 k+1 (bigfloat::+ bf-k a+b+1) (bigfloat::+ 2k a+b))))
-                      (bigfloat::/ num den))))
-             
-             (q #'(lambda (k)
-                    (let* ((bf-k (bigfloat::to k))
-                           (2k (bigfloat::* 2 bf-k))
-                           (k+1 (bigfloat::+ bf-k 1))                   
-                           
-                           ;; Numerator: 2(k + a)(k + b)(2k + a + b + 2)
-                           (num (bigfloat::* -2 (bigfloat::+ bf-k bf-a) (bigfloat::+ bf-k bf-b) (bigfloat::+ 2k a+b+2)))
-                           
-                           ;; Denominator: 2(k + 1)(k + a + b + 1)(2k + a + b)
-                           (den (bigfloat::* 2 k+1 (bigfloat::+ bf-k a+b+1) (bigfloat::+ 2k a+b))))
-                      (bigfloat::/ num den)))))
-        
-        (cond ((eql n 0) (maxima::to f0))
-              ((eql n 1) (maxima::to f1))
-              (t
-               (multiple-value-bind (value err)
-                   (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
-                 (cond ((bigfloat::relative-error-p value err eps)
-                        (maxima::to value))
-                       (t
-                        (let ((new-fpprec (mul 2 $fpprec)))
-                          (bind-fpprec new-fpprec
-                            (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) (- new-fpprec 2))))))))))
-    
-    (arithmetic-error (c)
-      (declare (ignore c))
-      (let ((new-fpprec (mul 2 $fpprec)))
-        (bind-fpprec new-fpprec
-          (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) (- new-fpprec 2)))))))
+  (let* ((ga (gensym))
+         (gb (gensym))
+         (gx (gensym))
+         (p ($horner (jacobi_p-symbolic n ga gb gx) gx)))
+    (mfuncall '$nfloat p (ftake 'mlist 
+                          (ftake 'mequal ga a)
+                          (ftake 'mequal gb b)
+                          (ftake 'mequal gx x))
+                      digits $max_fpprec)))
 
 (defun jacobi_p-symbolic (n a b x)
   ;; explict summation: see http://dlmf.nist.gov/18.5.E8 
@@ -230,7 +176,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 			         (mul
                  (ftake '%binomial (add n a) k)
 			           (ftake '%binomial (add n b) (sub n k))
-                       (ftake 'mexpt (div (sub x 1) 2) (sub n k))
+                 (ftake 'mexpt (div (sub x 1) 2) (sub n k))
 			           (ftake 'mexpt (div (add x 1) 2) k)))))
 	(orthopoly-polynomial-simp s x)))
 
@@ -262,7 +208,6 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 		(t (give-up))))
 
-(print "at 2")
 (putprop '%ultraspherical 
 	 '((n a x)
 	   nil 
