@@ -1,4 +1,6 @@
 *.FASL
+*.ERR
+*.err
 *.fasl
 *.lisp-temp
 *.dfsl
