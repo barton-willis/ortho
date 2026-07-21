@@ -144,9 +144,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
           (complex-number-p a #'$numberp)
           (complex-number-p b #'$numberp)
           (complex-number-p x #'$numberp))
-     (let* ((digits (if (floatp x)
-                        (- *binary64-digits* 2)
-                        digits))
+     (let* ((digits (get-digits x))
             (one (multiplicative-identity a b x)))
        (if one
            (number-coerce
@@ -269,10 +267,8 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 ;; See A&S 22.5.46, page 779.
 (def-simplifier ultraspherical (n a x)
 	(cond ((and (integerp n) (complex-number-p a #'$ratnump) (complex-number-p x #'$ratnump))
-            (let* ((digits (if (floatp x)
-			                  (- *binary64-digits* 2)
-							  digits))
-		        (one (multiplicative-identity a x)))
+            (let* ((digits (get-digits x))
+		               (one (multiplicative-identity a x)))
 			(if one 
 			    (number-coerce (ultraspherical-numeric n a x digits) one)
 				(give-up))))
@@ -378,10 +374,8 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 (def-simplifier chebyshev_t (n x)
   (cond ((and (integerp n) (complex-number-p x #'$ratnump))
-            (let* ((digits (if (floatp x)
-			                  (- *binary64-digits* 2)
-							  digits))
-		        (one (multiplicative-identity x)))
+            (let* ((digits (get-digits x))
+		               (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (chebyshev_t-numeric n x digits) one)
 				(give-up))))
@@ -458,10 +452,8 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 (def-simplifier chebyshev_u (n x)
    (cond ((and (integerp n) (complex-number-p x #'$ratnump))
-             (let* ((digits (if (floatp x)
-			                  (- *binary64-digits* 2)
-							  digits))
-		        (one (multiplicative-identity x)))
+             (let* ((digits (get-digits x))
+		                (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (chebyshev_u-numeric n x digits) one)
 				(give-up))))
@@ -543,10 +535,8 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 (def-simplifier legendre_p (n x)
    (cond ((and (integerp n) (complex-number-p x #'$numberp)) ;evaluate numerically
-            (let* ((digits (if (floatp x)
-			                  (- *binary64-digits* 2)
-							  digits))
-		        (one (multiplicative-identity x)))
+            (let* ((digits (get-digits x))
+		               (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (legendre_p-numeric n x digits) one)
 				(give-up))))
@@ -601,11 +591,14 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	     ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) x 2))) -1)))
 	 'grad)
   
+(defun get-digits (x)
+  (if (floatp x)
+			(- *binary64-digits* 2)
+			(- $fpprec 2)))
+
 (def-simplifier assoc_legendre_p (l m x)
   (cond ((and (integerp l) (integerp m) (<= (abs m) l) (complex-number-p x #'$ratnump))
-           (let* ((digits (if (floatp x)
-			                        (- *binary64-digits* 2)
-							                digits))
+           (let* ((digits (get-digits x))
 		        (one (multiplicative-identity x)))
 		    	(if one 
 			        (number-coerce (assoc_legendre_p-numeric l m x digits) one)
@@ -665,9 +658,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 ;;; For special values, see DLMF Table http://dlmf.nist.gov/18.6.i
 (def-simplifier hermite (n x)
   (cond ((and (integerp n) (>= n 0) (complex-number-p x #'$numberp)) ;evaluate numerically
-           (let* ((digits (if (floatp x)
-			                  (- *binary64-digits* 2)
-							  digits))
+           (let* ((digits (get-digits x))
 		        (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (hermite-numeric n x digits) one)
@@ -698,10 +689,8 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 (def-simplifier gen_laguerre (n a x)
 	(cond ((and (integerp n) (complex-number-p a #'$numberp) (complex-number-p x #'$numberp)
-              (let* ((digits (if (floatp x)
-			                  (- *binary64-digits* 2)
-							  digits))
-		        (one (multiplicative-identity a x)))
+              (let* ((digits (get-digits x))      
+		                 (one (multiplicative-identity a x)))
 			(if one 
 			    (number-coerce (gen_laguerre-numeric n a x digits) one)
 				(give-up)))))
@@ -728,10 +717,8 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 (def-simplifier laguerre (n x)
   (cond ((and (integerp n) (complex-number-p x #'$numberp))
-          (let* ((digits (if (floatp x)
-			                  (- *binary64-digits* 2)
-							  digits))
-		        (one (multiplicative-identity x)))
+          (let* ((digits (get-digits x)) 
+		             (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (laguerre-numeric n x digits) one)
 				(give-up))))
@@ -860,10 +847,8 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 	        (spherical_hankel1-symbolic n x))
 
 		  ((and (integerp n) (complex-number-p x #'$numberp))
-            (let* ((digits (if (floatp x)
-			                  (- *binary64-digits* 2)
-							  digits))
-		        (one (multiplicative-identity x)))
+            (let* ((digits (get-digits x))
+		               (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (spherical_hankel1-numeric n x digits) one)
 				(give-up))))
@@ -942,10 +927,8 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 (def-simplifier spherical_bessel_j (n x)
     (cond ((and (integerp n) (complex-number-p x #'$numberp))
-             (let* ((digits (if (floatp x)
-			                  (- *binary64-digits* 2)
-							  digits))
-		        (one (multiplicative-identity x)))
+             (let* ((digits (get-digits x))
+		                (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (spherical_bessel_j-numeric n x digits) one)
 				(give-up))))
@@ -1437,10 +1420,8 @@ variable ~:M" arg (car (last arg))))
 
 (def-simplifier legendre_q (n x)
   (cond ((and (integerp n) (> n -1) (complex-number-p x #'$numberp))
-          (let* ((digits (if (floatp x)
-			                  (- *binary64-digits* 2)
-							  digits))
-		        (one (multiplicative-identity x)))
+          (let* ((digits (get-digits x)) 
+		             (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (legendre_q-numeric n x digits) one)
 				(give-up))))
@@ -1526,10 +1507,8 @@ variable ~:M" arg (car (last arg))))
   
 (def-simplifier assoc_legendre_q (n m x)
   (cond ((and (integerp n) (integerp m) (complex-number-p x #'$numberp) (> n -1) (<= (abs m) n))
-           (let* ((digits (if (floatp x)
-			                  (- *binary64-digits* 2)
-							  digits))
-		        (one (multiplicative-identity x)))
+           (let* ((digits (get-digits x))
+                  (one (multiplicative-identity x)))
 			(if one 
 			    (number-coerce (assoc_legendre_q-numeric n m x digits) one)
 				(give-up))))
