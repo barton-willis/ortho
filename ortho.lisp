@@ -10,38 +10,7 @@
 
 Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramowitz and Stegun (A & S). 
 |#
-#| Templates!
 
-(defun ...-numeric (n x digits)
-  (handler-case
-      (let* ((bf-x (bigfloat::to x))
-             (f0 ...)
-             (f1 ...)
-             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
-             (p #'(lambda (k) ...)
-             (q #'(lambda (k) ...))
-        (multiple-value-bind (value err)
-            (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
-          (cond ((bigfloat::relative-error-p value err eps)
-                 (maxima::to value))
-                (t
-                 ;; If precision is insufficient, boost fpprec and convert to bigfloat
-                 (bind-fpprec (mul 2 $fpprec)
-                   (...-numeric n ($bfloat x) digits))))))
-    ;; Catch binary64 overflow and switch automatically to bigfloats
-    (arithmetic-error (c)
-	  (declare (ignore c))
-      (bind-fpprec $fpprec
-        (...-numeric n ($bfloat x) digits)))))
-
-(defun ...-symbolic (n x)
-    (let* ((f0 ...)
-		   (f1 ...)
-           (p #'(lambda (k) ...))
-           (q #'(lambda (k) ...))
-		   (generic-two-term-recursion-symbolic p q f0 f1 x n)))
-
- |#
 (in-package :maxima)
 
 (defun orthopoly-default-simp (p x)
@@ -53,12 +22,13 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
   ($horner p x))
 
 (defun orthopoly-polynomial-simp (p x &optional (simp-fn #'orthopoly-default-simp))
-  "Apply SIMP-FN to P.  If SIMP-FN is NIL, return P unchanged."
+  "Apply 'simp-fn' to 'p'. If 'simp-fn' is nil, return 'p' unchanged."
   (if simp-fn
       (funcall simp-fn p x)
     p))
 
 (defmvar *binary64-digits* (floor (* (float-digits 1.0d0) (log 2 10))))
+
 ;; A left continuous unit step function; thus 
 ;;
 ;;       unit_step(x) = 0 for x <= 0 and 1 for x > 0.  
@@ -186,7 +156,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 (in-package :maxima)
 
 ;;; Table 22.7 (page 782) of Abramowitz and Stegun (1964) gives the order-only recursion for 
-;;; the Jacobi polynomials.  This recursion is missing from Table 18.9.1 of the DLMF. 
+;;; the Jacobi polynomials. This recursion is missing from Table 18.9.1 of the DLMF. 
 (defun jacobi_p-numeric (n a b x digits)
   (handler-case
       (let* ((bf-a (bigfloat::to a))
@@ -258,7 +228,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 			(setq s 
 			      (add s
 			         (mul
-                       (ftake '%binomial (add n a) k)
+                 (ftake '%binomial (add n a) k)
 			           (ftake '%binomial (add n b) (sub n k))
                        (ftake 'mexpt (div (sub x 1) 2) (sub n k))
 			           (ftake 'mexpt (div (add x 1) 2) k)))))
