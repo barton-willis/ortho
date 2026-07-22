@@ -9,6 +9,86 @@
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramowitz and Stegun (A & S). 
+
+Most functions use the three term recursion in the upward direction to evaluate these polynomials for both
+symbolic and numeric arguments. For the floating point (either binary64 or big float numbers), the code
+uses a dynamic running error to estimate the rounding error. The running error only bounds the rounding
+in the sum, not in the product.  Specifically it works like this: let f(k) be the true value and let
+fa(k) be the approximate value computed with floating point numbers.  Then
+
+     f(k+1) = p(k) f(k) + q(k) f(k-1)
+     fa(k+1) = p(k) ⊗ f(k) ⊕ q(k) ⊗ fa(k-1),
+
+where ⊕ is floating point addition. Using the rules of ⊕, there are numbers ε0(k), ε1(k), and ε2(k) 
+whose magnitudes are  bounded the machine epsilon such that 
+
+     fa(k+1) = (p(k) fa(k) (1 + ε0(k)) + q(k) fa(k-1) (1 + ε1(k)))(1 + ε2(k)).
+
+Now define E(k) = f(k) - fa(k). We have
+
+    E(k+1) =  p(k) E(k) + q(k) E(k-1) + ε2(k) (p(k) fa(k) + q(k) fa(k-1)) + ε0(k) p(k) fa(k) + ε1(k) q(k) fa(k-1) + O(ε^2),
+  
+  where ε^2 is the machine epsilon.  Applying the triangle inequality
+
+   |E(k+1)| ≤ |p(k)| |E(k)| + |q(k)| |E(k-1)| + ε |p(k) fa(k) + q(k) fa(k-1)| + ε |p(k) fa(k)| + ε |q(k) fa(k-1)|.
+  
+  or using   fa(k+1) = p(k) fa(k) +  q(k) fa(k-1) = fa(k+1) + O(ε^2), we have
+  
+   |E(k+1)| ≤ |p(k)| |E(k)| + |q(k)| |E(k-1)| + ε |fa(k+1)| + ε |p(k) fa(k)| + ε |q(k) fa(k-1)| + O(ε^2).
+
+   Defining |E(k)| = ε 𝓔(k), we have
+
+    𝓔(k+1) ≤ |p(k)| 𝓔(k) + |q(k)| 𝓔(k-1) + |fa(k+1)| + |p(k) fa(k)| + |q(k) fa(k-1)| + O(ε).
+
+  The code returns the two values fa(n) and 𝓔(n). When the value of 𝓔(n) is sufficiently small, 
+  the process is done and we accept fa(n) as the value; if not the process is repeated with a
+  smaller value for the machine epsilon. 
+
+  This is called a running error method. Think of it as a "poor man's" interval arithmetic. 
+
+  Notes:
+
+  (a) The model I used for ⊕ is incorrect for subnormal numbers
+  (b) We ignore the rounding error for multiplication. This could be fixed, but ever
+
+  I know what you are thinking:
+
+  (a) Shouldn't the code conditionally use downward recursion for large n, small x, or ...
+   
+      Oh, maybe. But a great deal of reasonable inputs are modestly sized making the choice
+      between directions not so certain.  Plus, I'm not sure about cases with complex parameters. 
+      And even using the better choice for the recursion direction, rounding errors and cancellation 
+      still happen and need to be managed. Finally, I'm not sure that I want to add this much complexity 
+      to the code.
+
+  (b) Instead of the running error, why not just use Kahan summation? 
+
+      Kahan summation is a lovely method, but it does not transform an ill-conditioned sum into a 
+      well-conditioned sum. That said, there might be opportunities to use it in this code.
+
+  (c) Doesn't Clenshaw summation eliminate all cancellation problems?
+
+     No, I think it might be good for many cases, but not all. Again, I'm not sure that I want to add 
+     this much complexity of choosing between multiple methods.
+
+  (d) Why not just turn over all the numerical code to hypergeometric? 
+
+      This should work--I'm not sure about the trade-offs.
+
+  (e) Why not do floating point evaluation using nfloat and the exact symbolic values?
+
+     Currently, code does this for assoc_legendre_q, but it is painfully slow.
+
+  (f) Isn't the running error is just a crude estimate? It's not rigorous!
+
+      It's an estimate that is based on the properties of floating point arithmetic. Sure, it's
+      an estimate, but it's not "crude."
+
+  (g) Can't you assume that rounding errors are uniformly distributed independent random variables
+      and get a much lower error estimate?
+
+      Yes, you can make those assumptions, but they are not grounded in fact.
+
 |#
 
 (in-package :maxima)
@@ -62,6 +142,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
    (declare (ignore x))
    (setq sign '$pz))
 (setf (get '%unit_step 'sign-function) 'unit_step-sign-function)
+(setf (get '$unit_step 'sign-function) 'unit_step-sign-function)
 
 ;; antiderivative of unit_step
 (putprop '%unit_step
@@ -97,7 +178,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
       (unless (member nil ones) ; If any element failed the check, abort numeric calculation
         (fapply 'mtimes ones)))))
 
-(defun number-coerce (x one)
+(defun orthopoly-number-coerce (x one)
   "Coerce the number `x` to the numeric type indicated by `one`.
    If `one` is an Maxima ratnump number, return an exact rationalized version of `x`.
    If `one` is a float, convert `x` to an IEEE float. Otherwise convert X 
@@ -117,7 +198,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
      (let* ((digits (get-digits x))
             (one (multiplicative-identity a b x)))
        (if one
-           (number-coerce
+           (orthopoly-number-coerce
              (jacobi_p-numeric n a b x digits)
              one)
            (give-up))))
@@ -154,21 +235,67 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 ;;; the recursion suffers from vanishing denominators. Without trickery, the 2F1 
 ;;; representation http://dlmf.nist.gov/18.5.E7 is not defined for some negative integers.
 
-;;; Let's turn this over to nfloat.
-
 (defun jacobi_p-numeric (n a b x digits)
-  (let* ((ga (gensym))
-         (gb (gensym))
-         (gx (gensym))
-         (p ($horner (jacobi_p-symbolic n ga gb gx) gx)))
-    (mfuncall '$nfloat p (ftake 'mlist 
-                          (ftake 'mequal ga a)
-                          (ftake 'mequal gb b)
-                          (ftake 'mequal gx x))
-                      digits $max_fpprec)))
+  (handler-case
+      (let* ((bfa (bigfloat::to a))
+             (bfb (bigfloat::to b))
+             (bfx (bigfloat::to x))
+             (eps (bigfloat::expt 10 (neg digits))))
+
+        (multiple-value-bind (value err)
+            (bigfloat::jacobi_p-numeric-sum n bfa bfb bfx)
+
+          (cond ((bigfloat::relative-error-p value err eps)
+                 (maxima::to value))
+                (t
+                 ;; If precision is insufficient, boost fpprec and convert to bigfloat
+                 (bind-fpprec (mul 2 $fpprec)
+                   (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) digits))))))
+
+    ;; Catch binary64 overflow and switch automatically to bigfloats
+    (arithmetic-error (c)
+      (declare (ignore c))
+      (bind-fpprec $fpprec
+        (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) digits)))))
+
+  
+(in-package #:bigfloat)
+
+(defun jacobi_p-numeric-sum (n a b x)
+  ;; n is an integer; a, b, x are already numeric (float or bigfloat)
+  (let* ((bfx (bigfloat::to x))
+         (xm1 (/ (- bfx 1) 2))   ; (x-1)/2
+         (xp1 (/ (+ bfx 1) 2))   ; (x+1)/2
+         (s   (bigfloat::to 0))
+         (err (bigfloat::to 0)))
+
+    ;; local binomial to avoid namespace clashes
+    (flet ((binomial (a n)
+             (let ((p (bigfloat::to 1)))
+               (dotimes (k n)
+                 (setq p (/ (* p (- a k)) (+ k 1))))
+               p)))
+
+      (dotimes (k (1+ n))
+        (let* ((cf (* (binomial (+ n a) k)
+                      (binomial (+ n b) (- n k))))
+               (ds (* cf
+                      (if (eql k n) 1 (expt xm1 (- n k)))
+                      (if (eql k 0) 1 (expt xp1 k)))))
+          ;; accumulate sum
+          (setf s (+ s ds))
+          ;; accumulate running error
+          (setf err (+ err (abs ds)))))
+
+      ;; return both value and error
+      (values s (* (epsilon x) err)))))
+
+(in-package :maxima)
 
 (defun jacobi_p-symbolic (n a b x)
-  ;; explict summation: see http://dlmf.nist.gov/18.5.E8 
+  ;; explict summation: see http://dlmf.nist.gov/18.5.E8 . One problem: when x=+/-1, the 
+  ;; k=0 or k=n terms can involve a factor of the form 0^0. Maybe it's too spendy, but
+  ;; we'll special the k=0 & k=n terms.
   (let ((s 0))
 		(dotimes (k (+ 1 n))
 			(setq s 
@@ -176,8 +303,8 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 			         (mul
                  (ftake '%binomial (add n a) k)
 			           (ftake '%binomial (add n b) (sub n k))
-                 (ftake 'mexpt (div (sub x 1) 2) (sub n k))
-			           (ftake 'mexpt (div (add x 1) 2) k)))))
+                 (if (eql n k) 1  (ftake 'mexpt (div (sub x 1) 2) (sub n k)))
+                  (if (eql k 0) 1 (ftake 'mexpt (div (add x 1) 2) k))))))
 	(orthopoly-polynomial-simp s x)))
 
 ;; See A&S 22.5.46, page 779.
@@ -186,7 +313,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
             (let* ((digits (get-digits x))
 		               (one (multiplicative-identity a x)))
 			(if one 
-			    (number-coerce (ultraspherical-numeric n a x digits) one)
+			    (orthopoly-number-coerce (ultraspherical-numeric n a x digits) one)
 				(give-up))))
 
 		  ((integerp n)
@@ -292,7 +419,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
             (let* ((digits (get-digits x))
 		               (one (multiplicative-identity x)))
 			(if one 
-			    (number-coerce (chebyshev_t-numeric n x digits) one)
+			    (orthopoly-number-coerce (chebyshev_t-numeric n x digits) one)
 				(give-up))))
 
 		  ((integerp n)
@@ -370,7 +497,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
              (let* ((digits (get-digits x))
 		                (one (multiplicative-identity x)))
 			(if one 
-			    (number-coerce (chebyshev_u-numeric n x digits) one)
+			    (orthopoly-number-coerce (chebyshev_u-numeric n x digits) one)
 				(give-up))))
 
 		  ((integerp n)
@@ -453,7 +580,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
             (let* ((digits (get-digits x))
 		               (one (multiplicative-identity x)))
 			(if one 
-			    (number-coerce (legendre_p-numeric n x digits) one)
+			    (orthopoly-number-coerce (legendre_p-numeric n x digits) one)
 				(give-up))))
 
 		  ((integerp n)
@@ -516,7 +643,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
            (let* ((digits (get-digits x))
 		        (one (multiplicative-identity x)))
 		    	(if one 
-			        (number-coerce (assoc_legendre_p-numeric l m x digits) one)
+			        (orthopoly-number-coerce (assoc_legendre_p-numeric l m x digits) one)
 				      (give-up))))
 
         ((and (integerp l) (integerp m) (<= (abs m) l))
@@ -576,7 +703,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
            (let* ((digits (get-digits x))
 		        (one (multiplicative-identity x)))
 			(if one 
-			    (number-coerce (hermite-numeric n x digits) one)
+			    (orthopoly-number-coerce (hermite-numeric n x digits) one)
 				(give-up))))
         ;; symbolic case call generic-two-term-recursion-symbolic
         ((integerp n)
@@ -607,7 +734,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
               (let* ((digits (get-digits x))      
 		                 (one (multiplicative-identity a x)))
 			(if one 
-			    (number-coerce (gen_laguerre-numeric n a x digits) one)
+			    (orthopoly-number-coerce (gen_laguerre-numeric n a x digits) one)
 				(give-up)))))
           ;; symbolic case 
 		  ((integerp n)
@@ -635,7 +762,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
           (let* ((digits (get-digits x)) 
 		             (one (multiplicative-identity x)))
 			(if one 
-			    (number-coerce (laguerre-numeric n x digits) one)
+			    (orthopoly-number-coerce (laguerre-numeric n x digits) one)
 				(give-up))))
           ;; symbolic case 
 		  ((integerp n)
@@ -765,7 +892,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
             (let* ((digits (get-digits x))
 		               (one (multiplicative-identity x)))
 			(if one 
-			    (number-coerce (spherical_hankel1-numeric n x digits) one)
+			    (orthopoly-number-coerce (spherical_hankel1-numeric n x digits) one)
 				(give-up))))
 
 		  (t (give-up))))		     
@@ -845,7 +972,7 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
              (let* ((digits (get-digits x))
 		                (one (multiplicative-identity x)))
 			(if one 
-			    (number-coerce (spherical_bessel_j-numeric n x digits) one)
+			    (orthopoly-number-coerce (spherical_bessel_j-numeric n x digits) one)
 				(give-up))))
 
 		  ((integerp n)	
@@ -1338,7 +1465,7 @@ variable ~:M" arg (car (last arg))))
           (let* ((digits (get-digits x)) 
 		             (one (multiplicative-identity x)))
 			(if one 
-			    (number-coerce (legendre_q-numeric n x digits) one)
+			    (orthopoly-number-coerce (legendre_q-numeric n x digits) one)
 				(give-up))))
 		((and (integerp n) (> n -1))
 		   (legendre_q-symbolic n x))
@@ -1425,7 +1552,7 @@ variable ~:M" arg (car (last arg))))
            (let* ((digits (get-digits x))
                   (one (multiplicative-identity x)))
 			(if one 
-			    (number-coerce (assoc_legendre_q-numeric n m x digits) one)
+			    (orthopoly-number-coerce (assoc_legendre_q-numeric n m x digits) one)
 				(give-up))))
 
       ((and (integerp n) (integerp m) (> n -1) (<= (abs m) n))

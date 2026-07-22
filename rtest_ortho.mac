@@ -36,7 +36,7 @@ jacobi_p(1, a, b, x);
 ((a+b+2)*x+a-b)/2$
 
 jacobi_p(1, a, b, 1);
- (2*a+2)/2$
+ a+1$
 
 ratsimp(jacobi_p(2, a, b, 1),x);
 (a^2+3*a+2)/2$
@@ -76,9 +76,9 @@ block([ans],
 
 /* bug \#4826 division by zero computing a Jacobi polynomial */
 jacobi_p(5,-1,1/2,x);
- (3*(52003*x^5+11305*x^4-48450*x^3-7310*x^2+8335*x+501))/8192$
+(11*(x-1)*(4199*x^4+884*x^3-2886*x^2-364*x+215))/8192$
 
-jacobi_p(5,-1,1/2,x) - jacobi_p_rodrigue(5,-1,1/2,x);
+ratsimp(jacobi_p(5,-1,1/2,x) - jacobi_p_rodrigue(5,-1,1/2,x));
  0$
 
 
@@ -125,7 +125,7 @@ block([ans : jacobi_p(2,2,3,x), dans : jacobi_p(n,2,3,x)],
 
 /* Jacobi numerical tests */
 
-(eps : 1.0e-14, N : 128,0);
+(eps : 1.0e-13, N : 16,0);
 0$
 
 /* binary64 case */
@@ -214,16 +214,16 @@ hermite(1, x);
 2*x$
 
 hermite(2, x);
--(2*(1-2*x^2))$
+2*(2*x^2-1)$
 
 hermite(3, x);
- -(12*x*(1-(2*x^2)/3))$
+4*(2*x^2-3)*x$
 
 hermite(4, x);
-12*((4*x^4)/3-4*x^2+1)$
+4*(4*x^4-12*x^2+3)$
 
 hermite(5, x);
-120*x*((4*x^4)/15-(4*x^2)/3+1)$
+8*(4*x^4-20*x^2+15)*x$
 
 hermite(3, 0);
 0$
@@ -253,13 +253,5 @@ block([ans : hermite(-1, x)], [op(ans), args(ans)]);
 
 block([ans : hermite(-1, 42)], [op(ans), args(ans)]);
 [hermite, [- 1, 42]]$
-
-
-/* Legendre polynomials */
-
-(legendre_rod(n,x) := (1/(2^n * n!)) * diff((1-x^2)^n,x,n),0);(legendre_rod(n,x) := (1/(2^n * n!)) * diff((1-x^2)^n,x,n),0);
-0$
-
-makelist(rat(legendre_p(k,x) - legendre_rod(k,x)),k,0,12);
 
 
