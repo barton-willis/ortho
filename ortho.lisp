@@ -224,7 +224,7 @@ p(k) and q(k) are computed without any rounding error.
             (one (multiplicative-identity a b x)))
        (if one
            (orthopoly-number-coerce
-             (jacobi_p-numeric n a b x digits)
+             (jacobi_p-dispatch n a b x digits)
              one)
            (give-up))))
 
@@ -283,6 +283,120 @@ p(k) and q(k) are computed without any rounding error.
       (bind-fpprec $fpprec
         (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) digits)))))
 
+
+;;; When either a or b are negative intgers, we need to use the identities
+;;;
+;;;  jacobi_p(n,a,-k,x) = ((1+x)/2)^k jacobi_p(n-k,a,-k,x)
+;;;  jacobi_p(n,-m,b,x) = ((1-x)/2)^m jacobi_p(n-m,m,b,x)
+;;;  jacobi_p(n,-m,-k) = ((x-1)/2)^m ((x+1)/2)^k jacobi_p(n-m-k,m,k,x)
+;;;
+;;; See https://mathoverflow.net/questions/298661/jacobi-polynomials-with-negative-integer-parameters 
+;;; Presumably, the best refernece is  G. Szego, Orthogonal Polynomials (formula (4.22.2)).
+
+(defun jacobi_p-dispatch (n a b x digits)
+  "Top-level dispatcher for Jacobi polynomials with negative integer parameters.
+   Routes safe cases to jacobi_p-numeric, and reduces singular cases by factoring
+   (x-1)^m (x+1)^k and calling jacobi_p-numeric on P_{n-m-k}^{(m,k)}(x)."
+
+  (let* ((neg-a (and (integerp a) (< a 0)))
+         (neg-b (and (integerp b) (< b 0)))
+         (m (if neg-a (- a) 0))
+         (k (if neg-b (- b) 0)))
+
+    (cond
+      ;; ------------------------------------------------------------
+      ;; Case 1: No negative integer parameters → safe to call directly
+      ;; ------------------------------------------------------------
+      ((and (not neg-a) (not neg-b))
+       (jacobi_p-numeric n a b x digits))
+
+      ;; ------------------------------------------------------------
+      ;; Case 2: One or both parameters are negative integers
+      ;; Reduce using the exact identity:
+      ;;   P_n^{(-m,-k)}(x) = (x-1)^m (x+1)^k P_{n-m-k}^{(m,k)}(x)
+      ;; ------------------------------------------------------------
+      (t
+       (let* ((nr (- n m k)))
+         (cond
+           ;; If reduced degree is negative, the polynomial is identically zero
+           ((< nr 0)
+            0)
+
+           ;; Otherwise compute the reduced polynomial numerically
+           (t
+            (let* ((reduced (jacobi_p-numeric nr m k x digits))
+                   (xm1 (ftake 'mexpt (div (sub x 1) 2) m))
+                   (xp1 (ftake 'mexpt (div (add x 1) 2) k)))
+              (mul xm1 xp1 reduced)))))))))
+;;; the Jacobi polynomials. This recursion is missing from Table 18.9.1 of the DLMF. 
+
+
+(defun jacobi_p-numeric (n a b x digits)
+  (mtell "yep! ~%")
+  (handler-case
+      (let* ((bf-a (bigfloat::to a))
+             (bf-b (bigfloat::to b))
+             (bf-x (bigfloat::to x))
+             
+             (f0 (bigfloat::to 1))
+             (f1 (bigfloat::/ (bigfloat::+ (bigfloat::* (bigfloat::+ bf-a bf-b 2) bf-x) 
+                                           (bigfloat::- bf-a bf-b)) 
+                              2))
+             
+             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
+             
+             (a+b (bigfloat::+ bf-a bf-b))
+             (a+b+1 (bigfloat::+ bf-a bf-b 1))
+             (a+b+2 (bigfloat::+ bf-a bf-b 2))
+             
+             ;; a^2 - b^2
+             (a2-b2 (bigfloat::- (bigfloat::* bf-a bf-a) (bigfloat::* bf-b bf-b)))
+             
+             (p #'(lambda (k)
+                    (let* ((bf-k (bigfloat::to k))
+                           (2k (bigfloat::* 2 bf-k))
+                           (k+1 (bigfloat::+ bf-k 1))
+                           
+                           ;; Numerator: (2k + a + b + 1)(a^2 - b^2) + x pochhammer(2k + a + b,3)
+                           (num (bigfloat::+
+                                 (bigfloat::* (bigfloat::+ 2k a+b+1) a2-b2)
+                                 (bigfloat::* bf-x (bigfloat::+ 2k a+b) (bigfloat::+ 2k a+b+1) (bigfloat::+ 2k a+b+2))))
+                           
+                           ;; Denominator: 2(k + 1)(k + a + b + 1)(2k + a + b)
+                           (den (bigfloat::* 2 k+1 (bigfloat::+ bf-k a+b+1) (bigfloat::+ 2k a+b))))
+                      (bigfloat::/ num den))))
+             
+             (q #'(lambda (k)
+                    (let* ((bf-k (bigfloat::to k))
+                           (2k (bigfloat::* 2 bf-k))
+                           (k+1 (bigfloat::+ bf-k 1))                   
+                           
+                           ;; Numerator: 2(k + a)(k + b)(2k + a + b + 2)
+                           (num (bigfloat::* -2 (bigfloat::+ bf-k bf-a) (bigfloat::+ bf-k bf-b) (bigfloat::+ 2k a+b+2)))
+                           
+                           ;; Denominator: 2(k + 1)(k + a + b + 1)(2k + a + b)
+                           (den (bigfloat::* 2 k+1 (bigfloat::+ bf-k a+b+1) (bigfloat::+ 2k a+b))))
+                      (bigfloat::/ num den)))))
+        
+        (cond ((eql n 0) (maxima::to f0))
+              ((eql n 1) (maxima::to f1))
+              (t
+               (multiple-value-bind (value err)
+                   (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
+                 (cond ((bigfloat::relative-error-p value err eps)
+                        (maxima::to value))
+                       (t
+                        (let ((new-fpprec (mul 2 $fpprec)))
+                          (bind-fpprec new-fpprec
+                            (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) digits)))))))))
+    
+    (arithmetic-error (c)
+      (declare (ignore c))
+      (let ((new-fpprec (mul 2 $fpprec)))
+        (bind-fpprec new-fpprec
+          (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) digits))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   
 (in-package #:bigfloat)
 
