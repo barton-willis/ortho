@@ -291,44 +291,6 @@ p(k) and q(k) are computed without any rounding error.
   (let* ((bfx (bigfloat::to x))
          (xm1 (/ (- bfx 1) 2))   ; (x-1)/2
          (xp1 (/ (+ bfx 1) 2))   ; (x+1)/2
-         (s   (bigfloat::to 0))
-         (err (bigfloat::to 0)))
-
-    ;; local binomial to avoid namespace clashes
-    (flet ((binomial (a n)
-             (let ((p (bigfloat::to 1)))
-               (dotimes (k n)
-                 (setq p (/ (* p (- a k)) (+ k 1))))
-               p)))
-
-      (dotimes (k (1+ n))
-        (let* ((cf (* (binomial (+ n a) k)
-                      (binomial (+ n b) (- n k))))
-               (ds (* cf
-                      (if (eql k n) 1 (expt xm1 (- n k)))
-                      (if (eql k 0) 1 (expt xp1 k)))))
-          ;; accumulate sum
-          (setf s (+ s ds))
-          ;; accumulate running error
-          (setf err (+ err (abs ds)))))
-
-      ;; return both value and error
-      (values s (* (epsilon x) err)))))
-
-(defun kahan-add (s c y)
-  "Perform one Kahan compensated addition step.
-   Returns two values: the updated sum and updated compensation."
-  (let* ((yy (- y c))
-         (q  (+ s yy))
-         (cc (- (- q s) yy)))
-    (values q cc)))
-
-
-(defun jacobi_p-numeric-sum (n a b x)
-  ;; n is an integer; a, b, x are already numeric (float or bigfloat)
-  (let* ((bfx (bigfloat::to x))
-         (xm1 (/ (- bfx 1) 2))   ; (x-1)/2
-         (xp1 (/ (+ bfx 1) 2))   ; (x+1)/2
          (s   (bigfloat::to 0))  ; Kahan sum
          (c   (bigfloat::to 0))  ; Kahan compensation
          (err (bigfloat::to 0))) ; sum of absolute values
@@ -357,8 +319,8 @@ p(k) and q(k) are computed without any rounding error.
 
           ;; running error 
           (setf err (+ err (abs ds)))))
-
       ;; return both value and error
+      (maxima::mtell "fpprec = ~M ; s = ~M ; err = ~M ~%" maxima::$fpprec s err)
       (values s (* 2 (epsilon x) err)))))
 
 
@@ -381,7 +343,7 @@ p(k) and q(k) are computed without any rounding error.
 
 ;; See A&S 22.5.46, page 779.
 (def-simplifier ultraspherical (n a x)
-	(cond ((and (integerp n) (complex-number-p a #'$ratnump) (complex-number-p x #'$ratnump))
+	(cond ((and (integerp n) (complex-number-p a #'$numberp) (complex-number-p x #'$numberp))
             (let* ((digits (get-digits x))
 		               (one (multiplicative-identity a x)))
 			(if one 
@@ -487,7 +449,7 @@ p(k) and q(k) are computed without any rounding error.
         (ultraspherical-numeric n ($bfloat lam) ($bfloat x) digits)))))
 
 (def-simplifier chebyshev_t (n x)
-  (cond ((and (integerp n) (complex-number-p x #'$ratnump))
+  (cond ((and (integerp n) (complex-number-p x #'$numberp))
             (let* ((digits (get-digits x))
 		               (one (multiplicative-identity x)))
 			(if one 
@@ -565,7 +527,7 @@ p(k) and q(k) are computed without any rounding error.
 
 
 (def-simplifier chebyshev_u (n x)
-   (cond ((and (integerp n) (complex-number-p x #'$ratnump))
+   (cond ((and (integerp n) (complex-number-p x #'$numberp))
              (let* ((digits (get-digits x))
 		                (one (multiplicative-identity x)))
 			(if one 
@@ -711,7 +673,7 @@ p(k) and q(k) are computed without any rounding error.
 			(- $fpprec 2)))
 
 (def-simplifier assoc_legendre_p (l m x)
-  (cond ((and (integerp l) (integerp m) (<= (abs m) l) (complex-number-p x #'$ratnump))
+  (cond ((and (integerp l) (integerp m) (<= (abs m) l) (complex-number-p x #'$numberp))
            (let* ((digits (get-digits x))
 		        (one (multiplicative-identity x)))
 		    	(if one 
@@ -957,7 +919,7 @@ p(k) and q(k) are computed without any rounding error.
 ;;;;;end numeric & symbolic code
 
 (def-simplifier spherical_hankel1 (n x)
-	(cond ((and (integerp n) (complex-number-p x #'$ratnump))
+	(cond ((and (integerp n) (complex-number-p x #'$numberp))
 	        (spherical_hankel1-symbolic n x))
 
 		  ((and (integerp n) (complex-number-p x #'$numberp))
