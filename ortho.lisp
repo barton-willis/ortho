@@ -10,84 +10,109 @@
 
 Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramowitz and Stegun (A & S). 
 
-Most functions use the three term recursion in the upward direction to evaluate these polynomials for both
+Most functions use the two term recursion in the upward direction to evaluate these polynomials for both
 symbolic and numeric arguments. For the floating point (either binary64 or big float numbers), the code
-uses a dynamic running error to estimate the rounding error. The running error only bounds the rounding
-in the sum, not in the product.  Specifically it works like this: let f(k) be the true value and let
-fa(k) be the approximate value computed with floating point numbers.  Then
+uses a dynamic running error to estimate the rounding error. Specifically it works like this: let f(k) 
+be the true value and let fa(k) be the approximate value computed with floating point numbers.  Then
 
      f(k+1) = p(k) f(k) + q(k) f(k-1)
-     fa(k+1) = p(k) ⊗ f(k) ⊕ q(k) ⊗ fa(k-1),
+     fa(k+1) = p(k) ⊗ fa(k) ⊕ q(k) ⊗ fa(k-1),
 
-where ⊕ is floating point addition. Using the rules of ⊕, there are numbers ε0(k), ε1(k), and ε2(k) 
-whose magnitudes are  bounded the machine epsilon such that 
+where ⊕ is floating point addition and ⊗ is floating point multiplication.  
+     
+Using the rules of ⊕ and ⊗, there are ε0(k), ε1(k), and ε2(k) whose magnitude are 
+ bounded by the machine epsilon such that 
 
-     fa(k+1) = (p(k) fa(k) (1 + ε0(k)) + q(k) fa(k-1) (1 + ε1(k)))(1 + ε2(k)).
+     fa(k+1) = (p(k) fa(k) (1 + ε0(k)) + q(k) fa(k-1) (1 + ε1(k))) (1 + ε2(k)).
 
-Now define E(k) = f(k) - fa(k). We have
+Now define E(k) = fa(k) - f(k). We have
 
-    E(k+1) =  p(k) E(k) + q(k) E(k-1) + ε2(k) (p(k) fa(k) + q(k) fa(k-1)) + ε0(k) p(k) fa(k) + ε1(k) q(k) fa(k-1) + O(ε^2),
-  
-  where ε^2 is the machine epsilon.  Applying the triangle inequality
+    E(k+1) =  p(k) E(k) + q(k) E(k-1) - ε2(k) (p(k) fa(k) + q(k) fa(k-1)) 
+              + p(k) fa(k) ε0(k) + q(k) fa(k-1) ε1(k) + O(ε^2),
+
+where ε is the machine epsilon. Applying the triangle inequality gives
 
    |E(k+1)| ≤ |p(k)| |E(k)| + |q(k)| |E(k-1)| + ε |p(k) fa(k) + q(k) fa(k-1)| + ε |p(k) fa(k)| + ε |q(k) fa(k-1)|.
+
+Using fa(k+1) = p(k) fa(k) + q(k) fa(k-1) = fa(k+1) + O(ε), we have
   
-  or using   fa(k+1) = p(k) fa(k) +  q(k) fa(k-1) = fa(k+1) + O(ε^2), we have
-  
-   |E(k+1)| ≤ |p(k)| |E(k)| + |q(k)| |E(k-1)| + ε |fa(k+1)| + ε |p(k) fa(k)| + ε |q(k) fa(k-1)| + O(ε^2).
+   |E(k+1)| ≤ |p(k)| |E(k)| + |q(k)| |E(k-1)| + ε |fa(k+1)| + ε |p(k) fa(k)| + ε |q(k) fa(k-1)|O(ε^2).
 
-   Defining |E(k)| = ε 𝓔(k), we have
+Defining |E(k)| =  ε 𝓔(k), we have
 
-    𝓔(k+1) ≤ |p(k)| 𝓔(k) + |q(k)| 𝓔(k-1) + |fa(k+1)| + |p(k) fa(k)| + |q(k) fa(k-1)| + O(ε).
+    𝓔(k+1) ≤  ≤ |p(k)| 𝓔(k) + |q(k)| 𝓔(k-1) + |fa(k+1)| + |p(k) fa(k)| + |q(k) fa(k-1)|+ O(ε).
 
-  The code returns the two values fa(n) and 𝓔(n). When the value of 𝓔(n) is sufficiently small, 
-  the process is done and we accept fa(n) as the value; if not the process is repeated with a
-  smaller value for the machine epsilon. 
+The code returns the two values fa(n) and 𝓔(n). When the value of 𝓔(n) is sufficiently small, 
+the process is done and we accept fa(n) as the value; if not the process is repeated with a
+smaller value for the machine epsilon. 
 
-  This is called a running error method. Think of it as a "poor man's" interval arithmetic. 
+Our measure of sufficiently small is 
+
+   |𝓔(n)| < ε max(1, |fa(n)|).
+
+This is called a running error method. Think of it as a "poor man's" interval arithmetic. A proper
+interval arithmetic would set the rounding mode and track the rounding errors in all computations. 
+This code assumes that for the recursion f(k+1) = p(k) f(k) + q(k) f(k-1) that the coefficients
+p(k) and q(k) are computed without any rounding error.
 
   Notes:
 
-  (a) The model I used for ⊕ is incorrect for subnormal numbers
-  (b) We ignore the rounding error for multiplication. This could be fixed, but ever
+  (a) The model I used for ⊕ is incorrect for subnormal numbers.
+
+  (b) We ignore the rounding error for multiplication. This could be fixed.
 
   I know what you are thinking:
 
   (a) Shouldn't the code conditionally use downward recursion for large n, small x, or ...
    
       Oh, maybe. But a great deal of reasonable inputs are modestly sized making the choice
-      between directions not so certain.  Plus, I'm not sure about cases with complex parameters. 
-      And even using the better choice for the recursion direction, rounding errors and cancellation 
-      still happen and need to be managed. Finally, I'm not sure that I want to add this much complexity 
+      between directions possibly a toss-up. Plus, cases with complex parameters likely makes
+      the decision between up or down recursion a bit difficult to decide. Finally even using 
+      the better choice for the recursion direction, rounding errors and cancellation 
+      still happen and need to be managed. I'm do not want to add this much complexity 
       to the code.
 
   (b) Instead of the running error, why not just use Kahan summation? 
 
       Kahan summation is a lovely method, but it does not transform an ill-conditioned sum into a 
-      well-conditioned sum. That said, there might be opportunities to use it in this code.
+      well-conditioned sum. That said, there might be opportunities to use it in this code. Plus 
+      as far as I know, Kahan summation is really only useful for an accumulated sum, but the
+      two-term recursion isn't of this form.
 
   (c) Doesn't Clenshaw summation eliminate all cancellation problems?
 
      No, I think it might be good for many cases, but not all. Again, I'm not sure that I want to add 
      this much complexity of choosing between multiple methods.
 
-  (d) Why not just turn over all the numerical code to hypergeometric? 
+  (d) Why not just turn over all the numerical code to the hypergeometric code?
 
-      This should work--I'm not sure about the trade-offs.
+      This should work--I'm not sure about the trade-offs. 
 
   (e) Why not do floating point evaluation using nfloat and the exact symbolic values?
 
-     Currently, code does this for assoc_legendre_q, but it is painfully slow.
+     Currently, code does this for assoc_legendre_q, but it is painfully slow. 
 
-  (f) Isn't the running error is just a crude estimate? It's not rigorous!
+  (f) Isn't the running error just a crude estimate? It's not rigorous!
 
       It's an estimate that is based on the properties of floating point arithmetic. Sure, it's
-      an estimate, but it's not "crude."
+      an estimate, but it's not crude.
 
   (g) Can't you assume that rounding errors are uniformly distributed independent random variables
       and get a much lower error estimate?
 
       Yes, you can make those assumptions, but they are not grounded in fact.
+
+  (h) The polynomials XXX extend to negative degree and order, but this package doesn't extend
+      the to negative degrees. Why?
+
+      The answer isn't very interesting--it's a design choice based on focusing on what most 
+      users need and on keeping the code compact. If you have a legitimate reason for an
+      extension, let me know--or even better do it yourself and share it.
+
+  (i) For large `n`, shouldn't the code switch over to asymptotic series?
+
+      Maybe, but again, it's a design choice to keep the code compact and focused on typical cases
+      that users need.
 
 |#
 
@@ -290,6 +315,53 @@ Now define E(k) = f(k) - fa(k). We have
       ;; return both value and error
       (values s (* (epsilon x) err)))))
 
+(defun kahan-add (s c y)
+  "Perform one Kahan compensated addition step.
+   Returns two values: the updated sum and updated compensation."
+  (let* ((yy (- y c))
+         (q  (+ s yy))
+         (cc (- (- q s) yy)))
+    (values q cc)))
+
+
+(defun jacobi_p-numeric-sum (n a b x)
+  ;; n is an integer; a, b, x are already numeric (float or bigfloat)
+  (let* ((bfx (bigfloat::to x))
+         (xm1 (/ (- bfx 1) 2))   ; (x-1)/2
+         (xp1 (/ (+ bfx 1) 2))   ; (x+1)/2
+         (s   (bigfloat::to 0))  ; Kahan sum
+         (c   (bigfloat::to 0))  ; Kahan compensation
+         (err (bigfloat::to 0))) ; sum of absolute values
+
+    ;; local binomial to avoid namespace clashes
+    (flet ((binomial (a n)
+             (let ((p (bigfloat::to 1)))
+               (dotimes (k n)
+                 (setq p (/ (* p (- a k)) (+ k 1))))
+               p)))
+
+      (dotimes (k (1+ n))
+        (let* ((cf (* (binomial (+ n a) k)
+                      (binomial (+ n b) (- n k))))
+               (ds (* cf
+                      (if (eql k n) 1 (expt xm1 (- n k)))
+                      (if (eql k 0) 1 (expt xp1 k)))))
+
+          ;; -----------------------------
+          ;; Kahan compensated summation
+          ;; -----------------------------
+          (let* ((y (- ds c))
+                 (q (+ s y)))
+            (setf c (- (- q s) y))
+            (setf s q))
+
+          ;; running error 
+          (setf err (+ err (abs ds)))))
+
+      ;; return both value and error
+      (values s (* 2 (epsilon x) err)))))
+
+
 (in-package :maxima)
 
 (defun jacobi_p-symbolic (n a b x)
@@ -481,7 +553,7 @@ Now define E(k) = f(k) - fa(k). We have
         (bind-fpprec new-fpprec
           (chebyshev_t-numeric n ($bfloat x) (- new-fpprec 2)))))))
 
-(putprop '$chebyshev_t 
+(putprop '%chebyshev_t 
 	 '((n x)
 	   nil
 	   ((mtimes)
