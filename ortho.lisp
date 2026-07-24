@@ -21,7 +21,7 @@ be the true value and let fa(k) be the approximate value computed with floating 
 where ⊕ is floating point addition and ⊗ is floating point multiplication.  
      
 Using the rules of ⊕ and ⊗, there are ε0(k), ε1(k), and ε2(k) whose magnitude are 
- bounded by the machine epsilon such that 
+bounded by the machine epsilon such that 
 
      fa(k+1) = (p(k) fa(k) (1 + ε0(k)) + q(k) fa(k-1) (1 + ε1(k))) (1 + ε2(k)).
 
@@ -40,7 +40,7 @@ Using fa(k+1) = p(k) fa(k) + q(k) fa(k-1) = fa(k+1) + O(ε), we have
 
 Defining |E(k)| =  ε 𝓔(k), we have
 
-    𝓔(k+1) ≤  ≤ |p(k)| 𝓔(k) + |q(k)| 𝓔(k-1) + |fa(k+1)| + |p(k) fa(k)| + |q(k) fa(k-1)|+ O(ε).
+    𝓔(k+1) ≤  |p(k)| 𝓔(k) + |q(k)| 𝓔(k-1) + |fa(k+1)| + |p(k) fa(k)| + |q(k) fa(k-1)|+ O(ε).
 
 The code returns the two values fa(n) and 𝓔(n). When the value of 𝓔(n) is sufficiently small, 
 the process is done and we accept fa(n) as the value; if not the process is repeated with a
@@ -283,7 +283,6 @@ p(k) and q(k) are computed without any rounding error.
       (bind-fpprec $fpprec
         (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) digits)))))
 
-
 ;;; When either a or b are negative intgers, we need to use the identities
 ;;;
 ;;;  jacobi_p(n,a,-k,x) = ((1+x)/2)^k jacobi_p(n-k,a,-k,x)
@@ -291,7 +290,7 @@ p(k) and q(k) are computed without any rounding error.
 ;;;  jacobi_p(n,-m,-k) = ((x-1)/2)^m ((x+1)/2)^k jacobi_p(n-m-k,m,k,x)
 ;;;
 ;;; See https://mathoverflow.net/questions/298661/jacobi-polynomials-with-negative-integer-parameters 
-;;; Presumably, the best refernece is  G. Szego, Orthogonal Polynomials (formula (4.22.2)).
+;;; Presumably, the best refernece is G. Szego, Orthogonal Polynomials (formula (4.22.2)).
 
 (defun jacobi_p-dispatch (n a b x digits)
   "Top-level dispatcher for Jacobi polynomials with negative integer parameters.
@@ -300,39 +299,48 @@ p(k) and q(k) are computed without any rounding error.
 
   (let* ((neg-a (and (integerp a) (< a 0)))
          (neg-b (and (integerp b) (< b 0)))
-         (m (if neg-a (- a) 0))
-         (k (if neg-b (- b) 0)))
+         (m (if neg-a (- a) nil))
+         (k (if neg-b (- b) nil)))
 
     (cond
-      ;; ------------------------------------------------------------
-      ;; Case 1: No negative integer parameters → safe to call directly
-      ;; ------------------------------------------------------------
+
+      ;; n < 0
+      ((< n 0) 0)
+      ;; Case 1: No negative integer parameters--safe to call directly
       ((and (not neg-a) (not neg-b))
        (jacobi_p-numeric n a b x digits))
 
-      ;; ------------------------------------------------------------
-      ;; Case 2: One or both parameters are negative integers
-      ;; Reduce using the exact identity:
-      ;;   P_n^{(-m,-k)}(x) = (x-1)^m (x+1)^k P_{n-m-k}^{(m,k)}(x)
-      ;; ------------------------------------------------------------
-      (t
-       (let* ((nr (- n m k)))
-         (cond
-           ;; If reduced degree is negative, the polynomial is identically zero
-           ((< nr 0)
-            0)
+      ;;   jacobi_p(n,-m,-k,x) = ((x-1)/2)^m ((x+1)/2)^k jacobi_p(n-m-k,m,k,x)
+      ((and neg-a neg-b)
 
-           ;; Otherwise compute the reduced polynomial numerically
-           (t
-            (let* ((reduced (jacobi_p-numeric nr m k x digits))
-                   (xm1 (ftake 'mexpt (div (sub x 1) 2) m))
-                   (xp1 (ftake 'mexpt (div (add x 1) 2) k)))
-              (mul xm1 xp1 reduced)))))))))
-;;; the Jacobi polynomials. This recursion is missing from Table 18.9.1 of the DLMF. 
+      (mul 
+          (ftake 'mexpt (div (sub x 1) 2) m)
+          (ftake 'mexpt (div (add x 1) 2) k)
+          (jacobi_p-numeric (- n (+ m k)) m k x digits)))
 
+      (neg-a
+        ;; jacobi_p(n,-m,b,x) = gamma(n+b+1) (n-m)! / (gamma(n+b+1-m) n!) ((1-x)/2)^m jacobi_p(n-m,m,b,x)
+        (mtell "a = ~M ; b = ~M; m = ~M ~%" a b m)
+        (mul
+           (ftake '%gamma (add n b 1))
+           (ftake 'mfactorial (- n m))
+           (div 1 (ftake '%gamma (add n b 1 (- m))))
+           (div 1 (ftake 'mfactorial n))
+           (ftake 'mexpt (div (sub 1 x) 2) m)     
+           (jacobi_p-numeric (- n m) m b x digits)))
 
+      (neg-b
+        ;; jacobi_p(n,a,-k,x) = ((1+x)/2)^k jacobi_p(n-k,a,-k,x)
+          (mul
+             (ftake 'mexpt (div (add 1 x) 2) k)     
+             (jacobi_p-numeric (- n k) a k x digits)))
+
+      (t nil))))
+       
+       
+
+;;; Recursion for the Jacobi polynomials; see http://dlmf.nist.gov/18.9.E1 
 (defun jacobi_p-numeric (n a b x digits)
-  (mtell "yep! ~%")
   (handler-case
       (let* ((bf-a (bigfloat::to a))
              (bf-b (bigfloat::to b))
@@ -396,8 +404,7 @@ p(k) and q(k) are computed without any rounding error.
         (bind-fpprec new-fpprec
           (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) digits))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  
+#| 
 (in-package #:bigfloat)
 
 (defun jacobi_p-numeric-sum (n a b x)
@@ -439,11 +446,12 @@ p(k) and q(k) are computed without any rounding error.
 
 
 (in-package :maxima)
+ |#
 
 (defun jacobi_p-symbolic (n a b x)
   ;; explict summation: see http://dlmf.nist.gov/18.5.E8 . One problem: when x=+/-1, the 
   ;; k=0 or k=n terms can involve a factor of the form 0^0. Maybe it's too spendy, but
-  ;; we'll special the k=0 & k=n terms.
+  ;; we'll special case the k=0 & k=n terms.
   (let ((s 0))
 		(dotimes (k (+ 1 n))
 			(setq s 
@@ -451,7 +459,7 @@ p(k) and q(k) are computed without any rounding error.
 			         (mul
                  (ftake '%binomial (add n a) k)
 			           (ftake '%binomial (add n b) (sub n k))
-                 (if (eql n k) 1  (ftake 'mexpt (div (sub x 1) 2) (sub n k)))
+                 (if (eql n k) 1 (ftake 'mexpt (div (sub x 1) 2) (sub n k)))
                   (if (eql k 0) 1 (ftake 'mexpt (div (add x 1) 2) k))))))
 	(orthopoly-polynomial-simp s x)))
 
