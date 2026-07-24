@@ -298,9 +298,7 @@ p(k) and q(k) are computed without any rounding error.
    (x-1)^m (x+1)^k and calling jacobi_p-numeric on P_{n-m-k}^{(m,k)}(x)."
 
   (let* ((neg-a (and (integerp a) (< a 0)))
-         (neg-b (and (integerp b) (< b 0)))
-         (m (if neg-a (- a) nil))
-         (k (if neg-b (- b) nil)))
+         (neg-b (and (integerp b) (< b 0))))
 
     (cond
 
@@ -310,29 +308,33 @@ p(k) and q(k) are computed without any rounding error.
       ((and (not neg-a) (not neg-b))
        (jacobi_p-numeric n a b x digits))
 
-      ;;   jacobi_p(n,-m,-k,x) = ((x-1)/2)^m ((x+1)/2)^k jacobi_p(n-m-k,m,k,x)
+      ;; Both a & b are negative integers:
+      ;; jacobi_p(n,a,b,x) = jacobi_p(n+a+b,-a,-b,x)/((x-1)/2)^a ((x+1)/2)^b)
       ((and neg-a neg-b)
+        (div
+            (jacobi_p-numeric (add n a b) (neg a) (neg b) x digits)
+            (mul
+                (ftake 'mexpt (div (sub x 1) 2) a)
+                (ftake 'mexpt (div (add x 1) 2) b))))
 
-      (mul 
-          (ftake 'mexpt (div (sub x 1) 2) m)
-          (ftake 'mexpt (div (add x 1) 2) k)
-          (jacobi_p-numeric (- n (+ m k)) m k x digits)))
+      ;; a is a negative integer:
+      ;; jacobi_p(n,a,b,x) = gamma(n+a+1) gamma(n+b+1) jacobi_p(n+a,-a,b,x)/(gamma(n+1) gamma(n+a+b+1) ((x-1)/2)^a.
 
       (neg-a
-        ;; jacobi_p(n,-m,b,x) = gamma(n+b+1) (n-m)! / (gamma(n+b+1-m) n!) ((1-x)/2)^m jacobi_p(n-m,m,b,x)
-        (mtell "a = ~M ; b = ~M; m = ~M ~%" a b m)
         (mul
+           (ftake '%gamma (add n a 1))
            (ftake '%gamma (add n b 1))
-           (ftake 'mfactorial (- n m))
-           (div 1 (ftake '%gamma (add n b 1 (- m))))
-           (div 1 (ftake 'mfactorial n))
-           (ftake 'mexpt (div (sub 1 x) 2) m)     
-           (jacobi_p-numeric (- n m) m b x digits)))
+           (div 1 (ftake '%gamma (add n 1)))
+           (div 1 (ftake '%gamma (add n a b 1)))
+           (ftake 'mexpt (div (sub x 1) 2) (neg a))
+           (jacobi_p-numeric (add n a) (neg a) b x digits)))
 
+      ;; b is a negative integer:
+      ;; jacobi_p(n,a,b,x) = (-1)^n jacobi_p(n,b,a,-x)
       (neg-b
        (mul 
-        (ftake 'mexpt -1 n)
-        ()
+        (ftake 'mexpt -1 n) 
+        (jacobi_p-numeric (n b a (neg x) digits))))
 
       (t nil))))
        
