@@ -118,6 +118,9 @@ p(k) and q(k) are computed without any rounding error.
 
 (in-package :maxima)
 
+(defmfun $xload (str)
+    (load ($file_search str) :verbose t))
+
 (defun orthopoly-default-simp (p x)
   "Default cleanup for orthogonal polynomials. Applies rat conversion, ratdisrep, and expand."
   (let (($ratfac t) ($algebraic t))
@@ -255,43 +258,6 @@ p(k) and q(k) are computed without any rounding error.
   nil
   #$$ (n*jacobi_p(n,a,b,x)*((-(2*n)-b-a)*x-b+a)+2*jacobi_p(n-1,a,b,x)*(n+a)*(n+b)*unit_step(n))/((2*n+b+a)*(1-x^2))$)
 
-;;; Table 22.7 (page 782) of Abramowitz and Stegun (1964) gives the order-only recursion for 
-;;; the Jacobi polynomials. This recursion is missing from Table 18.9.1 of the DLMF. But 
-;;; the recursion suffers from vanishing denominators. Without trickery, the 2F1 
-;;; representation http://dlmf.nist.gov/18.5.E7 is not defined for some negative integers.
-
-(defun jacobi_p-numeric (n a b x digits)
-  (handler-case
-      (let* ((bfa (bigfloat::to a))
-             (bfb (bigfloat::to b))
-             (bfx (bigfloat::to x))
-             (eps (bigfloat::expt 10 (neg digits))))
-
-        (multiple-value-bind (value err)
-            (bigfloat::jacobi_p-numeric-sum n bfa bfb bfx)
-
-          (cond ((bigfloat::relative-error-p value err eps)
-                 (maxima::to value))
-                (t
-                 ;; If precision is insufficient, boost fpprec and convert to bigfloat
-                 (bind-fpprec (mul 2 $fpprec)
-                   (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) digits))))))
-
-    ;; Catch binary64 overflow and switch automatically to bigfloats
-    (arithmetic-error (c)
-      (declare (ignore c))
-      (bind-fpprec $fpprec
-        (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) digits)))))
-
-;;; When either a or b are negative intgers, we need to use the identities
-;;;
-;;;  jacobi_p(n,a,-k,x) = ((1+x)/2)^k jacobi_p(n-k,a,-k,x)
-;;;  jacobi_p(n,-m,b,x) = ((1-x)/2)^m jacobi_p(n-m,m,b,x)
-;;;  jacobi_p(n,-m,-k) = ((x-1)/2)^m ((x+1)/2)^k jacobi_p(n-m-k,m,k,x)
-;;;
-;;; See https://mathoverflow.net/questions/298661/jacobi-polynomials-with-negative-integer-parameters 
-;;; Presumably, the best refernece is G. Szego, Orthogonal Polynomials (formula (4.22.2)).
-
 (defun jacobi_p-dispatch (n a b x digits)
   "Top-level dispatcher for Jacobi polynomials with negative integer parameters.
    Routes safe cases to jacobi_p-numeric, and reduces singular cases by factoring
@@ -302,9 +268,9 @@ p(k) and q(k) are computed without any rounding error.
 
     (cond
 
-      ;; n < 0
+      ;; jacobi_p(negative integer, a, b, x) = 0
       ((< n 0) 0)
-      ;; Case 1: No negative integer parameters--safe to call directly
+      ;; Case 1: No negative integer parameters--safe to call the upward recursion code
       ((and (not neg-a) (not neg-b))
        (jacobi_p-numeric n a b x digits))
 
@@ -319,7 +285,6 @@ p(k) and q(k) are computed without any rounding error.
 
       ;; a is a negative integer:
       ;; jacobi_p(n,a,b,x) = gamma(n+a+1) gamma(n+b+1) jacobi_p(n+a,-a,b,x)/(gamma(n+1) gamma(n+a+b+1) ((x-1)/2)^a.
-
       (neg-a
         (mul
            (ftake '%gamma (add n a 1))
@@ -334,11 +299,9 @@ p(k) and q(k) are computed without any rounding error.
       (neg-b
        (mul 
         (ftake 'mexpt -1 n) 
-        (jacobi_p-numeric (n b a (neg x) digits))))
+        (jacobi_p-numeric n b a (neg x) digits)))
 
       (t nil))))
-       
-       
 
 ;;; Recursion for the Jacobi polynomials; see http://dlmf.nist.gov/18.9.E1 
 (defun jacobi_p-numeric (n a b x digits)
@@ -405,54 +368,13 @@ p(k) and q(k) are computed without any rounding error.
         (bind-fpprec new-fpprec
           (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) digits))))))
 
-#| 
-(in-package #:bigfloat)
+;; To avoid the complications for negative integer parameters, we'll use explict summation for the
+;; Jacobi polynomials: see http://dlmf.nist.gov/18.5.E8 
 
-(defun jacobi_p-numeric-sum (n a b x)
-  ;; n is an integer; a, b, x are already numeric (float or bigfloat)
-  (let* ((bfx (bigfloat::to x))
-         (xm1 (/ (- bfx 1) 2))   ; (x-1)/2
-         (xp1 (/ (+ bfx 1) 2))   ; (x+1)/2
-         (s   (bigfloat::to 0))  ; Kahan sum
-         (c   (bigfloat::to 0))  ; Kahan compensation
-         (err (bigfloat::to 0))) ; sum of absolute values
-
-    ;; local binomial to avoid namespace clashes
-    (flet ((binomial (a n)
-             (let ((p (bigfloat::to 1)))
-               (dotimes (k n)
-                 (setq p (/ (* p (- a k)) (+ k 1))))
-               p)))
-
-      (dotimes (k (1+ n))
-        (let* ((cf (* (binomial (+ n a) k)
-                      (binomial (+ n b) (- n k))))
-               (ds (* cf
-                      (if (eql k n) 1 (expt xm1 (- n k)))
-                      (if (eql k 0) 1 (expt xp1 k)))))
-
-          ;; -----------------------------
-          ;; Kahan compensated summation
-          ;; -----------------------------
-          (let* ((y (- ds c))
-                 (q (+ s y)))
-            (setf c (- (- q s) y))
-            (setf s q))
-
-          ;; running error 
-          (setf err (+ err (abs ds)))))
-      ;; return both value and error
-      (maxima::mtell "fpprec = ~M ; s = ~M ; err = ~M ~%" maxima::$fpprec s err)
-      (values s (* 2 (epsilon x) err)))))
-
-
-(in-package :maxima)
- |#
-
+;; Careful: when x=+/-1, the k=0 or k=n terms can involve a factor of the form 0^0. To avoid this, 
+;; we'll special case the k=0 & k=n terms. The speed penalty for these check for every loop counter
+;; is, I think, insufficient to justify peeling these two terms out of the loop.
 (defun jacobi_p-symbolic (n a b x)
-  ;; explict summation: see http://dlmf.nist.gov/18.5.E8 . One problem: when x=+/-1, the 
-  ;; k=0 or k=n terms can involve a factor of the form 0^0. Maybe it's too spendy, but
-  ;; we'll special case the k=0 & k=n terms.
   (let ((s 0))
 		(dotimes (k (+ 1 n))
 			(setq s 
@@ -529,7 +451,7 @@ p(k) and q(k) are computed without any rounding error.
                   (div num den)))))
     (cond ((eql n 0) f0)
           ((eql n 1) f1)
-          (t (generic-two-term-recursion-symbolic p q f0 f1 x n)))))
+          (t (generic-two-term-recursion-symbolic p q f0 f1 n)))))
 		  
 (defun ultraspherical-numeric (n lam x digits)
   (handler-case
@@ -601,7 +523,7 @@ p(k) and q(k) are computed without any rounding error.
                 -1)))
     (cond ((eql n 0) f0)
           ((eql n 1) f1)
-          (t (generic-two-term-recursion-symbolic p q f0 f1 x n)))))
+          (t (generic-two-term-recursion-symbolic p q f0 f1 n)))))
 
 (defun chebyshev_t-numeric (n x digits)
   (handler-case
@@ -683,7 +605,7 @@ p(k) and q(k) are computed without any rounding error.
                 -1)))
     (cond ((eql n 0) f0)
           ((eql n 1) f1)
-          (t (generic-two-term-recursion-symbolic p q f0 f1 x n)))))
+          (t (generic-two-term-recursion-symbolic p q f0 f1 n)))))
 
 (defun chebyshev_u-numeric (n x digits)
   (handler-case
@@ -778,7 +700,7 @@ p(k) and q(k) are computed without any rounding error.
 		   (f1 x)
            (p #'(lambda (k) (div (mul (add (mul 2 k) 1) x) (add k 1)))) ; (2k+1)x/(k+1) 
            (q #'(lambda (k) (mul -1 (div k (add k 1))))))
-	 (generic-two-term-recursion-symbolic p q f0 f1 x n)))
+	 (generic-two-term-recursion-symbolic p q f0 f1 n)))
 
 (putprop '%legendre_p 
 	 '((n x) 
@@ -971,7 +893,7 @@ p(k) and q(k) are computed without any rounding error.
 		       (f1 (mul 2 x))
            (p #'(lambda (k) (declare (ignore k)) (mul 2 x)))
            (q #'(lambda (k) (mul -2 k))))
-		    (generic-two-term-recursion-symbolic p q f0 f1 x n)))
+		    (generic-two-term-recursion-symbolic p q f0 f1 n)))
 
 (defun gen_laguerre-numeric (n a x digits)
   (handler-case
@@ -1037,7 +959,7 @@ p(k) and q(k) are computed without any rounding error.
     
     (cond ((eql n 0) f0)
           ((eql n 1) f1)
-          (t (generic-two-term-recursion-symbolic p q f0 f1 x n)))))
+          (t (generic-two-term-recursion-symbolic p q f0 f1 n)))))
 
 ;;;;;end numeric & symbolic code
 
@@ -1062,7 +984,7 @@ p(k) and q(k) are computed without any rounding error.
 		       (f1 (mul (div (add (div '$%i x) 1) x) cis))
 		       (p #'(lambda (k) (div (add (mul 2 k) 1) x)))
 		       (q #'(lambda (k) (declare (ignore k)) -1)))
-		 (generic-two-term-recursion-symbolic f0 f1 p q x n)))
+		 (generic-two-term-recursion-symbolic f0 f1 p q n)))
 
 (in-package #:bigfloat)
 (defun order-zero-spherical_hankel1 (x)
@@ -1216,7 +1138,7 @@ p(k) and q(k) are computed without any rounding error.
          (p #'(lambda (k) (div (add (mul 2 k) 1) x)))
          ;; q(k) = -1
          (q #'(lambda (k) (declare (ignore k)) -1)))
-    (generic-two-term-recursion-symbolic p q f0 f1 x n)))
+    (generic-two-term-recursion-symbolic p q f0 f1 n)))
 	    
 ;; For analytic continuation, see A&S 10.1.35.
  
@@ -1552,7 +1474,7 @@ variable ~:M" arg (car (last arg))))
 
 	(t (merror "A weight for ~:M isn't known to Maxima" fn))))
 
-(defun generic-two-term-recursion-symbolic (p q f0 f1 x n)
+(defun generic-two-term-recursion-symbolic (p q f0 f1 n)
   (cond ((eql n 0)
          f0)
         ((eql n 1)
@@ -1568,7 +1490,8 @@ variable ~:M" arg (car (last arg))))
                               (mul b fm1))))
                (setq fm1 fi
                      fi  new)))
-			(let (($ratfac t))	($ratdisrep ($rat fi x)))))))
+      ;; We return the value of fi with no simplification (ratsimp, expand, factor, ...)
+			fi))))
 
 (in-package #:bigfloat)
 
@@ -1584,36 +1507,36 @@ variable ~:M" arg (car (last arg))))
 (defun relative-error-p (x err eps)
   (< (abs err) (* eps (max 1 (abs x)))))
 
+(defun componentwise-abs (x)
+"Return the componentwise absolute value of a real or complex number.
+   For a real input, this is simply (abs x). For a complex input z = a + i b, 
+   this returns the complex value abs(a) + i abs(b)."
+  (complex (abs (realpart x)) (abs (imagpart x))))
+
 (defun generic-two-term-recursion-running-error (p q f0 f1 n)
-  "Evaluates the recurrence forward while simultaneously tracking the running error bound."
-  (let* ((fm1 f0)   
-         (fi f1)    
-         (fnext)
-         (eps (bigfloat::epsilon fi))
-         (err-m1 (bigfloat::to 0))
-         (err-i (* eps (bigfloat::abs fi))) 
-         (err-next))
-    
-    (dotimes (i (- n 1))
-      (let* ((current-i (+ i 1))
-             (a (funcall p current-i))
-             (b (funcall q current-i)))
-        
-        (setq fnext (+ (* a fi) (* b fm1)))
-        
-        (setq err-next (+ (* (bigfloat::abs a) err-i)
-                          (* (bigfloat::abs b) err-m1)
-                          (* eps (+ (bigfloat::abs (* a fi)) 
-                                    (bigfloat::abs (* b fm1)) 
-                                    (bigfloat::abs fnext)))))
-        
-        (setq fm1 fi
-              fi fnext)
-        (setq err-m1 err-i
-              err-i err-next)))
-              
-    ;; Return both computed results using standard Lisp values
-    (values fi err-i)))
+  "Evaluate the recurrence forward while tracking an absolute running error bound
+   using the IEEE‑754 real floating‑point model."
+  (cond ((eql n 0) f0)
+        ((eql n 1) f1)
+        (t
+  (let* (;; absolute error bounds
+         (e0 0)
+         (e1 0)
+         (k 1))
+
+     (maxima::while (< k n)
+      (let* ((a (funcall p k))
+             (b (funcall q k))
+             (f2 (+ (* a f1) (* b f0)))
+             (e2 (+ (abs (* a e1)) (abs (* b e0)) (abs f2))))
+        ;; update state
+        (setq k (+ 1 k)
+              f0 f1
+              f1 f2
+              e0 e1
+              e1 e2)))
+    (values f1 (* (epsilon f1) e1))))))
+
 
 (in-package :maxima)
 
