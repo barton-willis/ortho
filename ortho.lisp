@@ -330,10 +330,9 @@ p(k) and q(k) are computed without any rounding error.
            (jacobi_p-numeric (- n m) m b x digits)))
 
       (neg-b
-        ;; jacobi_p(n,a,-k,x) = ((1+x)/2)^k jacobi_p(n-k,a,-k,x)
-          (mul
-             (ftake 'mexpt (div (add 1 x) 2) k)     
-             (jacobi_p-numeric (- n k) a k x digits)))
+       (mul 
+        (ftake 'mexpt -1 n)
+        ()
 
       (t nil))))
        
