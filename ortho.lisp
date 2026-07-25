@@ -11,51 +11,56 @@
 Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramowitz and Stegun (A & S). 
 
 Most functions use the two term recursion in the upward direction to evaluate these polynomials for both
-symbolic and numeric arguments. For the floating point (either binary64 or big float numbers), the code
-uses a dynamic running error to estimate the rounding error. Specifically it works like this: let f(k) 
+symbolic and numeric arguments. The recursion has the form f(k+1) = p(k) f(k) + q(k) f(k-1). (Some might
+might call this a three term recursion, I'll call it a two term recursion).
+
+For the floating point (either binary64 or big float numbers), the code uses a dynamic running error to 
+estimate the rounding error. Specifically it works like this: let f(k) 
 be the true value and let fa(k) be the approximate value computed with floating point numbers.  Then
 
      f(k+1) = p(k) f(k) + q(k) f(k-1)
      fa(k+1) = p(k) ⊗ fa(k) ⊕ q(k) ⊗ fa(k-1),
 
-where ⊕ is floating point addition and ⊗ is floating point multiplication.  
+where ⊕ is floating point addition and ⊗ is floating point multiplication. This code assumes
+that ⊗ = *, so that all the rounding error is from addition and none from addition. This, of 
+course isn't true.
      
-Using the rules of ⊕ and ⊗, there are ε0(k), ε1(k), and ε2(k) whose magnitude are 
-bounded by the machine epsilon such that 
+Using the rules of ⊕, there is ε(k), whose magnitude is bounded by the machine epsilon ε such that 
 
-     fa(k+1) = (p(k) fa(k) (1 + ε0(k)) + q(k) fa(k-1) (1 + ε1(k))) (1 + ε2(k)).
+     fa(k+1) = (p(k) fa(k) + q(k) fa(k-1)) (1 + ε(k)).
 
 Now define E(k) = fa(k) - f(k). We have
 
-    E(k+1) =  p(k) E(k) + q(k) E(k-1) - ε2(k) (p(k) fa(k) + q(k) fa(k-1)) 
-              + p(k) fa(k) ε0(k) + q(k) fa(k-1) ε1(k) + O(ε^2),
+    E(k+1) =  p(k) E(k) + q(k) E(k-1) + ε(k) (p(k) fa(k) + q(k) fa(k-1)),
+           =  p(k) E(k) + q(k) E(k-1) + ε(k) fa(k+1) + O(ε^2).
 
-where ε is the machine epsilon. Applying the triangle inequality gives
+Applying the triangle inequality gives
 
-   |E(k+1)| ≤ |p(k)| |E(k)| + |q(k)| |E(k-1)| + ε |p(k) fa(k) + q(k) fa(k-1)| + ε |p(k) fa(k)| + ε |q(k) fa(k-1)|.
+   |E(k+1)| ≤ |p(k) E(k)| + |q(k) E(k-1)| + ε |fa(k+1)| + O(ε^2).
 
-Using fa(k+1) = p(k) fa(k) + q(k) fa(k-1) = fa(k+1) + O(ε), we have
-  
-   |E(k+1)| ≤ |p(k)| |E(k)| + |q(k)| |E(k-1)| + ε |fa(k+1)| + ε |p(k) fa(k)| + ε |q(k) fa(k-1)|O(ε^2).
+Rescaling the error bound as |E(k)| =  ε 𝓔(k), we have
 
-Defining |E(k)| =  ε 𝓔(k), we have
+    𝓔(k+1) ≤ |p(k)| 𝓔(k) + |q(k)| 𝓔(k-1) + |fa(k+1)| + O(ε).
 
-    𝓔(k+1) ≤  |p(k)| 𝓔(k) + |q(k)| 𝓔(k-1) + |fa(k+1)| + |p(k) fa(k)| + |q(k) fa(k-1)|+ O(ε).
+This is the rule we use to update the 𝓔.
 
-The code returns the two values fa(n) and 𝓔(n). When the value of 𝓔(n) is sufficiently small, 
-the process is done and we accept fa(n) as the value; if not the process is repeated with a
-smaller value for the machine epsilon. 
+The function generic-two-term-recursion-running error returns the two values fa(n) and ε 𝓔(n). When 
+the value of 𝓔(n) is sufficiently small, the process is done and we accept fa(n) as the value; if not 
+the process is repeated with a smaller value for the machine epsilon. 
+
+This is called a running error method. Think of it as a "poor man's" interval arithmetic. A proper
+interval arithmetic would set the rounding mode and track the rounding errors in all computations,
+not just the additions.  Of course, including the rounding errors with ⊗ is possible.
+
+Also, this code assumes that for the recursion f(k+1) = p(k) f(k) + q(k) f(k-1) that the coefficients
+p(k) and q(k) are computed without any rounding error. Again, a proper interval method would also 
+track these errors.
 
 Our measure of sufficiently small is 
 
    |𝓔(n)| < ε max(1, |fa(n)|).
 
-This is called a running error method. Think of it as a "poor man's" interval arithmetic. A proper
-interval arithmetic would set the rounding mode and track the rounding errors in all computations. 
-This code assumes that for the recursion f(k+1) = p(k) f(k) + q(k) f(k-1) that the coefficients
-p(k) and q(k) are computed without any rounding error.
-
-  Notes:
+ Notes:
 
   (a) The model I used for ⊕ is incorrect for subnormal numbers.
 
@@ -90,12 +95,16 @@ p(k) and q(k) are computed without any rounding error.
 
   (e) Why not do floating point evaluation using nfloat and the exact symbolic values?
 
-     Currently, code does this for assoc_legendre_q, but it is painfully slow. 
+    Because my experiments show that this method is painfully slow even for modest degrees.
+     Currently, code does this for assoc_legendre_q.
 
   (f) Isn't the running error just a crude estimate? It's not rigorous!
 
       It's an estimate that is based on the properties of floating point arithmetic. Sure, it's
-      an estimate, but it's not crude.
+      an estimate, but it's not crude. The estimate ignores the O(ε^2), the errors in computing 
+      the coefficients, and the errors in multiplications. But at every step, the error is 
+      over estimated and testing shows that the method is reliable--not sufficiently reliable to
+      prove theorems, but it is pretty good.
 
   (g) Can't you assume that rounding errors are uniformly distributed independent random variables
       and get a much lower error estimate?
@@ -136,6 +145,34 @@ p(k) and q(k) are computed without any rounding error.
     p))
 
 (defmvar *binary64-digits* (floor (* (float-digits 1.0d0) (log 2 10))))
+
+(defmacro define-two-term-numeric (name (n x digits)
+                                        &key let f0 f1 p q)
+  "Define a numeric special-function evaluator using the standard
+   two-term recurrence driver with running error control.
+   The :let argument supplies additional bindings needed by f0, f1, p, q."
+
+  `(defun ,name (,n ,x ,digits)
+     (handler-case
+         (let* (,@let
+                (eps (bigfloat::to (ftake 'mexpt 2 (- ,digits))))
+                (f0 ,f0)
+                (f1 ,f1)
+                (p  ,p)
+                (q  ,q))
+           (multiple-value-bind (value err)
+               (bigfloat::generic-two-term-recursion-running-error
+                p q f0 f1 ,n)
+             (cond ((bigfloat::relative-error-p value err eps)
+                    (maxima::to value))
+                   (t
+                    (bind-fpprec (mul 2 $fpprec)
+                      (,name ,n ($bfloat ,x) ,digits))))))
+       (arithmetic-error (c)
+         (declare (ignore c))
+         (bind-fpprec $fpprec
+           (,name ,n ($bfloat ,x) ,digits))))))
+
 
 ;; A left continuous unit step function; thus 
 ;;
@@ -466,7 +503,6 @@ p(k) and q(k) are computed without any rounding error.
              (p #'(lambda (k)
                     (let* ((k+1 (bigfloat::+ k 1))
                            ;; Numerator: 2(k + lam)x
-                           ;; FIXED: Coerced 2 to bigfloat and added missing closing parenthesis
                            (num (bigfloat::* (bigfloat::to 2) (bigfloat::+ k bf-lam) bf-x))
                            ;; Denominator: k + 1
                            (den k+1))
@@ -552,7 +588,7 @@ p(k) and q(k) are computed without any rounding error.
                        (t
                         (let ((new-fpprec (mul 2 $fpprec)))
                           (bind-fpprec new-fpprec
-                            (chebyshev_t-numeric n ($bfloat x) (- new-fpprec 2))))))))))
+                            (chebyshev_t-numeric n ($bfloat x) digits)))))))))))
     
     (arithmetic-error (c)
       (declare (ignore c))
@@ -569,7 +605,6 @@ p(k) and q(k) are computed without any rounding error.
 	     ((mtimes ) -1 n ((%chebyshev_t) n x) x))
 	    ((mexpt) ((mplus ) 1 ((mtimes) -1 ((mexpt) x 2))) -1)))
 	   'grad)
-
 
 (def-simplifier chebyshev_u (n x)
    (cond ((and (integerp n) (complex-number-p x #'$numberp))
@@ -865,6 +900,7 @@ p(k) and q(k) are computed without any rounding error.
 (defun laguerre-symbolic (n  x)
   (gen_laguerre-symbolic n 0 x))
 
+#| 
 (defun hermite-numeric (n x digits)
   (handler-case
       (let* ((bf-x (bigfloat::to x))
@@ -887,6 +923,16 @@ p(k) and q(k) are computed without any rounding error.
 	  (declare (ignore c))
       (bind-fpprec $fpprec
         (hermite-numeric n ($bfloat x) digits)))))
+|#
+
+(define-two-term-numeric hermite-numeric (n x digits)
+  :let  ((bf-x  (bigfloat::to x))
+         (bf-2x (bigfloat::* 2 bf-x)))
+  :f0   (bigfloat::to 1)
+  :f1   bf-2x
+  :p    (lambda (k) (declare (ignore k)) bf-2x)
+  :q    (lambda (k) (bigfloat::* -2 k)))
+
 
 (defun hermite-symbolic (n x)
     (let* ((f0 1)
