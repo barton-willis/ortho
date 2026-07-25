@@ -15,17 +15,17 @@ symbolic and numeric arguments. The recursion has the form f(k+1) = p(k) f(k) + 
 might call this a three term recursion, I'll call it a two term recursion).
 
 For the floating point (either binary64 or big float numbers), the code uses a dynamic running error to 
-estimate the rounding error. Specifically it works like this: let f(k) 
-be the true value and let fa(k) be the approximate value computed with floating point numbers.  Then
+estimate the rounding error. Specifically it works like this: let f(k) be the true value and let 
+fa(k) be the approximate value computed with floating point numbers.  Then
 
      f(k+1) = p(k) f(k) + q(k) f(k-1)
      fa(k+1) = p(k) ⊗ fa(k) ⊕ q(k) ⊗ fa(k-1),
 
 where ⊕ is floating point addition and ⊗ is floating point multiplication. This code assumes
 that ⊗ = *, so that all the rounding error is from addition and none from addition. This, of 
-course isn't true.
+course is an approximation.
      
-Using the rules of ⊕, there is ε(k), whose magnitude is bounded by the machine epsilon ε such that 
+Using the rules of ⊕, there is ε(k), whose magnitude is bounded by the machine epsilon ε, such that 
 
      fa(k+1) = (p(k) fa(k) + q(k) fa(k-1)) (1 + ε(k)).
 
@@ -42,23 +42,23 @@ Rescaling the error bound as |E(k)| =  ε 𝓔(k), we have
 
     𝓔(k+1) ≤ |p(k)| 𝓔(k) + |q(k)| 𝓔(k-1) + |fa(k+1)| + O(ε).
 
-This is the rule we use to update the 𝓔.
+This is the rule we use to update 𝓔.
 
 The function generic-two-term-recursion-running error returns the two values fa(n) and ε 𝓔(n). When 
 the value of 𝓔(n) is sufficiently small, the process is done and we accept fa(n) as the value; if not 
 the process is repeated with a smaller value for the machine epsilon. 
 
 This is called a running error method. Think of it as a "poor man's" interval arithmetic. A proper
-interval arithmetic would set the rounding mode and track the rounding errors in all computations,
-not just the additions.  Of course, including the rounding errors with ⊗ is possible.
+interval arithmetic would rack the rounding errors in all computations, not just the additions. 
+Of course, including the rounding errors with ⊗ is possible.
 
 Also, this code assumes that for the recursion f(k+1) = p(k) f(k) + q(k) f(k-1) that the coefficients
 p(k) and q(k) are computed without any rounding error. Again, a proper interval method would also 
-track these errors.
+track these errors too.
 
 Our measure of sufficiently small is 
 
-   |𝓔(n)| < ε max(1, |fa(n)|).
+   |𝓔(n)| <  max(1, |fa(n)|).
 
  Notes:
 
@@ -95,13 +95,13 @@ Our measure of sufficiently small is
 
   (e) Why not do floating point evaluation using nfloat and the exact symbolic values?
 
-    Because my experiments show that this method is painfully slow even for modest degrees.
-     Currently, code does this for assoc_legendre_q.
+    My experiments show that this method is painfully slow even for modest degrees.
+    Currently, code does this for assoc_legendre_q.
 
   (f) Isn't the running error just a crude estimate? It's not rigorous!
 
       It's an estimate that is based on the properties of floating point arithmetic. Sure, it's
-      an estimate, but it's not crude. The estimate ignores the O(ε^2), the errors in computing 
+      an estimate, but it's , I would say, crude. The estimate ignores the O(ε^2), the errors in computing 
       the coefficients, and the errors in multiplications. But at every step, the error is 
       over estimated and testing shows that the method is reliable--not sufficiently reliable to
       prove theorems, but it is pretty good.
@@ -114,8 +114,8 @@ Our measure of sufficiently small is
   (h) The polynomials XXX extend to negative degree and order, but this package doesn't extend
       the to negative degrees. Why?
 
-      The answer isn't very interesting--it's a design choice based on focusing on what most 
-      users need and on keeping the code compact. If you have a legitimate reason for an
+      The answer isn't very interesting--it's a design choice based on focusing on what I suspect that
+      most users need and on keeping the code compact. If you have a legitimate reason for an
       extension, let me know--or even better do it yourself and share it.
 
   (i) For large `n`, shouldn't the code switch over to asymptotic series?
@@ -130,11 +130,14 @@ Our measure of sufficiently small is
 (defmfun $xload (str)
     (load ($file_search str) :verbose t))
 
+;; Maybe it's a bug, but I have seen cases where $ratdisrep returns an un simplified expression. To
+;; workaround this bug, the code does a final expand(xxx,0,0).
 (defun orthopoly-default-simp (p x)
-  "Default cleanup for orthogonal polynomials. Applies rat conversion, ratdisrep, and expand."
+  "Default cleanup for orthogonal polynomials. Applies rat conversion, ratdisrep, and a final simplification."
   (let (($ratfac t) ($algebraic t))
     ($expand ($ratdisrep ($rat p x)) 0 0)))
 
+;; If you prefer a Horner representation:
 (defun orthopoly-horner-simp (p x)
   ($horner p x))
 
@@ -146,33 +149,45 @@ Our measure of sufficiently small is
 
 (defmvar *binary64-digits* (floor (* (float-digits 1.0d0) (log 2 10))))
 
-(defmacro define-two-term-numeric (name (n x digits)
+;;; The function generic-two-term-recursion-running-error uses the recursion to evaluate
+;;; the orthogonal polynomials, but calling it properly requires a great deal of boilerplate.
+;;; Here is a macro for calling generic-two-term-recursion-running-error
+(defmacro define-two-term-numeric* (name lambda-list
                                         &key let f0 f1 p q)
-  "Define a numeric special-function evaluator using the standard
-   two-term recurrence driver with running error control.
-   The :let argument supplies additional bindings needed by f0, f1, p, q."
+  "Generalized numeric evaluator for orthogonal polynomials with
+   arbitrary parameters.  The lambda-list must begin with N and end
+   with DIGITS.  All intermediate parameters are passed through and
+   coerced to bigfloat on recursive restart."
 
-  `(defun ,name (,n ,x ,digits)
-     (handler-case
-         (let* (,@let
-                (eps (bigfloat::to (ftake 'mexpt 2 (- ,digits))))
-                (f0 ,f0)
-                (f1 ,f1)
-                (p  ,p)
-                (q  ,q))
-           (multiple-value-bind (value err)
-               (bigfloat::generic-two-term-recursion-running-error
-                p q f0 f1 ,n)
-             (cond ((bigfloat::relative-error-p value err eps)
-                    (maxima::to value))
-                   (t
-                    (bind-fpprec (mul 2 $fpprec)
-                      (,name ,n ($bfloat ,x) ,digits))))))
-       (arithmetic-error (c)
-         (declare (ignore c))
-         (bind-fpprec $fpprec
-           (,name ,n ($bfloat ,x) ,digits))))))
-
+  ;; Extract required positions
+  (let* ((n-var      (first lambda-list))
+         (digits-var (car (last lambda-list)))
+         (other-vars (butlast (rest lambda-list)))   ; all except n and digits
+         ;; Build ($bfloat ...) coercions for restart
+         (bf-others  (mapcar (lambda (v) `($bfloat ,v)) other-vars)))
+    
+    `(defun ,name ,lambda-list
+       (handler-case
+           (let* (,@let
+                  (eps (bigfloat::to (ftake 'mexpt 2 (- ,digits-var))))
+                  (f0 ,f0)
+                  (f1 ,f1)
+                  (p  ,p)
+                  (q  ,q))
+             (multiple-value-bind (value err)
+                 (bigfloat::generic-two-term-recursion-running-error
+                  p q f0 f1 ,n-var)
+               (cond ((bigfloat::relative-error-p value err eps)
+                      (maxima::to value))
+                     (t
+                      ;; restart with doubled precision
+                      (bind-fpprec (mul 2 $fpprec)
+                        (,name ,n-var ,@bf-others ,digits-var))))))
+         (arithmetic-error (c)
+           (declare (ignore c))
+           ;; restart with same precision
+           (bind-fpprec $fpprec
+             (,name ,n-var ,@bf-others ,digits-var)))))))
 
 ;; A left continuous unit step function; thus 
 ;;
@@ -271,7 +286,7 @@ Our measure of sufficiently small is
     ;; Symbolic case
     ((integerp n)
       (if (> n -1)
-         (jacobi_p-symbolic n a b x)
+         (orthopoly-polynomial-simp (jacobi_p-symbolic n a b x) x)
          (give-up)))
 
     ;; reflection: jacobi_p(n,a,b,x) = (-1)^n * jacobi_p(n,b,a,-x); 
@@ -295,11 +310,10 @@ Our measure of sufficiently small is
   nil
   #$$ (n*jacobi_p(n,a,b,x)*((-(2*n)-b-a)*x-b+a)+2*jacobi_p(n-1,a,b,x)*(n+a)*(n+b)*unit_step(n))/((2*n+b+a)*(1-x^2))$)
 
+;;; For the Jacobi polynoimals, we need to special case negative integer parameters. The code
+;;; jacobi_p-dispatch handles these special cases.
 (defun jacobi_p-dispatch (n a b x digits)
-  "Top-level dispatcher for Jacobi polynomials with negative integer parameters.
-   Routes safe cases to jacobi_p-numeric, and reduces singular cases by factoring
-   (x-1)^m (x+1)^k and calling jacobi_p-numeric on P_{n-m-k}^{(m,k)}(x)."
-
+  "Top-level dispatcher for Jacobi polynomials that special cases negative integer parameters."
   (let* ((neg-a (and (integerp a) (< a 0)))
          (neg-b (and (integerp b) (< b 0))))
 
@@ -341,69 +355,67 @@ Our measure of sufficiently small is
       (t nil))))
 
 ;;; Recursion for the Jacobi polynomials; see http://dlmf.nist.gov/18.9.E1 
-(defun jacobi_p-numeric (n a b x digits)
-  (handler-case
-      (let* ((bf-a (bigfloat::to a))
-             (bf-b (bigfloat::to b))
-             (bf-x (bigfloat::to x))
-             
-             (f0 (bigfloat::to 1))
-             (f1 (bigfloat::/ (bigfloat::+ (bigfloat::* (bigfloat::+ bf-a bf-b 2) bf-x) 
-                                           (bigfloat::- bf-a bf-b)) 
-                              2))
-             
-             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
-             
-             (a+b (bigfloat::+ bf-a bf-b))
-             (a+b+1 (bigfloat::+ bf-a bf-b 1))
-             (a+b+2 (bigfloat::+ bf-a bf-b 2))
-             
-             ;; a^2 - b^2
-             (a2-b2 (bigfloat::- (bigfloat::* bf-a bf-a) (bigfloat::* bf-b bf-b)))
-             
-             (p #'(lambda (k)
-                    (let* ((bf-k (bigfloat::to k))
-                           (2k (bigfloat::* 2 bf-k))
-                           (k+1 (bigfloat::+ bf-k 1))
-                           
-                           ;; Numerator: (2k + a + b + 1)(a^2 - b^2) + x pochhammer(2k + a + b,3)
-                           (num (bigfloat::+
-                                 (bigfloat::* (bigfloat::+ 2k a+b+1) a2-b2)
-                                 (bigfloat::* bf-x (bigfloat::+ 2k a+b) (bigfloat::+ 2k a+b+1) (bigfloat::+ 2k a+b+2))))
-                           
-                           ;; Denominator: 2(k + 1)(k + a + b + 1)(2k + a + b)
-                           (den (bigfloat::* 2 k+1 (bigfloat::+ bf-k a+b+1) (bigfloat::+ 2k a+b))))
-                      (bigfloat::/ num den))))
-             
-             (q #'(lambda (k)
-                    (let* ((bf-k (bigfloat::to k))
-                           (2k (bigfloat::* 2 bf-k))
-                           (k+1 (bigfloat::+ bf-k 1))                   
-                           
-                           ;; Numerator: 2(k + a)(k + b)(2k + a + b + 2)
-                           (num (bigfloat::* -2 (bigfloat::+ bf-k bf-a) (bigfloat::+ bf-k bf-b) (bigfloat::+ 2k a+b+2)))
-                           
-                           ;; Denominator: 2(k + 1)(k + a + b + 1)(2k + a + b)
-                           (den (bigfloat::* 2 k+1 (bigfloat::+ bf-k a+b+1) (bigfloat::+ 2k a+b))))
-                      (bigfloat::/ num den)))))
-        
-        (cond ((eql n 0) (maxima::to f0))
-              ((eql n 1) (maxima::to f1))
-              (t
-               (multiple-value-bind (value err)
-                   (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
-                 (cond ((bigfloat::relative-error-p value err eps)
-                        (maxima::to value))
-                       (t
-                        (let ((new-fpprec (mul 2 $fpprec)))
-                          (bind-fpprec new-fpprec
-                            (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) digits)))))))))
-    
-    (arithmetic-error (c)
-      (declare (ignore c))
-      (let ((new-fpprec (mul 2 $fpprec)))
-        (bind-fpprec new-fpprec
-          (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) digits))))))
+(define-two-term-numeric* jacobi_p-numeric (n a b x digits)
+  :let ((bf-a   (bigfloat::to a))
+        (bf-b   (bigfloat::to b))
+        (bf-x   (bigfloat::to x))
+        (a+b    (bigfloat::+ bf-a bf-b))
+        (a+b+1  (bigfloat::+ bf-a bf-b 1))
+        (a+b+2  (bigfloat::+ bf-a bf-b 2))
+        ;; a^2 - b^2
+        (a2-b2  (bigfloat::- (bigfloat::* bf-a bf-a)
+                             (bigfloat::* bf-b bf-b))))
+  
+  :f0 (bigfloat::to 1)
+
+  :f1 (bigfloat::/
+       (bigfloat::+
+        (bigfloat::* (bigfloat::+ bf-a bf-b 2) bf-x)
+        (bigfloat::- bf-a bf-b))
+       2)
+
+  :p #'(lambda (k)
+         (let* ((bf-k (bigfloat::to k))
+                (2k   (bigfloat::* 2 bf-k))
+                (k+1  (bigfloat::+ bf-k 1))
+
+                ;; Numerator:
+                ;; (2k + a + b + 1)(a^2 - b^2)
+                ;;   + x * pochhammer(2k + a + b, 3)
+                (num  (bigfloat::+
+                       (bigfloat::* (bigfloat::+ 2k a+b+1) a2-b2)
+                       (bigfloat::* bf-x
+                                    (bigfloat::+ 2k a+b)
+                                    (bigfloat::+ 2k a+b+1)
+                                    (bigfloat::+ 2k a+b+2))))
+
+                ;; Denominator:
+                ;; 2 (k + 1)(k + a + b + 1)(2k + a + b)
+                (den  (bigfloat::* 2
+                                   k+1
+                                   (bigfloat::+ bf-k a+b+1)
+                                   (bigfloat::+ 2k a+b))))
+           (bigfloat::/ num den)))
+
+  :q #'(lambda (k)
+         (let* ((bf-k (bigfloat::to k))
+                (2k   (bigfloat::* 2 bf-k))
+                (k+1  (bigfloat::+ bf-k 1))
+
+                ;; Numerator:
+                ;; -2 (k + a)(k + b)(2k + a + b + 2)
+                (num  (bigfloat::* -2
+                                   (bigfloat::+ bf-k bf-a)
+                                   (bigfloat::+ bf-k bf-b)
+                                   (bigfloat::+ 2k a+b+2)))
+
+                ;; Denominator:
+                ;; 2 (k + 1)(k + a + b + 1)(2k + a + b)
+                (den  (bigfloat::* 2
+                                   k+1
+                                   (bigfloat::+ bf-k a+b+1)
+                                   (bigfloat::+ 2k a+b))))
+           (bigfloat::/ num den))))
 
 ;; To avoid the complications for negative integer parameters, we'll use explict summation for the
 ;; Jacobi polynomials: see http://dlmf.nist.gov/18.5.E8 
@@ -430,10 +442,12 @@ Our measure of sufficiently small is
 		               (one (multiplicative-identity a x)))
 			(if one 
 			    (orthopoly-number-coerce (ultraspherical-numeric n a x digits) one)
-				(give-up))))
+				  (give-up))))
 
 		  ((integerp n)
-		    (ultraspherical-symbolic n a x))
+        (if (< n 0)
+           (give-up)
+		       (orthopoly-polynomial-simp (ultraspherical-symbolic n a x) x)))
 
 		((great (neg x) x)
 		 (mul (ftake 'mexpt -1 n) (ftake '%ultraspherical n a (neg x))))
@@ -442,7 +456,7 @@ Our measure of sufficiently small is
 	      (div (ftake '$pochhammer (mul 2 a) n) (ftake 'mfactorial n)))
 
         ;; see http://dlmf.nist.gov/18.7.E2 & http://dlmf.nist.gov/18.7.E3
-		((and nil (eql a 0) ($featurep n '$integer) (eq t (mgqp n 0)))
+		((and (eql a 0) ($featurep n '$integer) (eq t (mgqp n 0)))
 			(mul
 			    (div
 				    (ftake '$pochhammer 0 n)
@@ -490,44 +504,33 @@ Our measure of sufficiently small is
           ((eql n 1) f1)
           (t (generic-two-term-recursion-symbolic p q f0 f1 n)))))
 		  
-(defun ultraspherical-numeric (n lam x digits)
-  (handler-case
-      (let* ((bf-x (bigfloat::to x))
-             (f0 (bigfloat::to 1))
-             (f1 (bigfloat::* (bigfloat::to 2) (bigfloat::to lam) bf-x)) ; Removed redundant (bigfloat::to bf-x)
-             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
-             (bf-lam (bigfloat::to lam))
-             (2lam (bigfloat::* (bigfloat::to 2) bf-lam))
-             (2lam-1 (bigfloat::- 2lam (bigfloat::to 1)))
+(define-two-term-numeric* ultraspherical-numeric (n lam x digits)
+  :let  ((bf-x (bigfloat::to x))
+         (f0 (bigfloat::to 1))
+         (f1 (bigfloat::* (bigfloat::to 2) (bigfloat::to lam) bf-x)) ; Removed redundant (bigfloat::to bf-x)
+         (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
+         (bf-lam (bigfloat::to lam))
+         (2lam (bigfloat::* (bigfloat::to 2) bf-lam))
+         (2lam-1 (bigfloat::- 2lam (bigfloat::to 1))))
 
-             (p #'(lambda (k)
+  :f0 (bigfloat::to 1)
+  :f1 (bigfloat::* (bigfloat::to 2) (bigfloat::to lam) bf-x)
+
+  :p #'(lambda (k)
                     (let* ((k+1 (bigfloat::+ k 1))
                            ;; Numerator: 2(k + lam)x
                            (num (bigfloat::* (bigfloat::to 2) (bigfloat::+ k bf-lam) bf-x))
                            ;; Denominator: k + 1
                            (den k+1))
-                      (bigfloat::/ num den))))
+                      (bigfloat::/ num den)))
          
-             (q #'(lambda (k)
+  :q #'(lambda (k)
                     (let* ((k+1 (bigfloat::+ k 1))
                            ;; Numerator: -(k + 2lam - 1)
                            (num (bigfloat::- (bigfloat::+ k 2lam-1)))
                            ;; Denominator: k + 1
                            (den k+1))
-                      (bigfloat::/ num den)))))
-        (multiple-value-bind (value err)
-            (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
-          (cond ((bigfloat::relative-error-p value err eps)
-                 (maxima::to value))
-                (t
-                 ;; If precision is insufficient, boost fpprec and convert to bigfloat
-                 (bind-fpprec (mul 2 $fpprec)
-                   (ultraspherical-numeric n ($bfloat lam) ($bfloat x) digits))))))
-    ;; Catch binary64 overflow and switch automatically to bigfloats
-    (arithmetic-error (c)
-      (declare (ignore c))
-      (bind-fpprec $fpprec
-        (ultraspherical-numeric n ($bfloat lam) ($bfloat x) digits)))))
+                      (bigfloat::/ num den))))
 
 (def-simplifier chebyshev_t (n x)
   (cond ((and (integerp n) (complex-number-p x #'$numberp))
@@ -538,7 +541,10 @@ Our measure of sufficiently small is
 				(give-up))))
 
 		  ((integerp n)
-		    (chebyshev_t-symbolic n x))
+        (if (< n 0)
+           (give-up)
+		       (orthopoly-polynomial-simp (chebyshev_t-symbolic n x) x)))
+
           ;; See DLMF Table Table 18.6.1 for the following three simplifications:
 		  ((eql x 1)  1)
 		  ((and (eql x 0) ($featurep n '$even)) (ftake 'mexpt 1 (div n 2)))
@@ -561,41 +567,13 @@ Our measure of sufficiently small is
           ((eql n 1) f1)
           (t (generic-two-term-recursion-symbolic p q f0 f1 n)))))
 
-(defun chebyshev_t-numeric (n x digits)
-  (handler-case
-      (let* ((bf-x (bigfloat::to x))
-             
-             (f0 (bigfloat::to 1))
-             (f1 bf-x)
-             
-             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
-             
-             (p #'(lambda (k)
-                    (declare (ignore k))
-                    (bigfloat::* 2 bf-x)))
-             
-             (q #'(lambda (k)
-                    (declare (ignore k))
-                    (bigfloat::to -1))))
+(define-two-term-numeric*  chebyshev_t-numeric (n x digits)
+   :let ((bf-x (bigfloat::to x)))
+    :f0 (bigfloat::to 1)
+    :f1 bf-x
+    :p #'(lambda (k) (declare (ignore k)) (bigfloat::* 2 bf-x))
+    :q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1)))
         
-        (cond ((eql n 0) (maxima::to f0))
-              ((eql n 1) (maxima::to f1))
-              (t
-               (multiple-value-bind (value err)
-                   (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
-                 (cond ((bigfloat::relative-error-p value err eps)
-                        (maxima::to value))
-                       (t
-                        (let ((new-fpprec (mul 2 $fpprec)))
-                          (bind-fpprec new-fpprec
-                            (chebyshev_t-numeric n ($bfloat x) digits)))))))))))
-    
-    (arithmetic-error (c)
-      (declare (ignore c))
-      (let ((new-fpprec (mul 2 $fpprec)))
-        (bind-fpprec new-fpprec
-          (chebyshev_t-numeric n ($bfloat x) (- new-fpprec 2)))))))
-
 (putprop '%chebyshev_t 
 	 '((n x)
 	   nil
@@ -819,11 +797,11 @@ Our measure of sufficiently small is
 			(if one 
 			    (orthopoly-number-coerce (hermite-numeric n x digits) one)
 				(give-up))))
-        ;; symbolic case call generic-two-term-recursion-symbolic
+        ;; symbolic case
         ((integerp n)
            (if (< n 0)
-		     (give-up)
-		    (hermite-symbolic n x)))
+		         (give-up)
+		         (orthopoly-polynomial-simp (hermite-symbolic n x) x)))
         ;; reflection: hermite(n,-x) = (-1)^n hermite(-n,-x)
         ((great (neg x) x)
          (mul (ftake 'mexpt -1 n) (ftake '%hermite n (neg x))))
@@ -900,39 +878,13 @@ Our measure of sufficiently small is
 (defun laguerre-symbolic (n  x)
   (gen_laguerre-symbolic n 0 x))
 
-#| 
-(defun hermite-numeric (n x digits)
-  (handler-case
-      (let* ((bf-x (bigfloat::to x))
-	         (bf-2x (bigfloat::* 2 bf-x))
-             (f0 (bigfloat::to 1))
-             (f1 bf-2x)
-             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
-             (p #'(lambda (k) (declare (ignore k)) bf-2x))
-             (q #'(lambda (k) (bigfloat::* -2 k)))) 
-        (multiple-value-bind (value err)
-            (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
-          (cond ((bigfloat::relative-error-p value err eps)
-                 (maxima::to value))
-                (t
-                 ;; If precision is insufficient, boost fpprec and convert to bigfloat
-                 (bind-fpprec (mul 2 $fpprec)
-                   (hermite-numeric n ($bfloat x) digits))))))
-    ;; Catch binary64 overflow and switch automatically to bigfloats
-    (arithmetic-error (c)
-	  (declare (ignore c))
-      (bind-fpprec $fpprec
-        (hermite-numeric n ($bfloat x) digits)))))
-|#
-
-(define-two-term-numeric hermite-numeric (n x digits)
+(define-two-term-numeric* hermite-numeric (n x digits)
   :let  ((bf-x  (bigfloat::to x))
          (bf-2x (bigfloat::* 2 bf-x)))
   :f0   (bigfloat::to 1)
   :f1   bf-2x
   :p    (lambda (k) (declare (ignore k)) bf-2x)
   :q    (lambda (k) (bigfloat::* -2 k)))
-
 
 (defun hermite-symbolic (n x)
     (let* ((f0 1)
