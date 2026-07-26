@@ -95,13 +95,13 @@ Our measure of sufficiently small is
 
   (e) Why not do floating point evaluation using nfloat and the exact symbolic values?
 
-    My experiments show that this method is painfully slow even for modest degrees.
+    Even for modest degrees, my experiments show that this method is painfully slow.
     Currently, code does this for assoc_legendre_q.
 
   (f) Isn't the running error just a crude estimate? It's not rigorous!
 
       It's an estimate that is based on the properties of floating point arithmetic. Sure, it's
-      an estimate, but it's , I would say, crude. The estimate ignores the O(ε^2), the errors in computing 
+      an estimate, but it's not crude. The estimate ignores the O(ε^2), the errors in computing 
       the coefficients, and the errors in multiplications. But at every step, the error is 
       over estimated and testing shows that the method is reliable--not sufficiently reliable to
       prove theorems, but it is pretty good.
@@ -115,22 +115,19 @@ Our measure of sufficiently small is
       the to negative degrees. Why?
 
       The answer isn't very interesting--it's a design choice based on focusing on what I suspect that
-      most users need and on keeping the code compact. If you have a legitimate reason for an
-      extension, let me know--or even better do it yourself and share it.
+      most users need and on keeping the code compact. If you need to extend a function to negative
+      degrees or the like, let me know--or even better do it yourself and share it.
 
   (i) For large `n`, shouldn't the code switch over to asymptotic series?
 
-      Maybe, but again, it's a design choice to keep the code compact and focused on typical cases
+      Maybe, but it's a design choice to keep the code compact and focused on typical cases
       that users need.
 
 |#
 
 (in-package :maxima)
 
-(defmfun $xload (str)
-    (load ($file_search str) :verbose t))
-
-;; Maybe it's a bug, but I have seen cases where $ratdisrep returns an un simplified expression. To
+;; Maybe it's a bug, but I have seen cases where $ratdisrep returns an unsimplified expression. To
 ;; workaround this bug, the code does a final expand(xxx,0,0).
 (defun orthopoly-default-simp (p x)
   "Default cleanup for orthogonal polynomials. Applies rat conversion, ratdisrep, and a final simplification."
@@ -141,15 +138,17 @@ Our measure of sufficiently small is
 (defun orthopoly-horner-simp (p x)
   ($horner p x))
 
+;; Function applied to every symbolically generated polynomial.
 (defun orthopoly-polynomial-simp (p x &optional (simp-fn #'orthopoly-default-simp))
   "Apply 'simp-fn' to 'p'. If 'simp-fn' is nil, return 'p' unchanged."
   (if simp-fn
       (funcall simp-fn p x)
     p))
 
+;; Number of base 10 digits in a binary64 number (it is 15).
 (defmvar *binary64-digits* (floor (* (float-digits 1.0d0) (log 2 10))))
 
-;;; The function generic-two-term-recursion-running-error uses the recursion to evaluate
+;;; The function generic-two-term-recursion-running-error uses recursion to evaluate
 ;;; the orthogonal polynomials, but calling it properly requires a great deal of boilerplate.
 ;;; Here is a macro for calling generic-two-term-recursion-running-error
 (defmacro define-two-term-numeric* (name lambda-list
@@ -506,9 +505,6 @@ Our measure of sufficiently small is
 		  
 (define-two-term-numeric* ultraspherical-numeric (n lam x digits)
   :let  ((bf-x (bigfloat::to x))
-         (f0 (bigfloat::to 1))
-         (f1 (bigfloat::* (bigfloat::to 2) (bigfloat::to lam) bf-x)) ; Removed redundant (bigfloat::to bf-x)
-         (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
          (bf-lam (bigfloat::to lam))
          (2lam (bigfloat::* (bigfloat::to 2) bf-lam))
          (2lam-1 (bigfloat::- 2lam (bigfloat::to 1))))
@@ -567,7 +563,7 @@ Our measure of sufficiently small is
           ((eql n 1) f1)
           (t (generic-two-term-recursion-symbolic p q f0 f1 n)))))
 
-(define-two-term-numeric*  chebyshev_t-numeric (n x digits)
+(define-two-term-numeric* chebyshev_t-numeric (n x digits)
    :let ((bf-x (bigfloat::to x)))
     :f0 (bigfloat::to 1)
     :f1 bf-x
@@ -593,7 +589,9 @@ Our measure of sufficiently small is
 				(give-up))))
 
 		  ((integerp n)
-		    (chebyshev_u-symbolic n x))
+        (if (< n 0)
+           (give-up)
+		       (chebyshev_u-symbolic n x)))
 
 		  ;; See DLMF Table Table 18.6.1 for the following three simplifications:
 		  ((eql x 1) (add n 1))
@@ -602,7 +600,7 @@ Our measure of sufficiently small is
 		     (ftake 'mexpt 1 (div n 2)))
 
 		  ;; chebyshev_t(n,-x) = (-1)^n chebyshev_t(n,-x)
-          ((great (neg x) x)
+      ((great (neg x) x)
 		    (mul (ftake 'mexpt -1 n) (ftake '%chebyshev_u n (neg x))))
           ;; no simplifications--give up
 		  (t (give-up))))
@@ -620,40 +618,13 @@ Our measure of sufficiently small is
           ((eql n 1) f1)
           (t (generic-two-term-recursion-symbolic p q f0 f1 n)))))
 
-(defun chebyshev_u-numeric (n x digits)
-  (handler-case
-      (let* ((bf-x (bigfloat::to x))
+(define-two-term-numeric* chebyshev_u-numeric (n x digits)
+  :let  ((bf-x (bigfloat::to x)))
+  :f0 (bigfloat::to 1)
+  :f1 (bigfloat::* 2 bf-x)
              
-             (f0 (bigfloat::to 1))
-             (f1 (bigfloat::* 2 bf-x))
-             
-             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
-             
-             (p #'(lambda (k)
-                    (declare (ignore k))
-                    (bigfloat::* 2 bf-x)))
-             
-             (q #'(lambda (k)
-                    (declare (ignore k))
-                    (bigfloat::to -1))))
-        
-        (cond ((eql n 0) (maxima::to f0))
-              ((eql n 1) (maxima::to f1))
-              (t
-               (multiple-value-bind (value err)
-                   (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
-                 (cond ((bigfloat::relative-error-p value err eps)
-                        (maxima::to value))
-                       (t
-                        (let ((new-fpprec (mul 2 $fpprec)))
-                          (bind-fpprec new-fpprec
-                            (chebyshev_u-numeric n ($bfloat x) (- new-fpprec 2))))))))))
-    
-    (arithmetic-error (c)
-      (declare (ignore c))
-      (let ((new-fpprec (mul 2 $fpprec)))
-        (bind-fpprec new-fpprec
-          (chebyshev_u-numeric n ($bfloat x) (- new-fpprec 2)))))))
+  :p #'(lambda (k) (declare (ignore k)) (bigfloat::* 2 bf-x))
+  :q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1)))
 
 (putprop '%chebyshev_u
 	 '((n x)
@@ -676,41 +647,28 @@ Our measure of sufficiently small is
 				(give-up))))
 
 		  ((integerp n)
-              (legendre-p-symbolic n x))
+          (if (< n 0)
+              (give-up)
+              (orthopoly-default-simp (legendre-p-symbolic n x) x)))
 
 		(t (give-up))))
 
-(defun legendre_p-numeric (n x digits)
-  (handler-case
-      (let* ((bf-x (bigfloat::to x))
-             (one (bigfloat::to 1))
-             (f0 one)
-             (f1 bf-x)
-             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
-             (p #'(lambda (kk)
-                    (let ((k (bigfloat::to kk)))
-                      (bigfloat::/ (bigfloat::* (bigfloat::+ (bigfloat::* 2 k) 1) bf-x) (bigfloat::+ k 1))))) 
-             (q #'(lambda (kk) 
-                    (let ((k (bigfloat::to kk))) 
-                      (bigfloat::/ k (bigfloat::+ k one))))))
-        (multiple-value-bind (value err)
-            (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
-          (cond ((bigfloat::relative-error-p value err eps)
-                 (maxima::to value))
-                (t
-                 ;; If precision is insufficient, boost fpprec and convert to bigfloat
-                 (bind-fpprec (mul 2 $fpprec)
-                   (legendre_p-numeric n ($bfloat x) digits))))))
-    
-    ;; Catch binary64 overflow and switch automatically to bigfloats
-    (arithmetic-error (c)
-      (declare (ignore c)) ; Bound 'c' to prevent compiler/runtime errors
-      (bind-fpprec $fpprec
-        (legendre_p-numeric n ($bfloat x) digits)))))
+(define-two-term-numeric* legendre_p-numeric (n x digits)
+  :let ((bf-x (bigfloat::to x))
+         (one (bigfloat::to 1)))
+
+  :f0 one
+  :f1 bf-x
+  :p #'(lambda (kk)
+          (let ((k (bigfloat::to kk)))
+                (bigfloat::/ (bigfloat::* (bigfloat::+ (bigfloat::* 2 k) 1) bf-x) (bigfloat::+ k 1))))
+  :q #'(lambda (kk) 
+          (let ((k (bigfloat::to kk))) 
+                (bigfloat::/ k (bigfloat::+ k one)))))
 
 (defun legendre-p-symbolic (n x)
     (let* ((f0 1)
-		   (f1 x)
+		       (f1 x)
            (p #'(lambda (k) (div (mul (add (mul 2 k) 1) x) (add k 1)))) ; (2k+1)x/(k+1) 
            (q #'(lambda (k) (mul -1 (div k (add k 1))))))
 	 (generic-two-term-recursion-symbolic p q f0 f1 n)))
@@ -821,6 +779,21 @@ Our measure of sufficiently small is
   nil
   #$$ 2*n*herite(n-1,x)$)
 
+(define-two-term-numeric* hermite-numeric (n x digits)
+  :let  ((bf-x  (bigfloat::to x))
+         (bf-2x (bigfloat::* 2 bf-x)))
+  :f0   (bigfloat::to 1)
+  :f1   bf-2x
+  :p    (lambda (k) (declare (ignore k)) bf-2x)
+  :q    (lambda (k) (bigfloat::* -2 k)))
+
+(defun hermite-symbolic (n x)
+    (let* ((f0 1)
+		       (f1 (mul 2 x))
+           (p #'(lambda (k) (declare (ignore k)) (mul 2 x)))
+           (q #'(lambda (k) (mul -2 k))))
+		    (generic-two-term-recursion-symbolic p q f0 f1 n)))
+
 (def-simplifier gen_laguerre (n a x)
 	(cond ((and (integerp n) (complex-number-p a #'$numberp) (complex-number-p x #'$numberp)
               (let* ((digits (get-digits x))      
@@ -830,8 +803,11 @@ Our measure of sufficiently small is
 				(give-up)))))
           ;; symbolic case 
 		  ((integerp n)
-             (gen_laguerre-symbolic n a x))
-          ;; value for x=0 (see https://en.wikipedia.org/wiki/Laguerre_polynomials)
+         (if (< n 0)
+            (give-up)
+            (orthopoly-default-simp (gen_laguerre-symbolic n a x) x)))
+
+      ;; value for x=0 (see https://en.wikipedia.org/wiki/Laguerre_polynomials)
 		  ((and (eql x 0) ($featurep n '$integer))
 		   (ftake '%binomial (add n a) n))
           ;; nothing known--noun form return
@@ -858,7 +834,9 @@ Our measure of sufficiently small is
 				(give-up))))
           ;; symbolic case 
 		  ((integerp n)
-             (laguerre-symbolic n x))
+           (if (< n 0)
+              (give-up)
+              (orthopoly-polynomial-simp (laguerre-symbolic n x) x)))
           ;; nothing known--noun form return
  		  (t (give-up))))
 
@@ -878,20 +856,7 @@ Our measure of sufficiently small is
 (defun laguerre-symbolic (n  x)
   (gen_laguerre-symbolic n 0 x))
 
-(define-two-term-numeric* hermite-numeric (n x digits)
-  :let  ((bf-x  (bigfloat::to x))
-         (bf-2x (bigfloat::* 2 bf-x)))
-  :f0   (bigfloat::to 1)
-  :f1   bf-2x
-  :p    (lambda (k) (declare (ignore k)) bf-2x)
-  :q    (lambda (k) (bigfloat::* -2 k)))
 
-(defun hermite-symbolic (n x)
-    (let* ((f0 1)
-		       (f1 (mul 2 x))
-           (p #'(lambda (k) (declare (ignore k)) (mul 2 x)))
-           (q #'(lambda (k) (mul -2 k))))
-		    (generic-two-term-recursion-symbolic p q f0 f1 n)))
 
 (defun gen_laguerre-numeric (n a x digits)
   (handler-case
@@ -1473,23 +1438,16 @@ variable ~:M" arg (car (last arg))))
 	(t (merror "A weight for ~:M isn't known to Maxima" fn))))
 
 (defun generic-two-term-recursion-symbolic (p q f0 f1 n)
-  (cond ((eql n 0)
-         f0)
-        ((eql n 1)
-         f1)
+  (cond ((eql n 0)  f0)
+        ((eql n 1)  f1)
         (t
-         (let ((fm1 f0)
-               (fi  f1))
-           (do ((i 1 (1+ i)))
-               ((> i (1- n)) fi)
-             (let* ((a (funcall p i))
-                    (b (funcall q i))
-                    (new (add (mul a fi)
-                              (mul b fm1))))
-               (setq fm1 fi
-                     fi  new)))
-      ;; We return the value of fi with no simplification (ratsimp, expand, factor, ...)
-			fi))))
+          (let ((k 1) (f2))
+            (while (< k n)
+               (setq f2 (add (mul (funcall p k) f1) (mul (funcall q k) f0)))
+               (setq f0 f1
+                   f1 f2
+                   k (+ 1 k)))
+          f1))))
 
 (in-package #:bigfloat)
 
@@ -1546,8 +1504,8 @@ variable ~:M" arg (car (last arg))))
 			    (orthopoly-number-coerce (legendre_q-numeric n x digits) one)
 				(give-up))))
 		((and (integerp n) (> n -1))
-		   (legendre_q-symbolic n x))
-        ((and (eql x 0) ($featurep n '$integer) (or  ($featurep n '$even) ($featurep n '$odd)))
+		   (orthopoly-polynomial-simp (legendre_q-symbolic n x) x))
+    ((and (eql x 0) ($featurep n '$integer) (or  ($featurep n '$even) ($featurep n '$odd)))
            (legendre_q-at-zero n))
 		(t (give-up))))
 
