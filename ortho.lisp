@@ -127,12 +127,9 @@ Our measure of sufficiently small is
 
 (in-package :maxima)
 
-;; Maybe it's a bug, but I have seen cases where $ratdisrep returns an unsimplified expression. To
-;; workaround this bug, the code does a final expand(xxx,0,0).
 (defun orthopoly-default-simp (p x)
-  "Default cleanup for orthogonal polynomials. Applies rat conversion, ratdisrep, and a final simplification."
-  (let (($ratfac t) ($algebraic t))
-    ($expand ($ratdisrep ($rat p x)) 0 0)))
+  "Default cleanup for orthogonal polynomials."
+  ($ratsimp p x))
 
 ;; If you prefer a Horner representation:
 (defun orthopoly-horner-simp (p x)
@@ -320,6 +317,7 @@ Our measure of sufficiently small is
 
       ;; jacobi_p(negative integer, a, b, x) = 0
       ((< n 0) 0)
+
       ;; Case 1: No negative integer parameters--safe to call the upward recursion code
       ((and (not neg-a) (not neg-b))
        (jacobi_p-numeric n a b x digits))
@@ -425,6 +423,7 @@ Our measure of sufficiently small is
 (defun jacobi_p-symbolic (n a b x)
   (let ((s 0))
 		(dotimes (k (+ 1 n))
+      (mtell "s=~M ~%" s)
 			(setq s 
 			      (add s
 			         (mul
@@ -696,6 +695,10 @@ Our measure of sufficiently small is
 			        (orthopoly-number-coerce (assoc_legendre_p-numeric l m x digits) one)
 				      (give-up))))
 
+        ;; assoc_legendre_p(l,m,x) = assoc_legendre_p(-l-1,m,x)
+        ((and (integerp l) (< l 0))
+          (ftake '%assoc_legendre_p (sub (- l) 1) m x))
+
         ((and (integerp l) (integerp m) (<= (abs m) l))
           (assoc_legendre_p-symbolic l m x))
         (t  (give-up))))
@@ -813,7 +816,7 @@ Our measure of sufficiently small is
           ;; nothing known--noun form return
  		  (t (give-up))))
 
-(putprop '$gen_laguerre
+(putprop '%gen_laguerre
 	 '((n a x)
 	   nil
 	   nil
@@ -1472,8 +1475,8 @@ variable ~:M" arg (car (last arg))))
 (defun generic-two-term-recursion-running-error (p q f0 f1 n)
   "Evaluate the recurrence forward while tracking an absolute running error bound
    using the IEEE‑754 real floating‑point model."
-  (cond ((eql n 0) f0)
-        ((eql n 1) f1)
+  (cond ((eql n 0) (values f0 0))
+        ((eql n 1) (values f1 0))
         (t
   (let* (;; absolute error bounds
          (e0 0)
@@ -1591,7 +1594,14 @@ variable ~:M" arg (car (last arg))))
 			    (orthopoly-number-coerce (assoc_legendre_q-numeric n m x digits) one)
 				(give-up))))
 
-      ((and (integerp n) (integerp m) (> n -1) (<= (abs m) n))
+      ((and (integerp m) (> 0 m) (integerp n))
+         (div (mul
+                (ftake 'mexpt -1 (- m))
+                (ftake 'mfactorial (add n m))
+                (ftake '%assoc_legendre_q n (- m) x))
+              (ftake 'mfactorial (sub n m))))
+
+      ((and (integerp n) (integerp m) (> n -1) (> m -1))
        (assoc_legendre_q-symbolic n m x))
 
       ((eql m 0)
@@ -1601,13 +1611,13 @@ variable ~:M" arg (car (last arg))))
 
 (defun assoc_legendre_q-symbolic (n m x)
   (let* ((g (gensym))
-         (f (ftake '%legendre_q n g)))
-
+         (f ($diff (ftake '%legendre_q n g) g m)))
+         
     (orthopoly-polynomial-simp 
         (maxima-substitute x g
            (mul (ftake 'mexpt -1 m)
-            (ftake 'mexpt (sub 1 (mul x x)) (div m 2))
-            ($diff f g m))) x)))
+                (ftake 'mexpt (sub 1 (mul x x)) (div m 2))
+                f)) x)))
 
 (defun assoc_legendre_q-numeric (n m x digits)
     (let* ((g (gensym))
