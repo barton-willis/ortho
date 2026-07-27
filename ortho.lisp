@@ -1421,7 +1421,7 @@ Our measure of sufficiently small is
     lname))
 
 (defmfun $orthopoly_weight (name)
-  (or (gethash lname *orthopoly-weight-table*)
+  (or (gethash name *orthopoly-weight-table*)
         (merror "No weight registered for ~M" name)))
 
 (register-orthopoly-weight
@@ -1487,6 +1487,159 @@ Our measure of sufficiently small is
 (register-orthopoly-weight
  '%spherical_harmonic
  #$$ lambda([theta,phi], [sin(theta), [0,pi], [0,2*pi]]) $)
+
+;;;;;;;;;;;;;;;;;;;;;;
+;;; ======================================================================
+;;;  orthopoly-normalization.lisp
+;;;  Normalization subsystem for orthogonal polynomials in Maxima
+
+;;; ----------------------------------------------------------------------
+;;; Normalization table
+;;; ----------------------------------------------------------------------
+
+(defparameter *orthopoly-normalization-table*
+  (make-hash-table :test #'eq :size 128))
+
+(defun register-orthopoly-normalization (name lambda-form)
+  (setf (gethash name *orthopoly-normalization-table*) lambda-form)
+  name)
+
+(defun orthopoly_normalization (name)
+  (or (gethash name *orthopoly-normalization-table*)
+      (error "No normalization registered for ~A" name)))
+
+;;; ----------------------------------------------------------------------
+;;; USER-LEVEL FUNCTIONS
+;;; ----------------------------------------------------------------------
+
+(defmfun orthopoly_register_normalization (name lambda_expr)
+  (let* ((lname (mfuncall '$symbol name))
+         (lform lambda_expr))
+    (register-orthopoly-normalization lname lform)
+    lname))
+
+(defmfun $orthopoly_normalization (name)
+    (or (gethash name *orthopoly-normalization-table*)
+        (merror "No normalization registered for ~M" name)))
+
+;;; ======================================================================
+;;; Normalization definitions
+;;; ======================================================================
+
+(register-orthopoly-normalization
+ '%hermite
+ #$$ lambda([n], 2^n * factorial(n) * sqrt(%pi)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Legendre P_n
+;;; ∫_{-1}^{1} P_n(x)^2 dx = 2/(2n+1)
+;;; ----------------------------------------------------------------------
+
+(register-orthopoly-normalization
+ '%legendre_p
+ #$$ lambda([n],
+      2/(2*n+1)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Chebyshev T_n
+;;; ∫ T_n(x)^2 /sqrt(1-x^2) dx = π (n=0), π/2 (n>0)
+;;; ----------------------------------------------------------------------
+
+(register-orthopoly-normalization
+ 'chebyshev_t
+ #$$ lambda([n],
+      if n=0 then %pi else %pi/2) $)
+
+;;; ----------------------------------------------------------------------
+;;; Chebyshev U_n
+;;; ∫ U_n(x)^2 sqrt(1-x^2) dx = π/2
+;;; ----------------------------------------------------------------------
+
+(register-orthopoly-normalization
+ 'chebyshev_u
+ #$$ lambda([n],
+      %pi/2) $)
+
+;;; ----------------------------------------------------------------------
+;;; Gegenbauer / Ultraspherical C_n^(λ)
+;;; ∫ (1-x^2)^(λ-1/2) C_n^(λ)(x)^2 dx =
+;;;   π 2^(1-2λ) Γ(n+2λ) / (n! (n+λ) Γ(λ)^2)
+;;; ----------------------------------------------------------------------
+
+(register-orthopoly-normalization
+ 'ultraspherical
+ #$$ lambda([n,lambda],
+      %pi * 2^(1-2*lambda)
+        * gamma(n+2*lambda)
+        /( factorial(n)*(n+lambda)*gamma(lambda)^2 )) $)
+
+;;; ----------------------------------------------------------------------
+;;; Laguerre L_n^(a)
+;;; ∫ x^a e^{-x} L_n^(a)(x)^2 dx = Γ(n+a+1)/n!
+;;; ----------------------------------------------------------------------
+
+(register-orthopoly-normalization
+ 'laguerre
+ #$$ lambda([n,a],
+      gamma(n+a+1)/factorial(n)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Generalized Laguerre
+;;; Same formula
+;;; ----------------------------------------------------------------------
+
+(register-orthopoly-normalization
+ 'gen_laguerre
+ #$$ lambda([n,a],
+      gamma(n+a+1)/factorial(n)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Jacobi P_n^(a,b)
+;;; ∫ (1-x)^a (1+x)^b P_n^(a,b)(x)^2 dx =
+;;;   2^(a+b+1)/(2n+a+b+1) * Γ(n+a+1)Γ(n+b+1)/(n! Γ(n+a+b+1))
+;;; ----------------------------------------------------------------------
+
+(register-orthopoly-normalization
+ 'jacobi_p
+ #$$ lambda([n,a,b],
+      2^(a+b+1)/(2*n+a+b+1)
+        * gamma(n+a+1)*gamma(n+b+1)
+        /( factorial(n)*gamma(n+a+b+1) )) $)
+
+;;; ----------------------------------------------------------------------
+;;; Spherical Bessel j_n, y_n, h_n^(1), h_n^(2)
+;;; Formal radial measure: ∫ f(n,x)^2 x^2 dx
+;;; ----------------------------------------------------------------------
+
+(register-orthopoly-normalization
+ 'spherical_bessel_j
+ #$$ lambda([n],
+      integrate(spherical_bessel_j(n,x)^2 * x^2, x, 0, inf)) $)
+
+(register-orthopoly-normalization
+ 'spherical_bessel_y
+ #$$ lambda([n],
+      integrate(spherical_bessel_y(n,x)^2 * x^2, x, 0, inf)) $)
+
+(register-orthopoly-normalization
+ 'spherical_hankel1
+ #$$ lambda([n],
+      integrate(spherical_hankel1(n,x)^2 * x^2, x, 0, inf)) $)
+
+(register-orthopoly-normalization
+ 'spherical_hankel2
+ #$$ lambda([n],
+      integrate(spherical_hankel2(n,x)^2 * x^2, x, 0, inf)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Spherical Harmonics Y_l^m
+;;; ∫ |Y_l^m|^2 sin(θ) dθ dφ = 1
+;;; ----------------------------------------------------------------------
+
+(register-orthopoly-normalization
+ 'spherical_harmonic
+ #$$ lambda([l,m],
+      1) $)
 
 ;;; Gradient definitions for orthogonal polynomials
 (defgrad %jacobi_p ($n $a $b $x)
@@ -1569,4 +1722,129 @@ Our measure of sufficiently small is
   #$$ (m*cos(theta)/sin(theta))*spherical_harmonic(l,m,theta,phi)
       - sqrt((l-m)*(l+m+1))*spherical_harmonic(l,m+1,theta,phi) $
   #$$ m*spherical_harmonic(l,m,theta,phi)/sin(theta)$)
+
+;;; antiderivative definitions:
+
+
+
+(defmacro def-integral (name arglist &rest entries)
+  "Define integral properties for orthogonal polynomials.
+   ARG list is (n x a b ...).
+   ENTRIES is a list of expressions, one per argument.
+   Use NIL for undefined integrals."
+  `(putprop ',name
+            (list ',arglist ,@entries)
+            'integral))
+
+;;; ======================================================================
+;;;  orthopoly-integral.lisp
+;;;  Integral subsystem for orthogonal polynomials in Maxima
+;;;
+;;;  Provides:
+;;;    • Reader macro #$$ … $
+;;;    • def-integral macro
+;;;    • Integral definitions for all supported families
+;;; ======================================================================
+
+;;; ----------------------------------------------------------------------
+;;; def-integral macro
+;;; ----------------------------------------------------------------------
+
+(defmacro def-integral (name arglist &rest entries)
+  "Define integral properties for orthogonal polynomials.
+   ARG list is (n x a b ...).
+   ENTRIES is a list of expressions, one per argument.
+   Use NIL for undefined integrals."
+  `(putprop ',name
+            (list ',arglist ,@entries)
+            'integral))
+
+;;; ======================================================================
+;;; Integral definitions
+;;; ======================================================================
+
+;;; ----------------------------------------------------------------------
+;;; Hermite
+;;; ∫ H_n(x) dx = H_{n+1}(x)/(2(n+1)) - H_{n-1}(x)/(2n)
+;;; ----------------------------------------------------------------------
+
+(def-integral %hermite (n x)
+  nil
+  #$$ hermite(n+1,x)/(2*(n+1)) - hermite(n-1,x)/(2*n) $)
+
+;;; ----------------------------------------------------------------------
+;;; Legendre P_n
+;;; ∫ P_n(x) dx = (P_{n+1}(x) - P_{n-1}(x))/(2n+1)
+;;; ----------------------------------------------------------------------
+
+(def-integral %legendre_p (n x)
+  nil
+  #$$ (legendre_p(n+1,x) - legendre_p(n-1,x))/(2*n+1) $)
+
+;;; ----------------------------------------------------------------------
+;;; Chebyshev T_n
+;;; ∫ T_n(x) dx = T_{n+1}(x)/(2(n+1)) - T_{n-1}(x)/(2(n-1))
+;;; ----------------------------------------------------------------------
+
+(def-integral %chebyshev_t (n x)
+  nil
+  #$$ chebyshev_t(n+1,x)/(2*(n+1))
+      - chebyshev_t(n-1,x)/(2*(n-1)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Chebyshev U_n
+;;; ∫ U_n(x) dx = U_{n+1}(x)/(2(n+1))
+;;; ----------------------------------------------------------------------
+
+(def-integral %chebyshev_u (n x)
+  nil
+  #$$ chebyshev_u(n+1,x)/(2*(n+1)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Gegenbauer / Ultraspherical C_n^(λ)
+;;; ∫ C_n^(λ)(x) dx =
+;;;   C_{n+1}^(λ)(x)/(2(n+λ+1)) - C_{n-1}^(λ)(x)/(2(n+λ-1))
+;;; ----------------------------------------------------------------------
+
+(def-integral %ultraspherical (n lambda x)
+  nil 
+  nil
+  #$$ ultraspherical(n+1,lambda,x)/(2*(n+lambda+1))
+      - ultraspherical(n-1,lambda,x)/(2*(n+lambda-1)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Laguerre L_n^(a)
+;;; ∫ L_n^(a)(x) dx = -L_{n-1}^{(a+1)}(x)
+;;; ----------------------------------------------------------------------
+
+(def-integral %laguerre (n a x)
+  nil 
+  nil
+  #$$ -laguerre(n-1,a+1,x) $)
+
+;;; ----------------------------------------------------------------------
+;;; Generalized Laguerre L_n^(a)
+;;; Same formula
+;;; ----------------------------------------------------------------------
+
+(def-integral %gen_laguerre (n a x)
+  nil 
+  nil
+  #$$ -gen_laguerre(n-1,a+1,x) $)
+
+;;; ----------------------------------------------------------------------
+;;; Jacobi P_n^(a,b)
+;;; ∫ P_n^(a,b)(x) dx =
+;;;   P_{n+1}^(a,b)(x)/(2(n+1)) - P_{n-1}^(a,b)(x)/(2(n+a+b))
+;;; ----------------------------------------------------------------------
+
+(def-integral %jacobi_p (n a b x)
+  nil 
+  nil 
+  nil
+  #$$ jacobi_p(n+1,a,b,x)/(2*(n+1)) - jacobi_p(n-1,a,b,x)/(2*(n+a+b)) $)
+
+;;; ======================================================================
+;;; End of file
+;;; ======================================================================
 
