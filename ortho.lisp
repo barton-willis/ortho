@@ -462,20 +462,6 @@ Our measure of sufficiently small is
 
 		(t (give-up))))
 
-(putprop '%ultraspherical 
-	 '((n a x)
-	   nil 
-	   nil
-	   ((mtimes)
-	    ((mplus)
-	     ((mtimes)
-	      ((%unit_step) n)
-	      ((mplus) -1 ((mtimes) 2 a) n)
-	      ((%ultraspherical) ((mplus) -1 n) a x))
-	     ((mtimes) -1 n ((%ultraspherical) n a x) x))
-	    ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) x 2))) -1)))
-	 'grad) 	
-
 (defun ultraspherical-symbolic (n lam x)
   (let* ((f0 1)
          (f1 (mul 2 lam x))
@@ -568,16 +554,6 @@ Our measure of sufficiently small is
     :p #'(lambda (k) (declare (ignore k)) (bigfloat::* 2 bf-x))
     :q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1)))
         
-(putprop '%chebyshev_t 
-	 '((n x)
-	   nil
-	   ((mtimes)
-	    ((mplus)
-	     ((mtimes) n ((%chebyshev_t) ((mplus ) -1 n) x))
-	     ((mtimes ) -1 n ((%chebyshev_t) n x) x))
-	    ((mexpt) ((mplus ) 1 ((mtimes) -1 ((mexpt) x 2))) -1)))
-	   'grad)
-
 (def-simplifier chebyshev_u (n x)
    (cond ((and (integerp n) (complex-number-p x #'$numberp))
              (let* ((digits (get-digits x))
@@ -624,18 +600,6 @@ Our measure of sufficiently small is
   :p #'(lambda (k) (declare (ignore k)) (bigfloat::* 2 bf-x))
   :q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1)))
 
-(putprop '%chebyshev_u
-	 '((n x)
-	    nil
-	   ((mtimes)
-	    ((mplus)
-	     ((mtimes)
-	      ((%unit_step) n)
-	      ((mplus) 1 n) ((%chebyshev_u) ((mplus) -1 n) x))
-	     ((mtimes) -1 n ((%chebyshev_u) n x) x))
-	    ((mexpt) ((mplus ) 1 ((mtimes) -1 ((mexpt) x 2))) -1)))
-	 'grad) 
-
 (def-simplifier legendre_p (n x)
    (cond ((and (integerp n) (complex-number-p x #'$numberp)) ;evaluate numerically
             (let* ((digits (get-digits x))
@@ -671,16 +635,6 @@ Our measure of sufficiently small is
            (q #'(lambda (k) (mul -1 (div k (add k 1))))))
 	 (generic-two-term-recursion-symbolic p q f0 f1 n)))
 
-(putprop '%legendre_p 
-	 '((n x) 
-	   nil
-	   ((mtimes)
-	     ((mplus)
-	      ((mtimes) n ((%legendre_p) ((mplus) -1 n) x))
-	      ((mtimes) -1 n ((%legendre_p) n x) x))
-	     ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) x 2))) -1)))
-	 'grad)
-  
 (defun get-digits (x)
   (if (floatp x)
 			(- *binary64-digits* 2)
@@ -735,18 +689,6 @@ Our measure of sufficiently small is
 ;; For the derivative of the associated legendre p function, see
 ;; A & S 8.5.4 page 334.
 
-(putprop '%assoc_legendre_p
-	 '((n m x)
-	   nil
-	   nil
-	   ((mtimes simp)
-	    ((mplus simp)
-	     ((mtimes simp) -1 ((mplus simp) m n) ((%unit_step) n)
-	      ((%assoc_legendre_p simp) ((mplus simp) -1 n) m x))
-	     ((mtimes simp) n ((%assoc_legendre_p simp) n m x) x))
-	    ((mexpt simp) ((mplus simp) -1 ((mexpt simp) x 2)) -1))) 
-	   'grad)
-	   
 ;;; Simplifier for the Hermite polynomial H_n, not He_n; see DLMF Table Table 18.3.1. 
 ;;; (https://dlmf.nist.gov/18.3) For the recusion, see DLMF Table http://dlmf.nist.gov/18.9.T1. 
 ;;; For special values, see DLMF Table http://dlmf.nist.gov/18.6.i
@@ -815,18 +757,6 @@ Our measure of sufficiently small is
           ;; nothing known--noun form return
  		  (t (give-up))))
 
-(putprop '%gen_laguerre
-	 '((n a x)
-	   nil
-	   nil
-	   ((mtimes)
-	    ((mplus)
-	     ((mtimes) -1 ((mplus) a n)
-	      ((%unit_step) n) ((%gen_laguerre) ((mplus) -1 n) a x))
-	     ((mtimes) n ((%gen_laguerre) n a x)))
-	    ((mexpt) x -1)))
-	 'grad)
-
 (def-simplifier laguerre (n x)
   (cond ((and (integerp n) (complex-number-p x #'$numberp))
           (let* ((digits (get-digits x)) 
@@ -841,16 +771,6 @@ Our measure of sufficiently small is
               (orthopoly-polynomial-simp (laguerre-symbolic n x) x)))
           ;; nothing known--noun form return
  		  (t (give-up))))
-
-(putprop '%laguerre
-	 '((n x)
-	   nil
-	   ((mtimes)
-	    ((mplus)
-	     ((mtimes) -1 n ((%laguerre) ((mplus) -1 n) x))
-	     ((mtimes) n ((%laguerre) n x)))
-	    ((mexpt) x -1)))
-	 'grad)
 
 (defun laguerre-numeric (n x digits)
    (gen_laguerre-numeric n 0 x digits))
@@ -950,26 +870,8 @@ Our measure of sufficiently small is
   :p #'(lambda (k) (bigfloat::/ (+ (* 2 k) 1) bf-x))
   :q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1)))
 
-(putprop '%spherical_hankel1
-	 '((n x)
-	   nil
-	   ((mplus simp) ((%spherical_hankel1) ((mplus) -1 n) x)
-	    ((mtimes simp) -1 ((mplus) 1 n)
-	     ((%spherical_hankel1) n x) ((mexpt) x -1))))
-	 'grad)
-
-;; See A & S 10.1.36.
-
 (def-simplifier spherical_hankel2 (n x)
   (give-up))
-
-(putprop '%spherical_hankel2
-	 '((n x)
-	   nil
-	   ((mplus simp) ((%spherical_hankel2) ((mplus) -1 n) x)
-	    ((mtimes simp) -1 ((mplus) 1 n)
-	     ((%spherical_hankel2) n x) ((mexpt) x -1))))
-	 'grad)
 
 (def-simplifier spherical_bessel_j (n x)
     (cond ((and (integerp n) (complex-number-p x #'$numberp))
@@ -987,16 +889,6 @@ Our measure of sufficiently small is
 		
 		  (t (give-up))))
 		    
-(putprop '%spherical_bessel_j
-	 '((n x)
-	   nil
-	   ((mtimes) ((mexpt) ((mplus) 1 ((mtimes) 2 n)) -1)
-	    ((mplus)
-	     ((mtimes) n ((%spherical_bessel_j) ((mplus) -1 n) x))
-	     ((mtimes) -1 ((mplus) 1 n)
-	      ((%spherical_bessel_j) ((mplus) 1 n) x)))))
-	 'grad)
- 
 (define-two-term-numeric* spherical_bessel_j-numeric (n x digits)
   :let ((bf-x   (bigfloat::to x))
         (bf-one (bigfloat::to 1))
@@ -1039,16 +931,6 @@ Our measure of sufficiently small is
 (defun $spherical_bessel_y (n x)
    (declare (ignore n x))
    (merror "spherical_bessel_y"))
-
-(putprop '%spherical_bessel_y
-	 '((n x)
-	   ((unk) first spherical_bessel_y)
-	   ((mtimes) ((mexpt) ((mplus) 1 ((mtimes) 2 n)) -1)
-	    ((mplus)
-	     ((mtimes) n ((%spherical_bessel_y) ((mplus) -1 n) x))
-	     ((mtimes) -1 ((mplus) 1 n)
-	      ((%spherical_bessel_y) ((mplus) 1 n) x)))))
-	 'grad)
 
 #|  
 ;; Compute P_n^m(cos(theta)).  See Merzbacher, 9.59 page 184
@@ -1236,22 +1118,6 @@ Our measure of sufficiently small is
       ;; final cleanup
       (orthopoly-polynomial-simp sum x))))
 
-;; See G & R, 8.733, page 1005 first equation.
-
-(putprop '%assoc_legendre_q
-	 '((n m x)
-     nil
-	   nil	   
-	   ((mplus)
-	    ((mtimes)
-	     ((mplus)
-	      ((mtimes) -1 ((mplus) 1 ((mtimes) -1 m) n)
-	       ((%assoc_legendre_q ) ((mplus ) 1 n) m x))
-	      ((mtimes) ((mplus) 1 n)
-	       ((%assoc_legendre_q ) n m x) x))
-	     ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) x 2))) -1))))
-	 'grad) 
-
 (defun $assoc_legendre_q (n m x)
   (ftake '%assoc_legendre_q n m x))
   
@@ -1293,22 +1159,6 @@ Our measure of sufficiently small is
            (f (assoc_legendre_q-symbolic n m g)))
       (nfloat f (ftake 'mlist (ftake 'mequal g x)) digits $max_fpprec)))
       
-;; See G & R, 8.733, page 1005 first equation.
-
-(putprop '%assoc_legendre_q
-	 '((n m x)
-	   nil
-	   nil
-	   ((mplus)
-	    ((mtimes)
-	     ((mplus)
-	      ((mtimes) -1 ((mplus) 1 ((mtimes) -1 m) n)
-	       ((%assoc_legendre_q ) ((mplus ) 1 n) m x))
-	      ((mtimes) ((mplus) 1 n)
-	       ((%assoc_legendre_q ) n m x) x))
-	     ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) x 2))) -1))))
-	 'grad) 
-
 ;; improve & move to gamma.lisp
 
 (defmvar $pochhammer_max_index 100)
@@ -1386,14 +1236,12 @@ Our measure of sufficiently small is
 	  ;; return a nounform.
 	  (t `(($pochhammer simp) ,x ,n)))))
 
-(putprop '$pochhammer
-	 '((x n)
-	   ((mtimes) (($pochhammer) x n)
-	    ((mplus) ((mtimes) -1 ((mqapply) (($psi array) 0) x))
-	     ((mqapply) (($psi array) 0) ((mplus) n x)))) 
-	   ((mtimes) (($pochhammer) x n)
-	    ((mqapply) (($psi array) 0) ((mplus) n x))))
-	 'grad)
+(defgrad $pochhammer ($x $n)
+  ;; ∂/∂x
+  #$$ pochhammer(x,n)*psi[0](x+n) $
+  ;; ∂/∂n
+  #$$ pochhammer(x,n)*(psi[0](x+n) - psi[0](x)) $)
+
 ;; patches for hyp.lisp 
 
 ;; Jacobi polynomial
@@ -1425,7 +1273,6 @@ Our measure of sufficiently small is
 (defun lagpol (n a arg)
 	(ftake '%gen_laguerre n a arg))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AI generated:
 
 ;;; ======================================================================
 ;;;  orthopoly-recursions.lisp
@@ -1639,26 +1486,12 @@ Our measure of sufficiently small is
  '%spherical_harmonic
  #$$ lambda([theta,phi], [sin(theta), [0,pi], [0,2*pi]]) $)
 
-;;;;;;;;;;;;;;;;;;;;;;
-;;; ======================================================================
 ;;; Gradient definitions for orthogonal polynomials
-;;; ======================================================================
-
-(in-package :maxima)
-
-;;; ----------------------------------------------------------------------
-;;; Jacobi P_n^(a,b)
-;;; ----------------------------------------------------------------------
-
 (defgrad %jacobi_p ($n $a $b $x)
   nil nil nil
   #$$ (n*jacobi_p(n,a,b,x)*((-(2*n)-b-a)*x-b+a)
       +2*jacobi_p(n-1,a,b,x)*(n+a)*(n+b)*unit_step(n))
       /((2*n+b+a)*(1-x^2)) $)
-
-;;; ----------------------------------------------------------------------
-;;; Gegenbauer / Ultraspherical C_n^(λ)
-;;; ----------------------------------------------------------------------
 
 (defgrad %ultraspherical ($n $lambda $x)
   nil nil
@@ -1666,129 +1499,72 @@ Our measure of sufficiently small is
       -n*x*ultraspherical(n,lambda,x))
       /(1-x^2) $)
 
-;;; ----------------------------------------------------------------------
-;;; Chebyshev T_n
-;;; ----------------------------------------------------------------------
-
 (defgrad %chebyshev_t ($n $x)
   nil
   #$$ n*chebyshev_u(n-1,x) $)
-
-;;; ----------------------------------------------------------------------
-;;; Chebyshev U_n
-;;; ----------------------------------------------------------------------
 
 (defgrad %chebyshev_u ($n $x)
   nil
   #$$ ((n+1)*chebyshev_t(n+1,x) - x*chebyshev_u(n,x))
       /(1-x^2) $)
 
-;;; ----------------------------------------------------------------------
-;;; Legendre P_n
-;;; ----------------------------------------------------------------------
-
 (defgrad %legendre_p ($n $x)
   nil
-  #$$ (n*(legendre_p(n-1,x) - x*legendre_p(n,x)))
-      /(1-x^2) $)
-
-;;; ----------------------------------------------------------------------
-;;; Legendre Q_n
-;;; ----------------------------------------------------------------------
+  #$$ (n*(legendre_p(n-1,x) - x*legendre_p(n,x)))/(1-x^2) $)
 
 (defgrad %legendre_q ($n $x)
   nil
   #$$ (n*(legendre_q(n-1,x) - x*legendre_q(n,x)))
       /(1-x^2) $)
 
-;;; ----------------------------------------------------------------------
-;;; Associated Legendre P_n^m
-;;; ----------------------------------------------------------------------
-
 (defgrad %assoc_legendre_p ($n $m $x)
-  nil nil
-  #$$ (1/(1-x^2))*(n*x*assoc_legendre_p(n,m,x)
-      - (n+m)*assoc_legendre_p(n-1,m,x)) $)
-
-;;; ----------------------------------------------------------------------
-;;; Associated Legendre Q_n^m
-;;; ----------------------------------------------------------------------
+  nil 
+  nil
+  #$$ (1/(1-x^2))*(n*x*assoc_legendre_p(n,m,x) - (n+m)*assoc_legendre_p(n-1,m,x)) $)
 
 (defgrad %assoc_legendre_q ($n $m $x)
-  nil nil
-  #$$ (1/(1-x^2))*(n*x*assoc_legendre_q(n,m,x)
-      - (n+m)*assoc_legendre_q(n-1,m,x)) $)
-
-;;; ----------------------------------------------------------------------
-;;; Laguerre L_n^(a)
-;;; ----------------------------------------------------------------------
+  nil 
+  nil
+  #$$ (1/(1-x^2))*(n*x*assoc_legendre_q(n,m,x) - (n+m)*assoc_legendre_q(n-1,m,x)) $)
 
 (defgrad %laguerre ($n $a $x)
-  nil nil
+  nil 
+  nil
   #$$ -laguerre(n-1,a+1,x) $)
 
-;;; ----------------------------------------------------------------------
-;;; Generalized Laguerre L_n^(a)
-;;; ----------------------------------------------------------------------
-
 (defgrad %gen_laguerre ($n $a $x)
-  nil nil
+  nil 
+  nil
   #$$ -gen_laguerre(n-1,a+1,x) $)
-
-;;; ----------------------------------------------------------------------
-;;; Hermite H_n
-;;; ----------------------------------------------------------------------
 
 (defgrad %hermite ($n $x)
   nil
   #$$ 2*n*hermite(n-1,x) $)
-
-;;; ----------------------------------------------------------------------
-;;; Spherical Bessel j_n
-;;; ----------------------------------------------------------------------
 
 (defgrad %spherical_bessel_j ($n $x)
   nil
   #$$ spherical_bessel_j(n-1,x)
       - (n+1)/x * spherical_bessel_j(n,x) $)
 
-;;; ----------------------------------------------------------------------
-;;; Spherical Bessel y_n
-;;; ----------------------------------------------------------------------
-
 (defgrad %spherical_bessel_y ($n $x)
   nil
   #$$ spherical_bessel_y(n-1,x)
       - (n+1)/x * spherical_bessel_y(n,x) $)
-
-;;; ----------------------------------------------------------------------
-;;; Spherical Hankel h_n^(1)
-;;; ----------------------------------------------------------------------
 
 (defgrad %spherical_hankel1 ($n $x)
   nil
   #$$ spherical_hankel1(n-1,x)
       - (n+1)/x * spherical_hankel1(n,x) $)
 
-;;; ----------------------------------------------------------------------
-;;; Spherical Hankel h_n^(2)
-;;; ----------------------------------------------------------------------
-
 (defgrad %spherical_hankel2 ($n $x)
   nil
   #$$ spherical_hankel2(n-1,x)
       - (n+1)/x * spherical_hankel2(n,x) $)
 
-;;; ----------------------------------------------------------------------
-;;; Spherical Harmonic Y_l^m(θ,φ)
-;;; Only ∂/∂θ is defined; ∂/∂φ is m*Y_l^m / sin(θ)
-;;; ----------------------------------------------------------------------
-
 (defgrad %spherical_harmonic ($l $m $theta $phi)
-  nil nil nil
+  nil 
+  nil 
   #$$ (m*cos(theta)/sin(theta))*spherical_harmonic(l,m,theta,phi)
-      - sqrt((l-m)*(l+m+1))*spherical_harmonic(l,m+1,theta,phi) $)
+      - sqrt((l-m)*(l+m+1))*spherical_harmonic(l,m+1,theta,phi) $
+  #$$ m*spherical_harmonic(l,m,theta,phi)/sin(theta)$)
 
-;;; ======================================================================
-;;; End of gradient definitions
-;;; ======================================================================
