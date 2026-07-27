@@ -1,0 +1,51 @@
+errcatch(hermite());
+[]$
+
+errcatch(hermite(12));
+[]$
+
+errcatch(hermite(a,b,c));
+[]$
+
+(op_and_args(e) := if mapatom(e) then false else [op(e), args(e)],0);
+0$
+
+op_and_args(hermite(n,x));
+[hermite,[n,x]]$
+
+hermite(0,x);
+1$
+
+hermite(1,x);
+2*x$
+
+/*  Check the value at 0 */
+
+block([ans], declare(n,even), ans : hermite(n,0), forget(n,even), ans);
+((-1)^(n/2)*pochhammer(n/2+1,n/2))/2^(n/2)$
+
+block([ans], 
+    declare(n,even), 
+    ans : hermite(n,0), 
+    print(ans),
+    forget(n,even),
+    makelist(subst(n=2*k,ans - hermite(2*k,0)),k,0,5));
+ 
+((-1)^(n/2)*pochhammer(n/2+1,n/2))/2^(n/2)$
+
+/* Check the Rodrigues form */
+(fn : orthopoly_rodrigues(hermite),0);
+0$
+
+makelist(ratsimp(fn(k,x)-hermite(k,x)),k,0,10);
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
+
+/* Check the gradient */
+(df : diff(hermite(n,x),x), expand(makelist(subst(n=k,df)-diff(hermite(k,x),x),k,0,10)));
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
+
+op_and_args(diff(hermite(n,x),n));
+[derivative, [hermite(n, x), n, 1]]$
+
+
+

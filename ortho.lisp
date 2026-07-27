@@ -709,16 +709,15 @@ Our measure of sufficiently small is
         ;; reflection: hermite(n,-x) = (-1)^n hermite(-n,-x)
         ((great (neg x) x)
          (mul (ftake 'mexpt -1 n) (ftake '%hermite n (neg x))))
-        ;; hermite(2n,0) = (-1/2)^(n) pochhammer(n/2 + 1,n)
+        ;; hermite(n,0) = (-1)^(n/2) pochhammer(n/2 + 1,n/2), n even;
+        ;; See Table 18.6.1 of DLMF
         ((and (eql 0 x) ($featurep n '$even))
          (let ((halfn (div n 2)))
-           (mul (ftake 'mexpt (div -1 2) halfn)
+           (mul (ftake 'mexpt -1 halfn)
                 (ftake '$pochhammer (add 1 halfn) halfn))))
-        ;; hermite(2n+1,0) = (-1/2)^m pochhammer(n+1,n+1)
+        ;; hermite(2n+1,0) = 0
         ((and (eql 0 x) ($featurep n '$odd))
-         (let ((halfn (div (sub n 1) 2)))
-           (mul (ftake 'mexpt (div -1 2) halfn)
-                (ftake '$pochhammer (add 1 halfn) (add 1 halfn)))))
+          0)
         (t (give-up))))
 
 (defgrad %hermite ($n $x)
@@ -1240,9 +1239,10 @@ Our measure of sufficiently small is
 
 (defgrad $pochhammer ($x $n)
   ;; ∂/∂x
-  #$$ pochhammer(x,n)*psi[0](x+n) $
+  #$$ pochhammer(x,n)*(psi[0](x+n) - psi[0](x))$
   ;; ∂/∂n
-  #$$ pochhammer(x,n)*(psi[0](x+n) - psi[0](x)) $)
+  #$$ pochhammer(x,n)*psi[0](x+n)$)
+  
 
 ;; patches for hyp.lisp 
 
@@ -1648,11 +1648,10 @@ Our measure of sufficiently small is
       +2*jacobi_p(n-1,a,b,x)*(n+a)*(n+b)*unit_step(n))
       /((2*n+b+a)*(1-x^2)) $)
 
-(defgrad %ultraspherical ($n $lambda $x)
-  nil nil
-  #$$ (2*lambda*ultraspherical(n-1,lambda+1,x)
-      -n*x*ultraspherical(n,lambda,x))
-      /(1-x^2) $)
+(defgrad %ultraspherical ($n $a $x)
+  nil 
+  nil
+  #$$ (2*lambda*ultraspherical(n-1,a+1,x) -n*x*ultraspherical(n,a,x))/(1-x^2) $)
 
 (defgrad %chebyshev_t ($n $x)
   nil
@@ -2141,21 +2140,10 @@ Our measure of sufficiently small is
        pochhammer(a+1,n)/factorial(n)
          * hypergeometric([ -n ], [ a+1 ], x)) $)
 
-;;; ----------------------------------------------------------------------
-;;; Generalized Laguerre L_n^(a)
-;;; Same hypergeometric form
-;;; ----------------------------------------------------------------------
-
 (def-hypergeom %gen_laguerre
   #$$ lambda([n,a,x],
        pochhammer(a+1,n)/factorial(n)
          * hypergeometric([ -n ], [ a+1 ], x)) $)
-
-;;; ----------------------------------------------------------------------
-;;; Gegenbauer / Ultraspherical C_n^(λ)
-;;; C_n^(λ)(x) =
-;;;   (2λ)_n / n! * 2F1(-n, n+2λ; λ+1/2; (1-x)/2)
-;;; ----------------------------------------------------------------------
 
 (def-hypergeom %ultraspherical
   #$$ lambda([n,lambda,x],
@@ -2164,35 +2152,12 @@ Our measure of sufficiently small is
                           [ lambda+1/2 ],
                           (1-x)/2)) $)
 
-;;; ----------------------------------------------------------------------
-;;; Chebyshev T_n
-;;; T_n(x) = 2F1(-n, n; 1/2; (1-x)/2)
-;;; ----------------------------------------------------------------------
-
 (def-hypergeom %chebyshev_t
   #$$ lambda([n,x],
        hypergeometric([ -n, n ], [ 1/2 ], (1-x)/2)) $)
 
-;;; ----------------------------------------------------------------------
-;;; Chebyshev U_n
-;;; U_n(x) = (n+1) * 2F1(-n, n+2; 3/2; (1-x)/2)
-;;; -----------%-----------------------------------------------------------
-
 (def-hypergeom %chebyshev_u
-  #$$ lambda([n,x],
-       (n+1)
-         * hypergeometric([ -n, n+2 ], [ 3/2 ], (1-x)/2)) $)
-
-;;; ----------------------------------------------------------------------
-;;; Hermite H_n
-;;; One convenient hypergeometric form:
-;;; H_n(x) = 2^n * 1F1(-n/2; 1/2; x^2)  (even/odd structure implicit)
-;;; ----------------------------------------------------------------------
+  #$$ lambda([n,x], (n+1) * hypergeometric([ -n, n+2 ], [ 3/2 ], (1-x)/2)) $)
 
 (def-hypergeom %hermite
-  #$$ lambda([n,x],
-       2^n * hypergeometric([ -n/2 ], [ 1/2 ], x^2)) $)
-
-;;; ======================================================================
-;;; End of file
-;;; ======================================================================
+  #$$ lambda([n,x], 2^n * hypergeometric([ -n/2 ], [ 1/2 ], x^2)) $)

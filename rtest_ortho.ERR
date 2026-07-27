@@ -1,3 +1,38 @@
 
 /* Maxima error log from tests in C:/Users/barto/OneDrive/Documents/GitHub/ortho/rtest_ortho.mac */
 
+/* Problem 18 (line 78) */
+jacobi_p(5,-1,1/2,x);
+/* Erroneous Result?:
+(46189*x^5-36465*x^4-41470*x^3+27742*x^2+6369*x-2365)/8192 */ 
+/* Expected result: */
+(11*(x-1)*(4199*x^4+884*x^3+(-2886)*x^2+(-364)*x+215))/8192;
+
+/* Problem 56 (line 216) */
+hermite(2,x);
+/* Erroneous Result?:
+4*x^2-2 */ 
+/* Expected result: */
+2*(2*x^2-1);
+
+/* Problem 57 (line 219) */
+hermite(3,x);
+/* Erroneous Result?:
+8*x^3-12*x */ 
+/* Expected result: */
+4*(2*x^2-3)*x;
+
+/* Problem 58 (line 222) */
+hermite(4,x);
+/* Erroneous Result?:
+16*x^4-48*x^2+12 */ 
+/* Expected result: */
+4*(4*x^4-12*x^2+3);
+
+/* Problem 59 (line 225) */
+hermite(5,x);
+/* Erroneous Result?:
+32*x^5-160*x^3+120*x */ 
+/* Expected result: */
+8*(4*x^4-20*x^2+15)*x;
+

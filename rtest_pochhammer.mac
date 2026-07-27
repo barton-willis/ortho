@@ -1,6 +1,3 @@
-(kill(all),load(orthopoly), 0);
-0$
-
 pochhammer(x,0);
 1$
 
