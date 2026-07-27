@@ -1724,17 +1724,15 @@ Our measure of sufficiently small is
   #$$ m*spherical_harmonic(l,m,theta,phi)/sin(theta)$)
 
 ;;; antiderivative definitions:
-
-
-
 (defmacro def-integral (name arglist &rest entries)
-  "Define integral properties for orthogonal polynomials.
-   ARG list is (n x a b ...).
-   ENTRIES is a list of expressions, one per argument.
-   Use NIL for undefined integrals."
-  `(putprop ',name
+  "Define integral properties for orthogonal polynomials. Here `arglist` is (x1,x2, ...,xn),
+  and `entries` is a list of expressions, one per argument. For an undefined antiderivative, 
+  use nil."
+    `(putprop ',name
             (list ',arglist ,@entries)
             'integral))
+
+
 
 ;;; ======================================================================
 ;;;  orthopoly-integral.lisp
@@ -1959,3 +1957,242 @@ Our measure of sufficiently small is
 ;;; End of file
 ;;; ======================================================================
 
+;;; ======================================================================
+;;;  orthopoly-ode.lisp
+;;;  Sturm–Liouville (ODE) subsystem for orthogonal polynomials in Maxima
+;;;
+
+;;; ----------------------------------------------------------------------
+;;; def-ode macro
+;;; ----------------------------------------------------------------------
+
+(defmacro def-ode (name operator-lambda eigenvalue-lambda)
+  "Store Sturm–Liouville operator and eigenvalue as Maxima lambda forms."
+  `(progn
+     (putprop ',name ,operator-lambda 'ode-operator)
+     (putprop ',name ,eigenvalue-lambda 'ode-eigenvalue)))
+
+;;; ----------------------------------------------------------------------
+;;; User-level interface
+;;; ----------------------------------------------------------------------
+
+(defmfun $orthopoly_ode (name)
+    (or (get name 'ode-operator)
+        (merror "No ODE operator registered for ~M" name)))
+
+(defmfun orthopoly_eigenvalue (name)
+  (let ((lname (mfuncall '$symbol name)))
+    (or (get lname 'ode-eigenvalue)
+        (merror "No ODE eigenvalue registered for ~M" name))))
+
+;;; ======================================================================
+;;; Sturm–Liouville operators
+;;; ======================================================================
+
+;;; ----------------------------------------------------------------------
+;;; Hermite
+;;; y'' - 2 x y' + 2 n y = 0
+;;; ----------------------------------------------------------------------
+
+(def-ode hermite
+  #$$ lambda([n,x,y],
+       diff(y,x,2) - 2*x*diff(y,x) + 2*n*y) $
+  #$$ lambda([n], 2*n) $)
+
+;;; ----------------------------------------------------------------------
+;;; Laguerre L_n^(a)
+;;; x y'' + (a+1-x) y' + n y = 0
+;;; ----------------------------------------------------------------------
+
+(def-ode laguerre
+  #$$ lambda([n,a,x,y],
+       x*diff(y,x,2) + (a+1-x)*diff(y,x) + n*y) $
+  #$$ lambda([n,a], n) $)
+
+;;; ----------------------------------------------------------------------
+;;; Generalized Laguerre L_n^(a)
+;;; Same ODE
+;;; ----------------------------------------------------------------------
+
+(def-ode gen_laguerre
+  #$$ lambda([n,a,x,y],
+       x*diff(y,x,2) + (a+1-x)*diff(y,x) + n*y) $
+  #$$ lambda([n,a], n) $)
+
+;;; ----------------------------------------------------------------------
+;;; Legendre P_n
+;;; (1-x^2) y'' - 2 x y' + n(n+1) y = 0
+;;; ----------------------------------------------------------------------
+
+(def-ode legendre_p
+  #$$ lambda([n,x,y],
+       (1-x^2)*diff(y,x,2) - 2*x*diff(y,x) + n*(n+1)*y) $
+  #$$ lambda([n], n*(n+1)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Chebyshev T_n
+;;; (1-x^2) y'' - x y' + n^2 y = 0
+;;; ----------------------------------------------------------------------
+
+(def-ode chebyshev_t
+  #$$ lambda([n,x,y],
+       (1-x^2)*diff(y,x,2) - x*diff(y,x) + n^2*y) $
+  #$$ lambda([n], n^2) $)
+
+;;; ----------------------------------------------------------------------
+;;; Chebyshev U_n
+;;; (1-x^2) y'' - 3 x y' + n(n+2) y = 0
+;;; ----------------------------------------------------------------------
+
+(def-ode chebyshev_u
+  #$$ lambda([n,x,y],
+       (1-x^2)*diff(y,x,2) - 3*x*diff(y,x) + n*(n+2)*y) $
+  #$$ lambda([n], n*(n+2)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Gegenbauer / Ultraspherical C_n^(λ)
+;;; (1-x^2) y'' - (2λ+1) x y' + n(n+2λ) y = 0
+;;; ----------------------------------------------------------------------
+
+(def-ode ultraspherical
+  #$$ lambda([n,lambda,x,y],
+       (1-x^2)*diff(y,x,2) - (2*lambda+1)*x*diff(y,x)
+         + n*(n+2*lambda)*y) $
+  #$$ lambda([n,lambda], n*(n+2*lambda)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Jacobi P_n^(a,b)
+;;; (1-x^2) y'' + (b-a - (a+b+2)x) y' + n(n+a+b+1) y = 0
+;;; ----------------------------------------------------------------------
+
+(def-ode jacobi_p
+  #$$ lambda([n,a,b,x,y],
+       (1-x^2)*diff(y,x,2)
+         + (b-a - (a+b+2)*x)*diff(y,x)
+         + n*(n+a+b+1)*y) $
+  #$$ lambda([n,a,b], n*(n+a+b+1)) $)
+
+;;; ======================================================================
+;;; End of file
+;;; ======================================================================
+
+;;; ======================================================================
+;;;  orthopoly-hypergeom.lisp
+;;;  Hypergeometric representation subsystem for orthogonal polynomials
+;;;
+;;;  Provides:
+;;;    • Reader macro #$$ … $
+;;;    • def-hypergeom macro (stores Maxima lambda forms)
+;;;    • User-level accessor
+;;;    • Hypergeometric forms for classical families
+;;; ======================================================================
+
+;;; ----------------------------------------------------------------------
+;;; def-hypergeom macro
+;;; ----------------------------------------------------------------------
+
+(defmacro def-hypergeom (name lambda-form)
+  "Store hypergeometric representation as a Maxima lambda form."
+  `(putprop ',name
+            ,lambda-form
+            'hypergeom))
+
+;;; ----------------------------------------------------------------------
+;;; User-level interface
+;;; ----------------------------------------------------------------------
+
+(defmfun $orthopoly_hypergeom (name)
+    (or (get name 'hypergeom)
+        (merror "No hypergeometric form registered for ~M" name)))
+
+;;; ======================================================================
+;;; Hypergeometric representations
+;;; ======================================================================
+
+;;; ----------------------------------------------------------------------
+;;; Legendre P_n
+;;; P_n(x) = 2F1(-n, n+1; 1; (1-x)/2)
+;;; ----------------------------------------------------------------------
+
+(def-hypergeom %legendre_p
+  #$$ lambda([n,x],
+       hypergeometric([ -n, n+1 ], [ 1 ], (1-x)/2)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Jacobi P_n^(a,b)
+;;; P_n^(a,b)(x) =
+;;;   (a+1)_n / n! * 2F1(-n, n+a+b+1; a+1; (1-x)/2)
+;;; ----------------------------------------------------------------------
+
+(def-hypergeom %jacobi_p
+  #$$ lambda([n,a,b,x],
+       pochhammer(a+1,n)/factorial(n)
+         * hypergeometric([ -n, n+a+b+1 ],
+                          [ a+1 ],
+                          (1-x)/2)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Laguerre L_n^(a)
+;;; L_n^(a)(x) = (a+1)_n / n! * 1F1(-n; a+1; x)
+;;; ----------------------------------------------------------------------
+
+(def-hypergeom %laguerre
+  #$$ lambda([n,a,x],
+       pochhammer(a+1,n)/factorial(n)
+         * hypergeometric([ -n ], [ a+1 ], x)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Generalized Laguerre L_n^(a)
+;;; Same hypergeometric form
+;;; ----------------------------------------------------------------------
+
+(def-hypergeom %gen_laguerre
+  #$$ lambda([n,a,x],
+       pochhammer(a+1,n)/factorial(n)
+         * hypergeometric([ -n ], [ a+1 ], x)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Gegenbauer / Ultraspherical C_n^(λ)
+;;; C_n^(λ)(x) =
+;;;   (2λ)_n / n! * 2F1(-n, n+2λ; λ+1/2; (1-x)/2)
+;;; ----------------------------------------------------------------------
+
+(def-hypergeom %ultraspherical
+  #$$ lambda([n,lambda,x],
+       pochhammer(2*lambda,n)/factorial(n)
+         * hypergeometric([ -n, n+2*lambda ],
+                          [ lambda+1/2 ],
+                          (1-x)/2)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Chebyshev T_n
+;;; T_n(x) = 2F1(-n, n; 1/2; (1-x)/2)
+;;; ----------------------------------------------------------------------
+
+(def-hypergeom %chebyshev_t
+  #$$ lambda([n,x],
+       hypergeometric([ -n, n ], [ 1/2 ], (1-x)/2)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Chebyshev U_n
+;;; U_n(x) = (n+1) * 2F1(-n, n+2; 3/2; (1-x)/2)
+;;; -----------%-----------------------------------------------------------
+
+(def-hypergeom %chebyshev_u
+  #$$ lambda([n,x],
+       (n+1)
+         * hypergeometric([ -n, n+2 ], [ 3/2 ], (1-x)/2)) $)
+
+;;; ----------------------------------------------------------------------
+;;; Hermite H_n
+;;; One convenient hypergeometric form:
+;;; H_n(x) = 2^n * 1F1(-n/2; 1/2; x^2)  (even/odd structure implicit)
+;;; ----------------------------------------------------------------------
+
+(def-hypergeom %hermite
+  #$$ lambda([n,x],
+       2^n * hypergeometric([ -n/2 ], [ 1/2 ], x^2)) $)
+
+;;; ======================================================================
+;;; End of file
+;;; ======================================================================
