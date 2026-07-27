@@ -91,9 +91,11 @@ Our measure of sufficiently small is
 
   (d) Why not just turn over all the numerical code to the hypergeometric code?
 
-      This should work--I'm not sure about the trade-offs. 
+      This should work--I'm not sure about the trade-offs. Depending on parameters,
+      I think that some of the functions need to be choose between different hypergeometric 
+      representations--this adds complexity to the code. The two term recursions are simple.
 
-  (e) Why not do floating point evaluation using nfloat and the exact symbolic values?
+  (e) Why not do floating point evaluation using nfloat on the exact symbolic values?
 
     Even for modest degrees, my experiments show that this method is painfully slow.
     Currently, code does this for assoc_legendre_q.
