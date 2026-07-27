@@ -125,7 +125,7 @@ block([ans : jacobi_p(2,2,3,x), dans : jacobi_p(n,2,3,x)],
 
 /* Jacobi numerical tests */
 
-(eps : 1.0e-14, N : 64,0);
+(eps : 1.0e-14, N : 128,0);
 0$
 
 /* binary64 case */

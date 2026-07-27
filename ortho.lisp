@@ -151,7 +151,7 @@ Our measure of sufficiently small is
 (defmacro define-two-term-numeric* (name lambda-list
                                         &key let f0 f1 p q)
   "Generalized numeric evaluator for orthogonal polynomials with
-   arbitrary parameters.  The lambda-list must begin with N and end
+   arbitrary parameters. The lambda-list must begin with N and end
    with DIGITS.  All intermediate parameters are passed through and
    coerced to bigfloat on recursive restart."
 
@@ -423,7 +423,6 @@ Our measure of sufficiently small is
 (defun jacobi_p-symbolic (n a b x)
   (let ((s 0))
 		(dotimes (k (+ 1 n))
-      (mtell "s=~M ~%" s)
 			(setq s 
 			      (add s
 			         (mul
@@ -859,52 +858,29 @@ Our measure of sufficiently small is
 (defun laguerre-symbolic (n  x)
   (gen_laguerre-symbolic n 0 x))
 
-
-
-(defun gen_laguerre-numeric (n a x digits)
-  (handler-case
-      (let* ((bf-a (bigfloat::to a))
-             (bf-x (bigfloat::to x))
+(define-two-term-numeric* gen_laguerre-numeric (n a x digits)
+  :let ((bf-a (bigfloat::to a))
+        (bf-x (bigfloat::to x))
+        ;; Pre-cache static parameter term
+        (a+1 (bigfloat::+ bf-a 1)))
+  
+  :f0 (bigfloat::to 1)
+  :f1 (bigfloat::- (bigfloat::+ bf-a 1) bf-x)
              
-             (f0 (bigfloat::to 1))
-             (f1 (bigfloat::- (bigfloat::+ bf-a 1) bf-x))
-             
-             (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
-             
-             ;; Pre-cache static parameter term
-             (a+1 (bigfloat::+ bf-a 1))
-             
-             (p #'(lambda (k)
+  :p #'(lambda (k)
                     (let* ((bf-k (bigfloat::to k))
                            (k+1 (bigfloat::+ bf-k 1))
                            ;; Numerator: 2k + a + 1 - x
                            (num (bigfloat::- (bigfloat::+ (bigfloat::* 2 bf-k) a+1) bf-x)))
-                      (bigfloat::/ num k+1))))
+                      (bigfloat::/ num k+1)))
              
-             (q #'(lambda (k)
+  :q #'(lambda (k)
                     (let* ((bf-k (bigfloat::to k))
                            (k+1 (bigfloat::+ bf-k 1))
                            ;; Numerator: -(k + a)
                            (num (bigfloat::- (bigfloat::+ bf-k bf-a))))
-                      (bigfloat::/ num k+1)))))
+                      (bigfloat::/ num k+1))))
         
-        (cond ((eql n 0) (maxima::to f0))
-              ((eql n 1) (maxima::to f1))
-              (t
-               (multiple-value-bind (value err)
-                   (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
-                 (cond ((bigfloat::relative-error-p value err eps)
-                        (maxima::to value))
-                       (t
-                        (let ((new-fpprec (mul 2 $fpprec)))
-                          (bind-fpprec new-fpprec
-                            (gen_laguerre-numeric n ($bfloat a) ($bfloat x) (- new-fpprec 2))))))))))
-    
-    (arithmetic-error (c)
-      (declare (ignore c))
-      (let ((new-fpprec (mul 2 $fpprec)))
-        (bind-fpprec new-fpprec
-          (gen_laguerre-numeric n ($bfloat a) ($bfloat x) (- new-fpprec 2)))))))
 
 (defun gen_laguerre-symbolic (n a x)
   (let* ((f0 1)
@@ -926,8 +902,6 @@ Our measure of sufficiently small is
     (cond ((eql n 0) f0)
           ((eql n 1) f1)
           (t (generic-two-term-recursion-symbolic p q f0 f1 n)))))
-
-;;;;;end numeric & symbolic code
 
 (def-simplifier spherical_hankel1 (n x)
 	(cond ((and (integerp n) (complex-number-p x #'$numberp))
@@ -969,27 +943,12 @@ Our measure of sufficiently small is
 		(/ (* -1 i (- 1 (* i x)) cis) (* x x))))
 
 (in-package :maxima)
-(defun spherical_hankel1-numeric (n x digits)
-  (handler-case
-    (let* ((bf-x (bigfloat::to x))
-	      (f0 (bigfloat::order-zero-spherical_hankel1 bf-x))
-		  (f1 (bigfloat::order-one-spherical_hankel1 bf-x))
-		  (eps (bigfloat::to (ftake 'mexpt 2 (- digits))))
-          (p #'(lambda (k) (bigfloat::/ (+ (* 2 k) 1) bf-x)))
-          (q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1))))
-        (multiple-value-bind (value err)
-            (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
-          (cond ((bigfloat::relative-error-p value err eps)
-                 (maxima::to value))
-                (t
-                 ;; If precision is insufficient, boost fpprec and convert to bigfloat
-                 (bind-fpprec (mul 2 $fpprec)
-                   (spherical_hankel1-numeric n ($bfloat x) digits))))))
-    ;; Catch binary64 overflow and switch automatically to bigfloats
-    (arithmetic-error (c)
-	  (declare (ignore c))
-      (bind-fpprec $fpprec
-        (spherical_hankel1-numeric n ($bfloat x) digits)))))
+(define-two-term-numeric* spherical_hankel1-numeric (n x digits)
+  :let ((bf-x (bigfloat::to x)))
+	:f0 (bigfloat::order-zero-spherical_hankel1 bf-x)
+	:f1 (bigfloat::order-one-spherical_hankel1 bf-x)
+  :p #'(lambda (k) (bigfloat::/ (+ (* 2 k) 1) bf-x))
+  :q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1)))
 
 (putprop '%spherical_hankel1
 	 '((n x)
@@ -1038,59 +997,28 @@ Our measure of sufficiently small is
 	      ((%spherical_bessel_j) ((mplus) 1 n) x)))))
 	 'grad)
  
-(defun spherical_bessel_j-numeric (n x digits)
-  "Numeric spherical Bessel j_n(x) using bigfloat recurrence.
-   j_0(x) = sin(x)/x
-   j_1(x) = sin(x)/x^2 - cos(x)/x
-   j_{n+1}(x) = ((2n+1)/x) * j_n(x) - j_{n-1}(x)."
-  (handler-case
-      (let* ((bf-x   (bigfloat::to x))
-             (bf-one (bigfloat::to 1))
-             (bf-two (bigfloat::to 2))
+(define-two-term-numeric* spherical_bessel_j-numeric (n x digits)
+  :let ((bf-x   (bigfloat::to x))
+        (bf-one (bigfloat::to 1))
+        (bf-two (bigfloat::to 2)))
+      
+  :f0 (bigfloat::/ (bigfloat::sin bf-x) bf-x)
 
-             ;; j_0(x) = sin(x)/x
-             (f0 (bigfloat::/ (bigfloat::sin bf-x) bf-x))
-
-             ;; j_1(x) = sin(x)/x^2 - cos(x)/x
-             (f1 (bigfloat::-
-                  (bigfloat::/
+  :f1 (bigfloat::- (bigfloat::/
                    (bigfloat::sin bf-x)
                    (bigfloat::expt bf-x 2))
                   (bigfloat::/
                    (bigfloat::cos bf-x)
-                   bf-x)))
-
-             ;; eps = 10^(-digits)
-             (eps (bigfloat::to (ftake 'mexpt 10 (- digits))))
+                   bf-x))
 
              ;; p(k) = (2k+1)/x
-             (p #'(lambda (k)
+  :p #'(lambda (k)
                     (bigfloat::/
                      (bigfloat::+
                       (bigfloat::* bf-two (bigfloat::to k))
                       bf-one)
-                     bf-x)))
-
-             ;; q(k) = -1
-             (q #'(lambda (k)
-                    (bigfloat::to -1))))
-
-        ;; Run the recurrence with error tracking
-        (multiple-value-bind (value err)
-            (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
-          (cond ((bigfloat::relative-error-p value err eps)
-                 ;; Convert back to Maxima number
-                 (maxima::to value))
-                (t
-                 ;; Precision insufficient → boost fpprec and retry
-                 (bind-fpprec (mul 2 $fpprec)
-                   (spherical_bessel_j-numeric n ($bfloat x) digits))))))
-
-    ;; IEEE overflow → switch to bigfloat automatically
-    (arithmetic-error (c)
-      (declare (ignore c))
-      (bind-fpprec $fpprec
-        (spherical-bessel-j-numeric n ($bfloat x) digits)))))
+                     bf-x))
+  :q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1)))
 
 (defun spherical_bessel_j-symbolic (n x)
   "Symbolic spherical Bessel j_n(x) using the standard two-term recurrence.
@@ -1180,265 +1108,6 @@ Our measure of sufficiently small is
 	 'grad)
 	  	   	  	 				 	
 |#
-
-;; For recursion relations, see A & S 22.7 page 782. 
-
-;; legendre_p(n+1,x) = ((2*n+1)*legendre_p(n,x)*x-n*legendre_p(n-1,x))/(n+1)
-
-;;  jacobi_p(n+1,a,b,x) = (((2*n+a+b+1)*(a^2-b^2) + 
-;;    x*pochhammer(2*n+a+b,3)) * jacobi_p(n,a,b,x) - 
-;;    2*(n+a)*(n+b)*(2*n+a+b+2)*jacobi_p(n-1,a,b,x))/(2*(n+1)*(n+a+b+1)*(2*n+a+b))
-
-;; ultraspherical(n+1,a,x) = (2*(n+a)*x * ultraspherical(n,a,x) - 
-;;    (n+2*a-1)*ultraspherical(n-1,a,x))/(n+1)
-
-;; chebyshev_t(n+1,x) = 2*x*chebyshev_t(n,x) -chebyshev_t(n-1,x)
-
-;; chebyshev_u(n+1,x) = 2*x*chebyshev_u(n,x) -chebyshev_u(n-1,x)
-
-;;  laguerre(n+1,x) = (((2*n+1) - x)*laguerre(n,x)  -(n)*laguerre(n-1,x))/(n+1)
-
-;; gen_laguerre(n+1,a,x) = (((2*n+a+1) - x)*gen_laguerre(n,a,x)  
-;;  -(n+a)*gen_laguerre(n-1,a,x))/(n+1)
-
-;; hermite(n+1,x) = 2*x*hermite(n,x) -2*n*hermite(n-1,x)
-
-;; See G & R 8.733.2; A & S 22.7.11 might be wrong -- or maybe I need
-;; reading glasses.
-
-;; (2*n+1)*x*assoc_legendre_p(n,m,x) = (n-m+1)*assoc_legendre_p(n+1,m,x) 
-;; + (n+m)*assoc_legendre_p(n-1,m,x)
-
-;; For the half-integer bessel functions, See A & S 10.1.19
-
-;; fn(n-1,x) + fn(n+1,x) = (2*n+1)*fn(n,x)/x;
-
-(defun check-arg-length (fn n m)
-  (if (not (= n m))
-      (merror "Function ~:M needs ~:M arguments, instead it received ~:M"
-	      fn n m)))
-
-(defun $orthopoly_recur (fn arg)
-  (if (not ($listp arg)) 
-      (merror "The second argument to orthopoly_recur must be a list"))
-  (cond ((eq fn '$jacobi_p)
-	 (check-arg-length fn 4 (- (length arg) 1))
-	 (let ((n (nth 1 arg))
-	       (a (nth 2 arg))
-	       (b (nth 3 arg))
-	       (x (nth 4 arg)))
-	   (simplify
-	    `((mequal) (($jacobi_p ) ((mplus) 1 ,n) ,a ,b ,x)
-	      ((mtimes) ((rat) 1 2) ((mexpt) ((mplus) 1 ,n) -1)
-	       ((mexpt) ((mplus) 1 ,a ,b ,n) -1)
-	       ((mexpt) ((mplus) ,a ,b ((mtimes) 2 ,n)) -1)
-	       ((mplus)
-		((mtimes) -2 ((mplus) ,a ,n) ((mplus) ,b ,n)
-		 ((mplus) 2 ,a ,b ((mtimes) 2 ,n))
-		 (($jacobi_p ) ((mplus) -1 ,n) ,a ,b ,x))
-		((mtimes) (($jacobi_p ) ,n ,a ,b ,x)
-		 ((mplus)
-		 ((mtimes)
-		  ((mplus) ((mexpt) ,a 2)
-		   ((mtimes) -1 ((mexpt) ,b 2)))
-		  ((mplus) 1 ,a ,b ((mtimes) 2 ,n)))
-		 ((mtimes) ((mplus) ,a ,b ((mtimes) 2 ,n))
-		  ((mplus) 1 ,a ,b ((mtimes) 2 ,n))
-		  ((mplus) 2 ,a ,b ((mtimes) 2 ,n)) ,x)))))))))
-
-	((eq fn '$ultraspherical)
-	 (check-arg-length fn 3 (- (length arg) 1))
-	 (let ((n (nth 1 arg))
-	       (a (nth 2 arg))
-	       (x (nth 3 arg)))
-	   (simplify
-	    `((mequal) (($ultraspherical) ((mplus) 1 ,n) ,a ,x)
-	     ((mtimes) ((mexpt) ((mplus) 1 ,n) -1)
-	      ((mplus)
-	       ((mtimes) -1 ((mplus) -1 ((mtimes) 2 ,a) ,n)
-		(($ultraspherical) ((mplus) -1 ,n) ,a ,x))
-	       ((mtimes) 2 ((mplus) ,a ,n)
-		(($ultraspherical) ,n ,a ,x) ,x)))))))
-
-	((member fn  `($chebyshev_t $chebyshev_u) :test 'eq)
-	 (check-arg-length fn 2 (- (length arg) 1))
-	 (let ((n (nth 1 arg))
-	       (x (nth 2 arg)))
-	  (simplify
-	   `((mequal ) ((,fn) ((mplus ) 1 ,n) ,x)
-	    ((mplus )
-	     ((mtimes ) -1 ((,fn) ((mplus ) -1 ,n) ,x))
-	     ((mtimes ) 2 ((,fn) ,n ,x) ,x))))))
-
-	((member fn '($legendre_p $legendre_q) :test 'eq)
-	 (check-arg-length fn 2 (- (length arg) 1))
-	 (let* ((n (nth 1 arg))
-	       (x (nth 2 arg))
-	       (z (if (eq fn '$legendre_q) 
-		      `((mtimes) -1 ((%kron_delta) ,n 0)) 0))) 
-	   (simplify
-	     `((mequal) ((,fn) ((mplus) 1 ,n) ,x)
-	       ((mplus)
-		((mtimes) ((mexpt) ((mplus) 1 ,n) -1)
-		 ((mplus)
-		  ((mtimes) ((mtimes) -1 ,n)
-		   ((,fn) ((mplus) -1 ,n) ,x))
-		  ((mtimes) ((mplus) 1 ((mtimes) 2 ,n))
-		   ((,fn) ,n ,x) ,x)))
-		,z)))))
-
-	((member fn '($assoc_legendre_p $assoc_legendre_q) :test 'eq)
-	 (check-arg-length fn 3 (- (length arg) 1))
-	 (let ((n (nth 1 arg))
-	       (m (nth 2 arg))
-	       (x (nth 3 arg)))
-	   (simplify
-	    `((mequal) ((,fn) ((mplus) 1 ,n) ,m ,x)
-	      ((mtimes)
-	       ((mexpt) ((mplus) 1 ((mtimes) -1 ,m) ,n) -1)
-	       ((mplus)
-		((mtimes)
-		 ((mplus) ((mtimes) -1 ,m)
-		  ((mtimes) -1 ,n))
-		 ((,fn) ((mplus) -1 ,n) ,m ,x))
-		((mtimes) ((mplus) 1 ((mtimes) 2 ,n))
-		 ((,fn) ,n ,m ,x) ,x))))))) 
-	
-	((eq fn '$laguerre)
-	 (check-arg-length fn 2 (- (length arg) 1))
-	 (let ((n (nth 1 arg))
-	       (x (nth 2 arg)))
-	   (simplify
-	    `((mequal ) (($laguerre ) ((mplus ) 1 ,n) ,x)
-	      ((mtimes ) ((mexpt ) ((mplus ) 1 ,n) -1)
-	       ((mplus )
-		((mtimes ) -1 ,n (($laguerre ) ((mplus ) -1 ,n) ,x))
-		((mtimes ) (($laguerre ) ,n ,x)
-		 ((mplus ) 1 ((mtimes ) 2 ,n) ((mtimes ) -1 ,x))))))))) 
-
-	((eq fn '$gen_laguerre)
-	 (check-arg-length fn 3 (- (length arg) 1))
-	 (let ((n (nth 1 arg))
-	       (a (nth 2 arg))
-	       (x (nth 3 arg)))
-	   (simplify
-	    `((mequal) (($gen_laguerre) ((mplus) 1 ,n) ,a ,x)
-	      ((mtimes) ((mexpt ) ((mplus) 1 ,n) -1)
-	       ((mplus)
-		((mtimes) -1 ((mplus) ,a ,n)
-		 (($gen_laguerre) ((mplus) -1 ,n) ,a ,x))
-		((mtimes) (($gen_laguerre) ,n ,a ,x)
-		 ((mplus) 1 ,a ((mtimes) 2 ,n) ((mtimes ) -1 ,x))))))))) 
-
-	((eq fn '$hermite)
-	 (check-arg-length fn 2 (- (length arg) 1))
-	 (let ((n (nth 1 arg))
-	       (x (nth 2 arg)))
-	   (simplify
-	    `((mequal) (($hermite) ((mplus) 1 ,n) ,x)
-	      ((mplus)
-	       ((mtimes) -2 ,n (($hermite) ((mplus) -1 ,n) ,x))
-	       ((mtimes) 2 (($hermite) ,n ,x) ,x))))))
-
-	((member fn `($spherical_bessel_j $spherical_bessel_y
-					  $spherical_hankel1 $spherical_hankel2)
-		 :test 'eq)
-	 (check-arg-length fn 2 (- (length arg) 1))
-	 (let ((n (nth 1 arg))
-	       (x (nth 2 arg)))
-	   (simplify
-	    `((mequal) ((,fn) ((mplus) 1 ,n) ,x)
-	      ((mplus) ((mtimes) -1 ((,fn ) ((mplus) -1 ,n) ,x))
-	       ((mtimes) ((,fn) ,n ,x) ((mexpt) ,x -1))
-	       ((mtimes) 2 ,n ((,fn ) ,n ,x) ((mexpt) ,x -1)))))))
-	 
-	(t (merror "A recursion relation for ~:M isn't known to Maxima" fn))))
-    
-;; See A & S Table 22.2, page 774.
-
-(defun $orthopoly_weight (fn arg)
-  (if (not ($listp arg)) 
-      (merror "The second argument to orthopoly_weight must be a list"))
-
-  (if (not (or ($symbolp (car (last arg))) ($subvarp (car (last arg)))))
-      (merror "The last element of the second argument to orthopoly_weight must
-be a symbol or a subscripted symbol, instead found ~:M" (car (last arg))))
-
-  (if (not (every #'(lambda (s) 
-		      ($freeof (car (last arg)) s)) (butlast (cdr arg))))
-      (merror "Only the last element of ~:M may depend on the integration
-variable ~:M" arg (car (last arg))))
-
-  (cond ((eq fn '$jacobi_p)
-	 (check-arg-length fn 4 (- (length arg) 1))
-	 (let ((a (nth 2 arg))
-	       (b (nth 3 arg))
-	       (x (nth 4 arg)))
-	   (simplify
-	    `((mlist)
-	      ((mtimes) ((mexpt) ((mplus) 1 ((mtimes) -1 ,x)) ,a)
-	       ((mexpt) ((mplus ) 1 ,x) ,b))
-	      -1 1))))
-	
-	((eq fn '$ultraspherical)
-	 (check-arg-length fn 3 (- (length arg) 1))
-	 (let ((a (nth 2 arg))
-	       (x (nth 3 arg)))
-	   (simplify
-	    `((mlist)
-	      ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) ,x 2)))
-	       ((mplus) ((rat) -1 2) ,a)) -1 1))))
-
-	((eq fn '$chebyshev_t)
-	 (check-arg-length fn 2 (- (length arg) 1))
-	 (let ((x (nth 2 arg)))
-	   (simplify
-	    `((mlist)
-	      ((mexpt) ((mplus) 1 ((mtimes) -1 ((mexpt) ,x 2)))
-	       ((rat) -1 2)) -1 1)))) 
-	  
-	((eq fn '$chebyshev_u)
-	 (check-arg-length fn 2 (- (length arg) 1))
-	 (let ((x (nth 2 arg)))
-	   (simplify
-	    `((mlist)
-	      ((mexpt) ((mplus) 1  ((mtimes) -1 ((mexpt) ,x 2)))
-	       ((rat) 1 2)) -1 1))))
-
-	((eq fn '$legendre_p)
-	 (check-arg-length fn 2 (- (length arg) 1))
-	 `((mlist) 1 -1 1))
-
-	; This is for a fixed order.  There is also an orthogonality
-	; condition for fixed degree with weight function 1/(1-x^2).
-	; See A & S 8.14.11 and 8.14.12.
-	((eq fn '$assoc_legendre_p)
-	 (check-arg-length fn 3 (- (length arg) 1))
-	 `((mlist) 1 -1 1))
-
-	((eq fn '$laguerre)
-	 (check-arg-length fn 2 (- (length arg) 1))
-	 (let ((x (nth 2 arg)))
-	   (simplify
-	    `((mlist) ((mexpt) $%e ((mtimes) -1 ,x)) 0 $inf))))
-
-	((eq fn '$gen_laguerre)
-	 (check-arg-length fn 3 (- (length arg) 1))
-	 (let ((a (nth 2 arg))
-	       (x (nth 3 arg)))
-	   (simplify
-	    `((mlist)
-	      ((mtimes) ((mexpt) ,x ,a)
-	       ((mexpt) $%e ((mtimes) -1 ,x))) 0 $inf))))
-
-	((eq fn '$hermite)
-	 (check-arg-length fn 2 (- (length arg) 1))
-	 (let ((x (nth 2 arg)))
-	   (simplify
-	    `((mlist) ((mexpt) $%e ((mtimes) -1 ((mexpt) ,x 2)))
-	      ((mtimes ) -1 $inf) $inf))))
-
-	(t (merror "A weight for ~:M isn't known to Maxima" fn))))
 
 (defun generic-two-term-recursion-symbolic (p q f0 f1 n)
   (cond ((eql n 0)  f0)
@@ -1755,3 +1424,218 @@ variable ~:M" arg (car (last arg))))
 ;; Generalized Laguerre polynomial
 (defun lagpol (n a arg)
 	(ftake '%gen_laguerre n a arg))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AI generated:
+
+;;; ======================================================================
+;;;  orthopoly-recursions.lisp
+;;;  Unified recursion registry for orthogonal polynomials and related
+;;;  special functions in Maxima.
+;;;
+;;;  Provides:
+;;;    • Reader macro #$$ … $ for lambda forms
+;;;    • Hash table storing recursion lambdas
+;;;    • Registration and lookup functions
+;;;    • Recursions for all functions listed in user documentation
+;;; ======================================================================
+
+(in-package :maxima)
+
+(defparameter *orthopoly-recursion-table*
+  (make-hash-table :test #'eq :size 128))
+
+(defun register-orthopoly-recursion (name lambda-form)
+  (setf (gethash name *orthopoly-recursion-table*) lambda-form)
+  name)
+
+(defun orthopoly-recursion (name)
+  (or (gethash name *orthopoly-recursion-table*)
+      (error "No recursion registered for ~A" name)))
+
+(register-orthopoly-recursion
+ '%hermite
+ #$$ lambda([n,x],hermite(n+1,x) = 2*x*hermite(n,x) - 2*n*hermite(n-1,x)) $)
+
+(register-orthopoly-recursion
+ '%legendre_p
+ #$$ lambda([n,x], (n+1)*legendre_p(n+1,x) = (2*n+1)*x*legendre_p(n,x) - n*legendre_p(n-1,x)) $)
+
+(register-orthopoly-recursion
+ '%legendre_q
+ #$$ lambda([n,x], (n+1)*legendre_q(n+1,x) = (2*n+1)*x*legendre_q(n,x) - n*legendre_q(n-1,x)) $)
+
+(register-orthopoly-recursion
+ '%assoc_legendre_p
+ #$$ lambda([n,m,x], (n-m+1)*assoc_legendre_p(n+1,m,x) = (2*n+1)*x*assoc_legendre_p(n,m,x)
+          - (n+m)*assoc_legendre_p(n-1,m,x)) $)
+
+(register-orthopoly-recursion
+ '%assoc_legendre_q
+ #$$ lambda([n,m,x], (n-m+1)*assoc_legendre_q(n+1,m,x)  = (2*n+1)*x*assoc_legendre_q(n,m,x)
+          - (n+m)*assoc_legendre_q(n-1,m,x)) $)
+
+(register-orthopoly-recursion
+ '%chebyshev_t
+ #$$ lambda([n,x],  chebyshev_t(n+1,x) = 2*x*chebyshev_t(n,x) - chebyshev_t(n-1,x)) $)
+
+(register-orthopoly-recursion
+ '%chebyshev_u
+ #$$ lambda([n,x], chebyshev_u(n+1,x) = 2*x*chebyshev_u(n,x) - chebyshev_u(n-1,x)) $)
+
+(register-orthopoly-recursion
+ '%ultraspherical
+ #$$ lambda([n,lambda,x], (n+1)*ultraspherical(n+1,lambda,x)
+        = 2*(n+lambda)*x*ultraspherical(n,lambda,x)
+          - (n+2*lambda-1)*ultraspherical(n-1,lambda,x)) $)
+
+(register-orthopoly-recursion
+ '%laguerre
+ #$$ lambda([n,a,x], (n+1)*laguerre(n+1,a,x) = (2*n + a + 1 - x)*laguerre(n,a,x) - (n + a)*laguerre(n-1,a,x)) $)
+
+(register-orthopoly-recursion
+ '%gen_laguerre
+ #$$ lambda([n,a,x],
+      (n+1)*gen_laguerre(n+1,a,x)
+        = (2*n + a + 1 - x)*gen_laguerre(n,a,x)
+          - (n + a)*gen_laguerre(n-1,a,x)) $)
+
+(register-orthopoly-recursion
+ '%jacobi_p
+ #$$ lambda([n,a,b,x],
+      2*(n+1)*(n+a+b+1)*jacobi_p(n+1,a,b,x)
+        = (2*n+a+b+1)
+            * ((2*n+a+b+2)*x + a - b)
+            * jacobi_p(n,a,b,x)
+          - 2*(n+a)*(n+b)*(2*n+a+b+2)
+            * jacobi_p(n-1,a,b,x)) $)
+
+(register-orthopoly-recursion
+ '%spherical_bessel_j
+ #$$ lambda([n,x],
+      spherical_bessel_j(n+1,x)
+        = (2*n+1)/x * spherical_bessel_j(n,x)
+          - spherical_bessel_j(n-1,x)) $)
+
+(register-orthopoly-recursion
+ '%spherical_bessel_y
+ #$$ lambda([n,x],
+      spherical_bessel_y(n+1,x)
+        = (2*n+1)/x * spherical_bessel_y(n,x)
+          - spherical_bessel_y(n-1,x)) $)
+
+(register-orthopoly-recursion
+ '%spherical_hankel1
+ #$$ lambda([n,x],
+      spherical_hankel1(n+1,x)
+        = (2*n+1)/x * spherical_hankel1(n,x)
+          - spherical_hankel1(n-1,x)) $)
+
+(register-orthopoly-recursion
+ '%spherical_hankel2
+ #$$ lambda([n,x],
+      spherical_hankel2(n+1,x)
+        = (2*n+1)/x * spherical_hankel2(n,x)
+          - spherical_hankel2(n-1,x)) $)
+
+(register-orthopoly-recursion
+ '%spherical_harmonic
+ #$$ lambda([l,m,x],
+      spherical_harmonic(l+1,m,x)
+        = ((2*l+1)/sqrt(l^2 - m^2))*x*spherical_harmonic(l,m,x)
+          - sqrt(((l-1)^2 - m^2)/(l^2 - m^2))
+            * spherical_harmonic(l-1,m,x)) $)
+
+(defmfun $orthopoly_recursion (name)
+    (or (gethash name *orthopoly-recursion-table*) (merror "No recursion registered for ~M" name)))
+
+;;; and the weights too:
+
+(defparameter *orthopoly-weight-table*
+  (make-hash-table :test #'eq :size 128))
+
+(defun register-orthopoly-weight (name lambda-form)
+  (setf (gethash name *orthopoly-weight-table*) lambda-form)
+  name)
+
+(defun orthopoly_weight (name)
+  (or (gethash name *orthopoly-weight-table*)
+      (error "No weight registered for ~A" name)))
+
+;;; ----------------------------------------------------------------------
+;;; USER-LEVEL FUNCTIONS
+;;; ----------------------------------------------------------------------
+
+(defmfun orthopoly_register_weight (name lambda_expr)
+  (let* ((lname (mfuncall '$symbol name))
+         (lform lambda_expr))
+    (register-orthopoly-weight lname lform)
+    lname))
+
+(defmfun $orthopoly_weight (name)
+  (or (gethash lname *orthopoly-weight-table*)
+        (merror "No weight registered for ~M" name)))
+
+(register-orthopoly-weight
+ '%hermite
+ #$$ lambda([x], [exp(-x^2), -inf, inf]) $)
+
+(register-orthopoly-weight
+ '%legendre_p
+ #$$ lambda([x], [1, -1, 1]) $)
+
+(register-orthopoly-weight
+ '%legendre_q
+ #$$ lambda([x], [1, -1, 1]) $)
+
+(register-orthopoly-weight
+ '%assoc_legendre_p
+ #$$ lambda([x], [1, -1, 1]) $)
+
+(register-orthopoly-weight
+ '%assoc_legendre_q
+ #$$ lambda([x], [1, -1, 1]) $)
+
+(register-orthopoly-weight
+ '%chebyshev_t
+ #$$ lambda([x], [1/sqrt(1-x^2), -1, 1]) $)
+
+(register-orthopoly-weight
+ '%chebyshev_u
+ #$$ lambda([x], [sqrt(1-x^2), -1, 1]) $)
+
+(register-orthopoly-weight
+ '%ultraspherical
+ #$$ lambda([x,lambda], [(1-x^2)^(lambda-1/2), -1, 1]) $)
+
+(register-orthopoly-weight
+ '%laguerre
+ #$$ lambda([x,a], [x^a * exp(-x), 0, inf]) $)
+
+(register-orthopoly-weight
+ '%gen_laguerre
+ #$$ lambda([x,a], [x^a * exp(-x), 0, inf]) $)
+
+(register-orthopoly-weight
+ '%jacobi_p
+ #$$ lambda([x,a,b], [(1-x)^a * (1+x)^b, -1, 1]) $)
+
+(register-orthopoly-weight
+ '%spherical_bessel_j
+ #$$ lambda([x], [x^2, 0, inf]) $)
+
+(register-orthopoly-weight
+ '%spherical_bessel_y
+ #$$ lambda([x], [x^2, 0, inf]) $)
+
+(register-orthopoly-weight
+ '%spherical_hankel1
+ #$$ lambda([x], [x^2, 0, inf]) $)
+
+(register-orthopoly-weight
+ '%spherical_hankel2
+ #$$ lambda([x], [x^2, 0, inf]) $)
+
+(register-orthopoly-weight
+ '%spherical_harmonic
+ #$$ lambda([theta,phi], [sin(theta), [0,pi], [0,2*pi]]) $)
+
