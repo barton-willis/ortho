@@ -21,17 +21,15 @@ hermite(1,x);
 
 /*  Check the value at 0 */
 
-block([ans], declare(n,even), ans : hermite(n,0), forget(n,even), ans);
-((-1)^(n/2)*pochhammer(n/2+1,n/2))/2^(n/2)$
+block([ans], declare(n,even), ans : hermite(n,0), remove(n,even), ans);
+ (2^n*sqrt(%pi))/gamma((1-n)/2)$
 
 block([ans], 
     declare(n,even), 
     ans : hermite(n,0), 
-    print(ans),
-    forget(n,even),
-    makelist(subst(n=2*k,ans - hermite(2*k,0)),k,0,5));
- 
-((-1)^(n/2)*pochhammer(n/2+1,n/2))/2^(n/2)$
+    remove(n,even),
+    makelist(is(subst(n=2*k,ans) = hermite(2*k,0)),k,0,5));
+ [true,true,true,true,true,true]$
 
 /* Check the Rodrigues form */
 (fn : orthopoly_rodrigues(hermite),0);
@@ -44,8 +42,29 @@ makelist(ratsimp(fn(k,x)-hermite(k,x)),k,0,10);
 (df : diff(hermite(n,x),x), expand(makelist(subst(n=k,df)-diff(hermite(k,x),x),k,0,10)));
 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
 
-op_and_args(diff(hermite(n,x),n));
-[derivative, [hermite(n, x), n, 1]]$
+(remvalue(fn,df),0);
+0$
 
+/* conjugate */
+ op_and_args(conjugate(hermite(a+%i*b,x)));
+ [conjugate, [hermite(%i*b + a, x)]]$
+
+(declare(z,complex),0);
+0$
+
+conjugate(hermite(n,z));
+hermite(n, conjugate(z))$
+
+(remove(z,complex),0);
+0$
+
+values;
+[]$
+
+facts();
+[]$
+
+contexts;
+[initial,global]$
 
 

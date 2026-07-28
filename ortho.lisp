@@ -147,6 +147,9 @@ Our measure of sufficiently small is
 ;; Number of base 10 digits in a binary64 number (it is 15).
 (defmvar *binary64-digits* (floor (* (float-digits 1.0d0) (log 2 10))))
 
+
+
+
 ;;; The function generic-two-term-recursion-running-error uses recursion to evaluate
 ;;; the orthogonal polynomials, but calling it properly requires a great deal of boilerplate.
 ;;; Here is a macro for calling generic-two-term-recursion-running-error
@@ -712,12 +715,12 @@ Our measure of sufficiently small is
         ;; hermite(n,0) = (-1)^(n/2) pochhammer(n/2 + 1,n/2), n even;
         ;; See Table 18.6.1 of DLMF
         ((and (eql 0 x) ($featurep n '$even))
-         (let ((halfn (div n 2)))
-           (mul (ftake 'mexpt -1 halfn)
-                (ftake '$pochhammer (add 1 halfn) halfn))))
+          (div
+             (mul (ftake 'mexpt 2 n)
+                  (ftake 'mexpt '$%pi (div 1 2)))
+             (ftake '%gamma (div (sub 1 n) 2))))
         ;; hermite(2n+1,0) = 0
-        ((and (eql 0 x) ($featurep n '$odd))
-          0)
+        ((and (eql 0 x) ($featurep n '$odd))  0)
         (t (give-up))))
 
 (defgrad %hermite ($n $x)
@@ -1767,7 +1770,7 @@ Our measure of sufficiently small is
 
 (def-integral %hermite (n x)
   nil
-  #$$ hermite(n+1,x)/(2*(n+1)) - hermite(n-1,x)/(2*n) $)
+  #$$ hermite(n+1,x)/(2*(n+1))$)
 
 ;;; ----------------------------------------------------------------------
 ;;; Legendre P_n
@@ -2161,3 +2164,35 @@ Our measure of sufficiently small is
 
 (def-hypergeom %hermite
   #$$ lambda([n,x], 2^n * hypergeometric([ -n/2 ], [ 1/2 ], x^2)) $)
+
+;;; conjugate stuff
+
+(defmacro define-orthopoly-conjugator (op &key (check 1))
+  "Define and install a conjugate-function for orthogonal polynomial operator OP.
+   CHECK is an integer: the first CHECK arguments must be self-conjugate."
+  (let ((fun (intern (format nil "~A-CONJUGATE" op))))
+    `(progn
+       (defun ,fun (args)
+         ;; Check first CHECK arguments for self-conjugacy
+         (let ((ok
+                (every
+                 #'(lambda (v) (alike1 v (ftake '$conjugate v)))
+                 (subseq args 0 ,check))))
+           (if ok
+               ;; push conjugation inside
+               (fapply ',op
+                       (mapcar #'(lambda (q) (ftake '$conjugate q)) args))
+               ;; otherwise nounform
+               ($funmake '$conjugate
+                         (ftake 'mlist (fapply ',op args))))))
+       (setf (get ',op 'conjugate-function) ',fun))))
+       
+(define-orthopoly-conjugator %hermite :check 1)
+(define-orthopoly-conjugator %laguerre :check 1)
+(define-orthopoly-conjugator %legendre :check 1)
+(define-orthopoly-conjugator %gegenbauer :check 1)
+(define-orthopoly-conjugator %chebyshev-t :check 1)
+(define-orthopoly-conjugator %chebyshev-u :check 1)
+(define-orthopoly-conjugator %assoc_legendre_p :check 2)
+(define-orthopoly-conjugator %assoc_legendre_q :check 2)
+
