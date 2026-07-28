@@ -7,11 +7,8 @@ errcatch(hermite(12));
 errcatch(hermite(a,b,c));
 []$
 
-(op_and_args(e) := if mapatom(e) then false else [op(e), args(e)],0);
+(op_and_args(e) := block([inflag : true], if mapatom(e) then false else [verbify(op(e)), args(e)]),0);
 0$
-
-op_and_args(hermite(n,x));
-[hermite,[n,x]]$
 
 hermite(0,x);
 1$
@@ -47,7 +44,7 @@ makelist(ratsimp(fn(k,x)-hermite(k,x)),k,0,10);
 
 /* conjugate */
  op_and_args(conjugate(hermite(a+%i*b,x)));
- [conjugate, [hermite(%i*b + a, x)]]$
+ ['conjugate, [hermite(%i*b + a, x)]]$
 
 (declare(z,complex),0);
 0$
@@ -75,6 +72,26 @@ hermite(k,-x)+ hermite(k,x);
 (remove(n,even),0);
 0$
 
+/* gradient */
+diff(hermite(n,x),x);
+2*n*hermite(n-1,x)$
+
+diff(hermite(k,p),p);
+2*k*hermite(k-1,p)$
+
+(inflag : true,0);
+0$
+
+op_and_args(diff(hermite(k,x),k));
+[derivative,[hermite(k,x),k,1]]$
+
+op_and_args(diff(hermite(k,k),k));
+[derivative,[hermite(k,k),k,1]]$
+
+(inflag : false,0);
+0$
+
+hermite(5, (1 + sqrt(3)*%i/2));
 values;
 []$
 

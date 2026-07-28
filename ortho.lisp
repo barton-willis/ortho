@@ -698,6 +698,7 @@ Our measure of sufficiently small is
 ;;; (https://dlmf.nist.gov/18.3) For the recusion, see DLMF Table http://dlmf.nist.gov/18.9.T1. 
 ;;; For special values, see DLMF Table http://dlmf.nist.gov/18.6.i
 (def-simplifier hermite (n x)
+  (mtell "form = ~M ~%" form)
   (cond ((and (integerp n) (>= n 0) (complex-number-p x #'$numberp)) ;evaluate numerically
            (let* ((digits (get-digits x))
 		        (one (multiplicative-identity x)))
@@ -709,6 +710,14 @@ Our measure of sufficiently small is
            (if (< n 0)
 		         (give-up)
 		         (orthopoly-polynomial-simp (hermite-symbolic n x) x)))
+
+        ((some #'$taylorp (cdr form))
+         (let* ((data ($taylorinfo (third form)))
+                (tp  (errcatch ($apply '$taylor ($cons (ftake '%hermite n x) data)))))
+            (if (and tp (freeof '%derivative ($ratdisrep (car tp))))
+               (car tp)
+               (give-up))))
+
         ;; reflection: hermite(n,-x) = (-1)^n hermite(-n,-x)
         ((great (neg x) x)
          (mul (ftake 'mexpt -1 n) (ftake '%hermite n (neg x))))
@@ -996,16 +1005,19 @@ Our measure of sufficiently small is
 |#
 
 (defun generic-two-term-recursion-symbolic (p q f0 f1 n)
-  (cond ((eql n 0)  f0)
-        ((eql n 1)  f1)
-        (t
-          (let ((k 1) (f2))
-            (while (< k n)
-               (setq f2 (add (mul (funcall p k) f1) (mul (funcall q k) f0)))
-               (setq f0 f1
+  (let (($algebraic t))
+    (setq f0 ($rat f0))
+    (setq f1 ($rat f1))
+    (cond ((eql n 0)  f0)
+          ((eql n 1)  f1)
+          (t
+            (let ((k 1) (f2))
+              (while (< k n)
+                (setq f2 (add (mul (funcall p k) f1) (mul (funcall q k) f0)))
+                (setq f0 f1
                    f1 f2
                    k (+ 1 k)))
-          f1))))
+          f1)))))
 
 (in-package #:bigfloat)
 
@@ -2186,7 +2198,7 @@ Our measure of sufficiently small is
                ($funmake '$conjugate
                          (ftake 'mlist (fapply ',op args))))))
        (setf (get ',op 'conjugate-function) ',fun))))
-       
+
 (define-orthopoly-conjugator %hermite :check 1)
 (define-orthopoly-conjugator %laguerre :check 1)
 (define-orthopoly-conjugator %legendre :check 1)
