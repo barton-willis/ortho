@@ -1008,16 +1008,17 @@ Our measure of sufficiently small is
   (let (($algebraic t))
     (setq f0 ($rat f0))
     (setq f1 ($rat f1))
-    (cond ((eql n 0)  f0)
-          ((eql n 1)  f1)
+    (cond ((eql n 0) f0)
+          ((eql n 1) f1)
           (t
-            (let ((k 1) (f2))
-              (while (< k n)
-                (setq f2 (add (mul (funcall p k) f1) (mul (funcall q k) f0)))
-                (setq f0 f1
-                   f1 f2
-                   k (+ 1 k)))
-          f1)))))
+           (let ((f2)
+                 (end (1- n)))
+             (do ((k 1 (1+ k)))
+                 ((> k end) f1)
+               (setq f2 (add (mul (funcall p k) f1) (mul (funcall q k) f0)))
+               (setq f0 f1
+                     f1 f2)))))))
+
 
 (in-package #:bigfloat)
 
@@ -1045,23 +1046,26 @@ Our measure of sufficiently small is
   (cond ((eql n 0) (values f0 0))
         ((eql n 1) (values f1 0))
         (t
-  (let* (;; absolute error bounds
-         (e0 0)
-         (e1 0)
-         (k 1))
+         (let ((e0 0)          ; error for f0
+               (e1 0)          ; error for f1
+               (end (1- n))    ; last k value to compute
+               f2 e2)
+           (do ((k 1 (1+ k)))
+               ((> k end) (values f1 (* (epsilon f1) e1)))
+             (let ((a (funcall p k))
+                   (b (funcall q k)))
+               ;; next recurrence value
+               (setq f2 (+ (* a f1) (* b f0)))
+               ;; running absolute error bound
+               (setq e2 (+ (abs (* a e1))
+                           (abs (* b e0))
+                           (abs f2)))
+               ;; update state
+               (setq f0 f1
+                     f1 f2
+                     e0 e1
+                     e1 e2)))))))
 
-     (maxima::while (< k n)
-      (let* ((a (funcall p k))
-             (b (funcall q k))
-             (f2 (+ (* a f1) (* b f0)))
-             (e2 (+ (abs (* a e1)) (abs (* b e0)) (abs f2))))
-        ;; update state
-        (setq k (+ 1 k)
-              f0 f1
-              f1 f2
-              e0 e1
-              e1 e2)))
-    (values f1 (* (epsilon f1) e1))))))
 
 
 (in-package :maxima)
