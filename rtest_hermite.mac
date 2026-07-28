@@ -58,6 +58,23 @@ hermite(n, conjugate(z))$
 (remove(z,complex),0);
 0$
 
+/* reflection */
+
+(declare(n,even),0);
+0$
+
+hermite(n,x) - hermite(n,-x);
+0$
+
+hermite(n+1,x) + hermite(n+1,-x);
+0$
+
+hermite(k,-x)+ hermite(k,x);
+(-1)^k*hermite(k,x)+hermite(k,x)$
+
+(remove(n,even),0);
+0$
+
 values;
 []$
 
