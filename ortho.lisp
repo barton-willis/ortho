@@ -129,6 +129,12 @@ Our measure of sufficiently small is
 
 (in-package :maxima)
 
+;;; Let's not spew compiler warnings, OK?
+(declaim (ftype function assoc_legendre_q-symbolic))
+(declaim (ftype function assoc_legendre_q-numeric))
+(declaim (ftype function legendre_q-symbolic))
+
+
 (defun orthopoly-default-simp (p x)
   "Default cleanup for orthogonal polynomials."
   ($ratsimp p x))
@@ -945,65 +951,44 @@ Our measure of sufficiently small is
    (declare (ignore n x))
    (merror "spherical_bessel_y"))
 
-#|  
-;; Compute P_n^m(cos(theta)).  See Merzbacher, 9.59 page 184
-;; and 9.64 page 185, and A & S 22.5.37 page 779.  This function
-;; lacks error checking; it should only be called by spherical_harmonic.
+(def-simplifier spherical_harmonic (l m theta phi)
+  (cond ((or (eq t (mgrp (ftake 'mabs m) l)) (eq t (mgrp 0 l))) 0) 
 
-;; We need to be careful -- for the spherical harmonics we can't use
-;; assoc_legendre_p(n,m,cos(x)).  If we did, we'd get factors 
-;; (1 - cos^2(x))^(m/2) that simplify to |sin(x)|^m but we want them
-;; to simplify to sin^m(x).  Oh my!
+        ;; http://dlmf.nist.gov/14.30.E4 Y(l,m,0,phi)
+        ((eql theta 0)
+          (cond ((eql m 0) 
+                  (ftake 'mexpt (div (add (mul 2 l) 1) (mul 4 '$%pi)) (div 1 2)))
+                ((integerp m)
+                 0)
+                (t (give-up))))
 
-(defun assoc-leg-cos (n m x)
-  (interval-mult
-   (if (= m 0) 1 (mul (take '(%genfact) (sub (mul 2 m) 1) (sub m (div 1 2)) 2) (power (take '(%sin) x) m)))
-   ($ultraspherical (sub n m) (add m (div 1 2)) (take  '(%cos) x))))
+        ((and (integerp l) (integerp m))
+          ;; see http://dlmf.nist.gov/14.30.E1
+          (let ((cnst
+          (mul
+             (ftake 'mexpt 2 m)
+             (ftake 'mexpt 
+               (div 
+                  (mul (+ (* 2 l) 1) (ftake 'mfactorial (- l m)))
+                  (mul 4 '$%pi (ftake 'mfactorial (+ l m))))
+               (div 1 2))
+               (div
+                 (ftake 'mfactorial (+ l m -1))
+                 (ftake 'mfactorial (- l 1)))))
 
-(defun $spherical_harmonic (n m th p)
-  (cond ((and (integerp n) (integerp m) (> n -1))
-	 (cond ((> (abs m) n)
-		0)
-	       ((< m 0)
-		(interval-mult (if (oddp m) -1 1) 
-			       ($spherical_harmonic n (- m) th (mul -1 p))))
-	       (t
-		(interval-mult
-		 (mul ($exp (mul '$%i m p))
-		      (power (div (* (+ (* 2 n) 1) (factorial (- n m)))
-				  (mul '$%pi (* 4 (factorial (+ n m))))) 
-			     `((rat) 1 2)))
-		 (assoc-leg-cos n m th)))))
-	(t
-	 `(($spherical_harmonic) ,n ,m ,th ,p))))
+          (f1 (ftake '%ultraspherical (- l m) (add m (div 1 2)) (ftake '%cos theta)))
+          (f2 (ftake 'mexpt (ftake '%sin theta) m))
+          (f3 (ftake 'mexpt '$%e (mul '$%i m phi))))
 
+          (mul cnst f1 f2 f3)))
 
-
-(putprop '$spherical_harmonic
-	 '((n m theta phi)
-	   ((unk) first spherical_harmonic)
-	   ((unk) second spherical_harmonic)
-	   ((mplus)
-	    ((mtimes) ((rat ) -1 2)
-	     ((mexpt)
-	      ((mtimes) ((mplus) ((mtimes) -1 m) n)
-	       ((mplus) 1 m n))
-	      ((rat) 1 2))
-	     (($spherical_harmonic) n ((mplus) 1 m) theta phi)
-	     ((mexpt) $%e ((mtimes) -1 $%i phi)))
-	    ((mtimes) ((rat) 1 2)
-	     ((mexpt)
-	      ((mtimes) ((mplus) 1 ((mtimes) -1 m) n)
-	       ((mplus) m n))
-	      ((rat) 1 2))
-	     (($spherical_harmonic) n ((mplus) -1 m) theta phi)
-	     ((mexpt) $%e ((mtimes) $%i phi)))) 
-	   
-	   ((mtimes) $%i m (($spherical_harmonic) n m theta phi)))
-	 'grad)
-	  	   	  	 				 	
-|#
-
+       ((great m (neg m)) ;http://dlmf.nist.gov/14.30.E6 
+        (mul
+          (ftake 'mexpt -1 (neg m))
+          (ftake '$conjugate (ftake '%spherical_harmonic l (neg m) theta phi))))
+        
+       (t (give-up))))
+              
 (defun generic-two-term-recursion-symbolic (p q f0 f1 n)
   (let (($algebraic t))
     (setq f0 ($rat f0))
@@ -1693,7 +1678,7 @@ Our measure of sufficiently small is
 (defgrad %assoc_legendre_p ($n $m $x)
   nil 
   nil
-  #$$ (1/(1-x^2))*(n*x*assoc_legendre_p(n,m,x) - (n+m)*assoc_legendre_p(n-1,m,x)) $)
+  #$$ (n*assoc_legendre_p(n,m,x)*x-assoc_legendre_p(n-1,m,x)*(n+m)*unit_step(n))/(x^2-1)$)
 
 (defgrad %assoc_legendre_q ($n $m $x)
   nil 
@@ -1737,9 +1722,9 @@ Our measure of sufficiently small is
 (defgrad %spherical_harmonic ($l $m $theta $phi)
   nil 
   nil 
-  #$$ (m*cos(theta)/sin(theta))*spherical_harmonic(l,m,theta,phi)
-      - sqrt((l-m)*(l+m+1))*spherical_harmonic(l,m+1,theta,phi) $
-  #$$ m*spherical_harmonic(l,m,theta,phi)/sin(theta)$)
+  #$$ (spherical_harmonic(l,m-1,theta,phi)*sqrt((-m+l+1)*(m+l))*%e^(%i*phi))/2
+ -(spherical_harmonic(l,m+1,theta,phi)*sqrt((l-m)*(m+l+1))*%e^-(%i*phi))/2$
+  #$$ %i*m*spherical_harmonic(l,m,theta,phi)$)
 
 ;;; antiderivative definitions:
 (defmacro def-integral (name arglist &rest entries)
