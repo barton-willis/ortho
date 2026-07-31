@@ -176,7 +176,7 @@ Our measure of sufficiently small is
     `(defun ,name ,lambda-list
        (handler-case
            (let* (,@let
-                  (eps (bigfloat::to (ftake 'mexpt 2 (- ,digits-var))))
+                  (eps (bigfloat::to (ftake 'mexpt 10 (- ,digits-var))))
                   (f0 ,f0)
                   (f1 ,f1)
                   (p  ,p)
@@ -704,7 +704,6 @@ Our measure of sufficiently small is
 ;;; (https://dlmf.nist.gov/18.3) For the recusion, see DLMF Table http://dlmf.nist.gov/18.9.T1. 
 ;;; For special values, see DLMF Table http://dlmf.nist.gov/18.6.i
 (def-simplifier hermite (n x)
-  (mtell "form = ~M ~%" form)
   (cond ((and (integerp n) (>= n 0) (complex-number-p x #'$numberp)) ;evaluate numerically
            (let* ((digits (get-digits x))
 		        (one (multiplicative-identity x)))
@@ -988,7 +987,8 @@ Our measure of sufficiently small is
           (ftake '$conjugate (ftake '%spherical_harmonic l (neg m) theta phi))))
         
        (t (give-up))))
-              
+
+;; Converting to CRE form makes this calculation can be vastly faster.
 (defun generic-two-term-recursion-symbolic (p q f0 f1 n)
   (let (($algebraic t))
     (setq f0 ($rat f0))
@@ -999,7 +999,7 @@ Our measure of sufficiently small is
            (let ((f2)
                  (end (1- n)))
              (do ((k 1 (1+ k)))
-                 ((> k end) f1)
+                 ((> k end) ($ratdisrep f1))
                (setq f2 (add (mul (funcall p k) f1) (mul (funcall q k) f0)))
                (setq f0 f1
                      f1 f2)))))))
@@ -1031,8 +1031,8 @@ Our measure of sufficiently small is
   (cond ((eql n 0) (values f0 0))
         ((eql n 1) (values f1 0))
         (t
-         (let ((e0 0)          ; error for f0
-               (e1 0)          ; error for f1
+         (let ((e0 1)          ; error for f0
+               (e1 1)          ; error for f1
                (end (1- n))    ; last k value to compute
                f2 e2)
            (do ((k 1 (1+ k)))
@@ -1050,8 +1050,6 @@ Our measure of sufficiently small is
                      f1 f2
                      e0 e1
                      e1 e2)))))))
-
-
 
 (in-package :maxima)
 
@@ -1127,31 +1125,40 @@ Our measure of sufficiently small is
   (ftake '%assoc_legendre_q n m x))
   
 (def-simplifier assoc_legendre_q (n m x)
-  (cond ((and (integerp n) (integerp m) (complex-number-p x #'$numberp) (> n -1) (<= (abs m) n))
+  (cond 
+    ;; http://dlmf.nist.gov/14.9.E4
+    ((and (integerp n) (integerp m) (< m 0) (> (+ n 1 (- m)) 0))
+     (div
+       (mul (ftake 'mexpt -1 (- m)) ; (-1)^(-m)
+            (ftake '%gamma (+ n 1 (- m))) ; gamma(n-m+1)
+            (ftake '%assoc_legendre_q n (- m) x)) ; assoc_legendre_q(n,-m,x)
+       (ftake '%gamma (+ n (- m) 1))))  ;gamma(n-m+1)
+  
+    ((and (integerp n) (integerp m) (complex-number-p x #'$numberp) (> n -1) (<= (abs m) n))
            (let* ((digits (get-digits x))
                   (one (multiplicative-identity x)))
 			(if one 
 			    (orthopoly-number-coerce (assoc_legendre_q-numeric n m x digits) one)
 				(give-up))))
 
-      ((and (integerp m) (> 0 m) (integerp n))
-         (div (mul
-                (ftake 'mexpt -1 (- m))
-                (ftake 'mfactorial (add n m))
-                (ftake '%assoc_legendre_q n (- m) x))
-              (ftake 'mfactorial (sub n m))))
-
       ((and (integerp n) (integerp m) (> n -1) (> m -1))
-       (assoc_legendre_q-symbolic n m x))
+       (orthopoly-polynomial-simp (assoc_legendre_q-symbolic n m x) x))
 
       ((eql m 0)
         (ftake '%legendre_q n x))
 
       (t (give-up))))
 
+(defun nth-antiderivative (e x n)
+  (dotimes (k n)
+    (setq e ($integrate e x)))
+  e)
+
 (defun assoc_legendre_q-symbolic (n m x)
   (let* ((g (gensym))
-         (f ($diff (ftake '%legendre_q n g) g m)))
+         (f (if (< m 0)
+                  (nth-antiderivative (ftake '%legendre_q n g) g (- m))
+                  ($diff (ftake '%legendre_q n g) g m))))
          
     (orthopoly-polynomial-simp 
         (maxima-substitute x g
@@ -1969,24 +1976,27 @@ Our measure of sufficiently small is
 ;;; def-ode macro
 ;;; ----------------------------------------------------------------------
 
-(defmacro def-ode (name operator-lambda eigenvalue-lambda)
-  "Store Sturm–Liouville operator and eigenvalue as Maxima lambda forms."
+(defparameter *orthopoly-ode-operator-table*
+  (make-hash-table :test #'eq :size 32))
+
+(defparameter *orthopoly-ode-eigenvalue-table*
+  (make-hash-table :test #'eq :size 32))
+
+(defmacro def-ode (name operator-lambda)
+  "Register Sturm–Liouville operator lambdas in hash table."
   `(progn
-     (putprop ',name ,operator-lambda 'ode-operator)
-     (putprop ',name ,eigenvalue-lambda 'ode-eigenvalue)))
+     (setf (gethash ',name *orthopoly-ode-operator-table*)
+           ,operator-lambda)
+     ',name))
+
 
 ;;; ----------------------------------------------------------------------
 ;;; User-level interface
 ;;; ----------------------------------------------------------------------
 
 (defmfun $orthopoly_ode (name)
-    (or (get name 'ode-operator)
-        (merror "No ODE operator registered for ~M" name)))
-
-(defmfun orthopoly_eigenvalue (name)
-  (let ((lname (mfuncall '$symbol name)))
-    (or (get lname 'ode-eigenvalue)
-        (merror "No ODE eigenvalue registered for ~M" name))))
+  (or (gethash name *orthopoly-ode-operator-table*)
+      (merror "No ODE operator registered for ~M" name)))
 
 ;;; ======================================================================
 ;;; Sturm–Liouville operators
@@ -1997,83 +2007,74 @@ Our measure of sufficiently small is
 ;;; y'' - 2 x y' + 2 n y = 0
 ;;; ----------------------------------------------------------------------
 
-(def-ode hermite
-  #$$ lambda([n,x,y],
-       diff(y,x,2) - 2*x*diff(y,x) + 2*n*y) $
-  #$$ lambda([n], 2*n) $)
+(def-ode %hermite
+  #$$ lambda([n,x,y], diff(y,x,2) - 2*x*diff(y,x) + 2*n*y) $)
 
 ;;; ----------------------------------------------------------------------
 ;;; Laguerre L_n^(a)
 ;;; x y'' + (a+1-x) y' + n y = 0
 ;;; ----------------------------------------------------------------------
 
-(def-ode laguerre
+(def-ode %laguerre
   #$$ lambda([n,a,x,y],
-       x*diff(y,x,2) + (a+1-x)*diff(y,x) + n*y) $
-  #$$ lambda([n,a], n) $)
+       x*diff(y,x,2) + (a+1-x)*diff(y,x) + n*y) $)
 
 ;;; ----------------------------------------------------------------------
 ;;; Generalized Laguerre L_n^(a)
 ;;; Same ODE
 ;;; ----------------------------------------------------------------------
 
-(def-ode gen_laguerre
+(def-ode %gen_laguerre
   #$$ lambda([n,a,x,y],
-       x*diff(y,x,2) + (a+1-x)*diff(y,x) + n*y) $
-  #$$ lambda([n,a], n) $)
+       x*diff(y,x,2) + (a+1-x)*diff(y,x) + n*y) $)
 
 ;;; ----------------------------------------------------------------------
 ;;; Legendre P_n
 ;;; (1-x^2) y'' - 2 x y' + n(n+1) y = 0
 ;;; ----------------------------------------------------------------------
 
-(def-ode legendre_p
+(def-ode %legendre_p
   #$$ lambda([n,x,y],
-       (1-x^2)*diff(y,x,2) - 2*x*diff(y,x) + n*(n+1)*y) $
-  #$$ lambda([n], n*(n+1)) $)
+       (1-x^2)*diff(y,x,2) - 2*x*diff(y,x) + n*(n+1)*y) $)
 
 ;;; ----------------------------------------------------------------------
 ;;; Chebyshev T_n
 ;;; (1-x^2) y'' - x y' + n^2 y = 0
 ;;; ----------------------------------------------------------------------
 
-(def-ode chebyshev_t
+(def-ode %chebyshev_t
   #$$ lambda([n,x,y],
-       (1-x^2)*diff(y,x,2) - x*diff(y,x) + n^2*y) $
-  #$$ lambda([n], n^2) $)
+       (1-x^2)*diff(y,x,2) - x*diff(y,x) + n^2*y) $)
 
 ;;; ----------------------------------------------------------------------
 ;;; Chebyshev U_n
 ;;; (1-x^2) y'' - 3 x y' + n(n+2) y = 0
 ;;; ----------------------------------------------------------------------
 
-(def-ode chebyshev_u
+(def-ode %chebyshev_u
   #$$ lambda([n,x,y],
-       (1-x^2)*diff(y,x,2) - 3*x*diff(y,x) + n*(n+2)*y) $
-  #$$ lambda([n], n*(n+2)) $)
+       (1-x^2)*diff(y,x,2) - 3*x*diff(y,x) + n*(n+2)*y) $)
 
 ;;; ----------------------------------------------------------------------
 ;;; Gegenbauer / Ultraspherical C_n^(λ)
 ;;; (1-x^2) y'' - (2λ+1) x y' + n(n+2λ) y = 0
 ;;; ----------------------------------------------------------------------
 
-(def-ode ultraspherical
+(def-ode %ultraspherical
   #$$ lambda([n,lambda,x,y],
        (1-x^2)*diff(y,x,2) - (2*lambda+1)*x*diff(y,x)
-         + n*(n+2*lambda)*y) $
-  #$$ lambda([n,lambda], n*(n+2*lambda)) $)
+         + n*(n+2*lambda)*y) $)
 
 ;;; ----------------------------------------------------------------------
 ;;; Jacobi P_n^(a,b)
 ;;; (1-x^2) y'' + (b-a - (a+b+2)x) y' + n(n+a+b+1) y = 0
 ;;; ----------------------------------------------------------------------
 
-(def-ode jacobi_p
+(def-ode %jacobi_p
   #$$ lambda([n,a,b,x,y],
        (1-x^2)*diff(y,x,2)
          + (b-a - (a+b+2)*x)*diff(y,x)
-         + n*(n+a+b+1)*y) $
-  #$$ lambda([n,a,b], n*(n+a+b+1)) $)
+         + n*(n+a+b+1)*y) $)
 
 ;;; ======================================================================
 ;;; End of file

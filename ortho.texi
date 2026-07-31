@@ -2,7 +2,7 @@
 @section Introduction to Orthogonal Polynomials
 
 This package provides functions for evaluating and working with classical orthogonal polynomials, the
-Bessel polynomials, and some related such functions.
+Bessel polynomials, and some related functions.
 
 The primary mathematical reference for these functions is the @i{Digital Library of Mathematical Functions} (DLMF). 
 The secondary reference is Abramowitz and Stegun's @i{Handbook of Mathematical Functions}.
@@ -29,12 +29,12 @@ include the facts listed in Table 18.6.1 of the DLMF.
 @item For an explicit nonnegative degree, each of these functions automatically return an explicit polynomial.
 
 @item For an explicit nonnegative degree and all other arguments numeric (either real or a complex number in
-rectangular form), these functions return
+rectangular form), these functions return ????
 
 
 @end itemize
 
-Additionally, the package supports the spherical Bessel fuctions (DLMF, Chapter 10). These functions are
+Additionally, the package supports the spherical Bessel functions (DLMF, Chapter 10). These functions are
 
 @itemize @bullet
 @item Spherical Bessel functions of the first kind (@code{spherical_bessel_j})
