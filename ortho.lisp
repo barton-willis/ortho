@@ -137,7 +137,8 @@ Our measure of sufficiently small is
 
 (defun orthopoly-default-simp (p x)
   "Default cleanup for orthogonal polynomials."
-  ($ratsimp p x))
+  (declare (ignore x))
+  (sratsimp p))
 
 ;; If you prefer a Horner representation:
 (defun orthopoly-horner-simp (p x)
@@ -533,15 +534,20 @@ Our measure of sufficiently small is
 
 		  ((integerp n)
         (if (< n 0)
-           (give-up)
+           (orthopoly-polynomial-simp (chebyshev_t-symbolic (neg n) x) x)
 		       (orthopoly-polynomial-simp (chebyshev_t-symbolic n x) x)))
 
-          ;; See DLMF Table Table 18.6.1 for the following three simplifications:
+      
+
+      ;; See DLMF Table Table 18.6.1 for the following three simplifications:
 		  ((eql x 1)  1)
 		  ((and (eql x 0) ($featurep n '$even)) (ftake 'mexpt 1 (div n 2)))
 		  ;; chebyshev_t(n,-x) = (-1)^n chebyshev_t(n,-x)
-          ((great (neg x) x)
+      ((great (neg x) x)
 		    (mul (ftake 'mexpt -1 n) (ftake '%chebyshev_t n (neg x))))
+      ;; chebyshev_t(n,x) = chebyshev_t(-n,x)
+      ((great (neg n) n)
+		    (ftake '%chebyshev_t (neg n) x))
           ;; no simplifications--give up
 		  (t (give-up))))
   
@@ -575,7 +581,7 @@ Our measure of sufficiently small is
 
 		  ((integerp n)
         (if (< n 0)
-           (give-up)
+           (chebyshev_u-symbolic (sub (- n) 2) x)
 		       (chebyshev_u-symbolic n x)))
 
 		  ;; See DLMF Table Table 18.6.1 for the following three simplifications:
@@ -587,7 +593,12 @@ Our measure of sufficiently small is
 		  ;; chebyshev_t(n,-x) = (-1)^n chebyshev_t(n,-x)
       ((great (neg x) x)
 		    (mul (ftake 'mexpt -1 n) (ftake '%chebyshev_u n (neg x))))
-          ;; no simplifications--give up
+
+      ;;U(n,x) = U(-n-2,x)
+      ((and ($featurep n '$integer) (great (sub (neg n) 2) n))
+        (ftake '%chebyshev_u (sub (neg n) 2) x))
+
+      ;; no simplifications--give up
 		  (t (give-up))))
 
 (defun chebyshev_u-symbolic (n x)
@@ -619,12 +630,28 @@ Our measure of sufficiently small is
 			    (orthopoly-number-coerce (legendre_p-numeric n x digits) one)
 				(give-up))))
 
+      ;; see DLMF http://dlmf.nist.gov/14.9.E5
+      ((eq t (mgrp 0 n))
+       (ftake '%legendre_p (neg (add n 1)) x))
+
 		  ((integerp n)
           (if (< n 0)
-              (give-up)
-              (orthopoly-default-simp (legendre-p-symbolic n x) x)))
+              (give-up) ; should be caught already!
+              (orthopoly-polynomial-simp (legendre_p-symbolic n x) x)))
 
-		(t (give-up))))
+      ;; Simplifications from DLMF Table 18.6.1 
+      ((eql x 1) 1)
+
+      ((and (eql x 0) ($featurep n '$even))
+        (let ((n2 (div n 2)))
+          (div 
+            (mul (ftake 'mexpt -1 n2) (ftake '$pochhammer (div 1 2) n2))
+            (ftake 'mfactorial n2))))
+
+      ((great (neg x) x)
+       (mul (ftake 'mexpt -1 n) (ftake '%legendre_p n (neg x))))
+
+ 		(t (give-up))))
 
 (define-two-term-numeric* legendre_p-numeric (n x digits)
   :let ((bf-x (bigfloat::to x))
@@ -639,7 +666,7 @@ Our measure of sufficiently small is
           (let ((k (bigfloat::to kk))) 
                 (bigfloat::/ k (bigfloat::+ k one)))))
 
-(defun legendre-p-symbolic (n x)
+(defun legendre_p-symbolic (n x)
     (let* ((f0 1)
 		       (f1 x)
            (p #'(lambda (k) (div (mul (add (mul 2 k) 1) x) (add k 1)))) ; (2k+1)x/(k+1) 
@@ -1664,14 +1691,14 @@ Our measure of sufficiently small is
   nil
   #$$ (2*lambda*ultraspherical(n-1,a+1,x) -n*x*ultraspherical(n,a,x))/(1-x^2) $)
 
+;; http://dlmf.nist.gov/18.9.E21 
 (defgrad %chebyshev_t ($n $x)
   nil
   #$$ n*chebyshev_u(n-1,x) $)
 
 (defgrad %chebyshev_u ($n $x)
   nil
-  #$$ ((n+1)*chebyshev_t(n+1,x) - x*chebyshev_u(n,x))
-      /(1-x^2) $)
+  #$$ (chebyshev_u(n-1,x)*(n+1)*unit_step(n)-n*chebyshev_u(n,x)*x)/(1-x^2) $)
 
 (defgrad %legendre_p ($n $x)
   nil
@@ -1747,16 +1774,6 @@ Our measure of sufficiently small is
 ;;; ======================================================================
 ;;;  orthopoly-integral.lisp
 ;;;  Integral subsystem for orthogonal polynomials in Maxima
-;;;
-;;;  Provides:
-;;;    • Reader macro #$$ … $
-;;;    • def-integral macro
-;;;    • Integral definitions for all supported families
-;;; ======================================================================
-
-;;; ----------------------------------------------------------------------
-;;; def-integral macro
-;;; ----------------------------------------------------------------------
 
 (defmacro def-integral (name arglist &rest entries)
   "Define integral properties for orthogonal polynomials.
@@ -1767,52 +1784,21 @@ Our measure of sufficiently small is
             (list ',arglist ,@entries)
             'integral))
 
-;;; ======================================================================
-;;; Integral definitions
-;;; ======================================================================
-
-;;; ----------------------------------------------------------------------
-;;; Hermite
-;;; ∫ H_n(x) dx = H_{n+1}(x)/(2(n+1)) - H_{n-1}(x)/(2n)
-;;; ----------------------------------------------------------------------
-
-(def-integral %hermite (n x)
+(def-integral %hermite ($n $x)
   nil
   #$$ hermite(n+1,x)/(2*(n+1))$)
 
-;;; ----------------------------------------------------------------------
-;;; Legendre P_n
-;;; ∫ P_n(x) dx = (P_{n+1}(x) - P_{n-1}(x))/(2n+1)
-;;; ----------------------------------------------------------------------
-
-(def-integral %legendre_p (n x)
+(def-integral %legendre_p ($n $x)
   nil
   #$$ (legendre_p(n+1,x) - legendre_p(n-1,x))/(2*n+1) $)
 
-;;; ----------------------------------------------------------------------
-;;; Chebyshev T_n
-;;; ∫ T_n(x) dx = T_{n+1}(x)/(2(n+1)) - T_{n-1}(x)/(2(n-1))
-;;; ----------------------------------------------------------------------
-
-(def-integral %chebyshev_t (n x)
+(def-integral %chebyshev_t ($n $x)
   nil
-  #$$ chebyshev_t(n+1,x)/(2*(n+1))
-      - chebyshev_t(n-1,x)/(2*(n-1)) $)
+  #$$ chebyshev_t(n+1,x)$)
 
-;;; ----------------------------------------------------------------------
-;;; Chebyshev U_n
-;;; ∫ U_n(x) dx = U_{n+1}(x)/(2(n+1))
-;;; ----------------------------------------------------------------------
-
-(def-integral %chebyshev_u (n x)
+(def-integral %chebyshev_u ($n $x)
   nil
   #$$ chebyshev_u(n+1,x)/(2*(n+1)) $)
-
-;;; ----------------------------------------------------------------------
-;;; Gegenbauer / Ultraspherical C_n^(λ)
-;;; ∫ C_n^(λ)(x) dx =
-;;;   C_{n+1}^(λ)(x)/(2(n+λ+1)) - C_{n-1}^(λ)(x)/(2(n+λ-1))
-;;; ----------------------------------------------------------------------
 
 (def-integral %ultraspherical (n lambda x)
   nil 
@@ -1820,31 +1806,15 @@ Our measure of sufficiently small is
   #$$ ultraspherical(n+1,lambda,x)/(2*(n+lambda+1))
       - ultraspherical(n-1,lambda,x)/(2*(n+lambda-1)) $)
 
-;;; ----------------------------------------------------------------------
-;;; Laguerre L_n^(a)
-;;; ∫ L_n^(a)(x) dx = -L_{n-1}^{(a+1)}(x)
-;;; ----------------------------------------------------------------------
-
 (def-integral %laguerre (n a x)
   nil 
   nil
   #$$ -laguerre(n-1,a+1,x) $)
 
-;;; ----------------------------------------------------------------------
-;;; Generalized Laguerre L_n^(a)
-;;; Same formula
-;;; ----------------------------------------------------------------------
-
 (def-integral %gen_laguerre (n a x)
   nil 
   nil
   #$$ -gen_laguerre(n-1,a+1,x) $)
-
-;;; ----------------------------------------------------------------------
-;;; Jacobi P_n^(a,b)
-;;; ∫ P_n^(a,b)(x) dx =
-;;;   P_{n+1}^(a,b)(x)/(2(n+1)) - P_{n-1}^(a,b)(x)/(2(n+a+b))
-;;; ----------------------------------------------------------------------
 
 (def-integral %jacobi_p (n a b x)
   nil 
@@ -1853,16 +1823,8 @@ Our measure of sufficiently small is
   #$$ jacobi_p(n+1,a,b,x)/(2*(n+1)) - jacobi_p(n-1,a,b,x)/(2*(n+a+b)) $)
 
 ;;; ======================================================================
-;;; End of file
-;;; ======================================================================
-
-;;; ======================================================================
 ;;;  orthopoly-rodrigues.lisp
 ;;;  Rodrigues subsystem for orthogonal polynomials in Maxima
-
-;;; ----------------------------------------------------------------------
-;;; def-rodrigues macro
-;;; ----------------------------------------------------------------------
 
 (defmacro def-rodrigues (name lambda-form)
   "Store a Rodrigues formula as a Maxima lambda form."
@@ -1870,102 +1832,44 @@ Our measure of sufficiently small is
             ,lambda-form
             'rodrigues))
 
-;;; ----------------------------------------------------------------------
-;;; User-level interface
-;;; ----------------------------------------------------------------------
-
 (defmfun $orthopoly_rodrigues (name)
     (or (get name 'rodrigues) (merror "No Rodrigues form registered for ~M" name)))
-
-;;; ======================================================================
-;;; Rodrigues formulas
-;;; ======================================================================
-
-;;; ----------------------------------------------------------------------
-;;; Hermite
-;;; H_n(x) = (-1)^n e^{x^2} d^n/dx^n (e^{-x^2})
-;;; ----------------------------------------------------------------------
 
 (def-rodrigues %hermite
   #$$ lambda([n,x],
        (-1)^n * exp(x^2) * diff(exp(-x^2), x, n)) $)
 
-;;; ----------------------------------------------------------------------
-;;; Legendre P_n
-;;; P_n(x) = (1/(2^n n!)) d^n/dx^n (x^2 - 1)^n
-;;; ----------------------------------------------------------------------
-
-(def-rodrigues legendre_p
+(def-rodrigues %legendre_p
   #$$ lambda([n,x],
        (1/(2^n * factorial(n))) * diff((x^2 - 1)^n, x, n)) $)
 
-;;; ----------------------------------------------------------------------
-;;; Chebyshev T_n
-;;; T_n(x) via Legendre-type Rodrigues (one common form)
-;;; ----------------------------------------------------------------------
+(def-rodrigues %chebyshev_t
+  #$$ lambda([n,x], (1-x^2)^(1/2) * diff((1-x^2)^(-1/2) * (1-x^2)^n,x,n) / ((-2)^n * pochhammer(1/2,n)))$)
 
-(def-rodrigues chebyshev_t
-  #$$ lambda([n,x],
-       cos(n*acos(x))) $)
+(def-rodrigues %chebyshev_u
+  #$$ lambda([n,x], (n+1)*(1-x^2)^(-1/2) * diff((1-x^2)^(1/2) * (1-x^2)^n,x,n) / ((-2)^n * pochhammer(3/2,n)))$)
 
-;;; ----------------------------------------------------------------------
-;;; Chebyshev U_n
-;;; U_n(x) = sin((n+1) arccos(x)) / sqrt(1-x^2)
-;;; ----------------------------------------------------------------------
-
-(def-rodrigues chebyshev_u
-  #$$ lambda([n,x],
-       sin((n+1)*acos(x))/sqrt(1-x^2)) $)
-
-;;; ----------------------------------------------------------------------
-;;; Gegenbauer / Ultraspherical C_n^(λ)
-;;; C_n^(λ)(x) =
-;;;   (-2)^n Γ(n+λ)/Γ(λ) (1-x^2)^{1/2-λ} d^n/dx^n (1-x^2)^{n+λ-1/2}
-;;; ----------------------------------------------------------------------
-
-(def-rodrigues ultraspherical
+(def-rodrigues %ultraspherical
   #$$ lambda([n,lambda,x],
        (-2)^n * gamma(n+lambda)/gamma(lambda)
          * (1-x^2)^(1/2 - lambda)
          * diff((1-x^2)^(n+lambda-1/2), x, n)) $)
-
-;;; ----------------------------------------------------------------------
-;;; Laguerre L_n^(a)
-;;; L_n^(a)(x) =
-;;;   x^{-a} e^{x}/n! d^n/dx^n (x^{n+a} e^{-x})
-;;; ----------------------------------------------------------------------
 
 (def-rodrigues laguerre
   #$$ lambda([n,a,x],
        x^(-a) * exp(x)/factorial(n)
          * diff(x^(n+a) * exp(-x), x, n)) $)
 
-;;; ----------------------------------------------------------------------
-;;; Generalized Laguerre L_n^(a)
-;;; Same Rodrigues form
-;;; ----------------------------------------------------------------------
-
 (def-rodrigues gen_laguerre
   #$$ lambda([n,a,x],
        x^(-a) * exp(x)/factorial(n)
          * diff(x^(n+a) * exp(-x), x, n)) $)
-
-;;; ----------------------------------------------------------------------
-;;; Jacobi P_n^(a,b)
-;;; P_n^(a,b)(x) =
-;;;   (-1)^n/(2^n n!) (1-x)^(-a)(1+x)^(-b)
-;;;     d^n/dx^n [(1-x)^{n+a}(1+x)^{n+b}]
-;;; ----------------------------------------------------------------------
 
 (def-rodrigues jacobi_p
   #$$ lambda([n,a,b,x],
        (-1)^n/(2^n * factorial(n))
          * (1-x)^(-a) * (1+x)^(-b)
          * diff((1-x)^(n+a) * (1+x)^(n+b), x, n)) $)
-
-;;; ======================================================================
-;;; End of file
-;;; ======================================================================
 
 ;;; ======================================================================
 ;;;  orthopoly-ode.lisp
@@ -2191,10 +2095,10 @@ Our measure of sufficiently small is
 
 (define-orthopoly-conjugator %hermite :check 1)
 (define-orthopoly-conjugator %laguerre :check 1)
-(define-orthopoly-conjugator %legendre :check 1)
+(define-orthopoly-conjugator %legendre_p :check 1)
 (define-orthopoly-conjugator %gegenbauer :check 1)
-(define-orthopoly-conjugator %chebyshev-t :check 1)
-(define-orthopoly-conjugator %chebyshev-u :check 1)
+(define-orthopoly-conjugator %chebyshev_t :check 1)
+(define-orthopoly-conjugator %chebyshev_u :check 1)
 (define-orthopoly-conjugator %assoc_legendre_p :check 2)
 (define-orthopoly-conjugator %assoc_legendre_q :check 2)
 

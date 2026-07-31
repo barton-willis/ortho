@@ -1,0 +1,221 @@
+(kill(all),0);
+0$
+
+/* bogus arguments */
+errcatch(chebyshev_t());
+[]$
+
+errcatch(chebyshev_t(12));
+[]$
+
+errcatch(chebyshev_t(a,b,c));
+[]$
+
+(op_and_args(e) := block([inflag : true],
+  if mapatom(e) then false else [nounify(op(e)), args(e)]),0);
+0$
+
+/* basic values */
+chebyshev_t(0,x);
+1$
+
+chebyshev_t(1,x);
+x$
+
+/* require explicit integer for degree */
+op_and_args(chebyshev_t(1.0,x));
+[chebyshev_t, [1.0, x]]$
+
+/* Check values at ±1 */
+block([ans],
+  declare(n,even),
+  ans : [chebyshev_t(n,1), chebyshev_t(n,-1)],
+  remove(n,even),
+  ans);
+[1, 1]$
+
+block([ans],
+  declare(n,odd),
+  ans : [chebyshev_t(n,1), chebyshev_t(n,-1)],
+  remove(n,odd),
+  ans);
+[1, -1]$
+
+/* Check the Rodrigues form */
+(fn : orthopoly_rodrigues(chebyshev_t),0);
+0$
+
+makelist(ratsimp(''fn(k,x) - chebyshev_t(k,x)),k,0,10);
+[0,0,0,0,0,0,0,0,0,0,0]$
+
+(remfuction(fn),0);
+0$
+
+/* gradient */
+block([ans],
+  df(n,x) := diff(chebyshev_t(n,x),x), 
+  ans : makelist(df(k,x) - diff(chebyshev_t(k,x),x), k,1,10),
+  remfunction(df),
+  ans);
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
+
+/* Orthogonality:
+   ∫_{-1}^1 T_n(x) T_m(x) / sqrt(1-x^2) dx =
+      0 if n ≠ m
+      π if n=m=0
+      π/2 if n=m>0
+*/
+block([ans],
+  fn(n,m) := integrate(
+               chebyshev_t(n,x)*chebyshev_t(m,x)/sqrt(1-x^2),
+               x,-1,1)
+             - (if n=m then (if n=0 then %pi else %pi/2) else 0),
+  ans : makelist(makelist(fn(n,m),m,0,4), n,0,4),
+  remfunction(fn),
+  ans);
+[[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]]$
+
+/* Recurrence:
+   T_{n+1} = 2 x T_n - T_{n-1} */
+ratsimp(makelist(
+  chebyshev_t(n+1,x) - (2*x*chebyshev_t(n,x) - chebyshev_t(n-1,x)),
+  n,1,7));
+[0,0,0,0,0,0,0]$
+
+/* First few explicit polynomials */
+ratsimp([
+  chebyshev_t(0,x) - 1,
+  chebyshev_t(1,x) - x,
+  chebyshev_t(2,x) - (2*x^2 - 1),
+  chebyshev_t(3,x) - (4*x^3 - 3*x),
+  chebyshev_t(4,x) - (8*x^4 - 8*x^2 + 1)
+]);
+[0,0,0,0,0]$
+
+/* Reflection / parity */
+(declare(n,even),0);
+0$
+
+chebyshev_t(n,x) - chebyshev_t(n,-x);
+0$
+
+(remove(n,even),0);
+0$
+
+(declare(n,odd),0);
+0$
+
+chebyshev_t(n,x) + chebyshev_t(n,-x);
+0$
+
+(remove(n,odd),0);
+0$
+
+/* conjugation */
+(declare(z,complex),0);
+0$
+
+conjugate(chebyshev_t(n,z));
+chebyshev_t(n,conjugate(z))$
+
+(remove(z,complex),0);
+0$
+
+/* gradient-style consistency */
+(df : diff(chebyshev_t(n,x),x),
+ expand(makelist(subst(n=k,df) - diff(chebyshev_t(k,x),x),k,0,10)));
+[0,0,0,0,0,0,0,0,0,0,0]$
+
+(remvalue(df),0);
+0$
+
+/* CRE rectangular form checks */
+chebyshev_t(5, (1 + sqrt(3)*%i/2));
+-((71*sqrt(3)*%i+58)/2)$
+
+chebyshev_t(5, 1/(3 + %i));
+-((191*%i-7113)/6250)$
+
+/* --- Orthogonality via orthopoly_weight --- */
+([w,a,b] : orthopoly_weight('chebyshev_t)(z),0);
+0$
+
+integrate(chebyshev_t(0,z)*chebyshev_t(1,z)*w, z, a,b);
+0$
+
+integrate(chebyshev_t(2,z)*chebyshev_t(3,z)*w, z, a,b);
+0$
+
+integrate(chebyshev_t(2,z)^2*w, z, a,b);
+%pi/2$
+
+(remvalue(w,a,b),0);
+0$
+
+/* negative degree  */
+chebyshev_t(-1, x);
+x$
+
+chebyshev_t(-2, x);
+2*x^2-1$
+
+/* binary64 tests */
+(approx_equal(x,y) := is(abs(x-y) < 10^(-15) * max(1,abs(x))),0);
+0$
+
+block([N : 4, okay : true, maxD : 16,x],
+ for d : maxD-1 thru maxD do (
+  for k : -N thru N do (
+    x : float(k/N),
+    okay : okay and approx_equal(
+                     chebyshev_t(d, rationalize(x)),
+                     chebyshev_t(d, x)))),
+    okay);
+true$
+
+block([bad : [],n,x,exact, approx, eps : 10^-14],
+     for i : -5000 thru 5000 do (
+         n : random(32),
+         x : float(i/5000),
+         exact : chebyshev_t(n,rationalize(x)),
+         approx : chebyshev_t(n,x),
+         if abs(exact-approx)  > eps * max(1, abs(exact)) then
+             push([n,rationalize(x)], bad)), 
+    bad);
+[]$
+
+/* ode */
+(fn : orthopoly_ode('chebyshev_t),0);
+0$
+
+fn(10, z, chebyshev_t(10,z)), expand;
+0$
+
+/* recursion */
+(fn : orthopoly_recursion('chebyshev_t),0);
+0$
+
+is(fn(0,z));
+true$
+
+is(apply(equal, args(fn(1,z))));
+true$
+
+is(apply(equal, args(fn(28,z))));
+true$
+
+(remvalue(fn),0);
+0$
+
+(remfunction(op_and_args), remfunction(approx_equal),0);
+0$
+
+/* tidy environment */
+values;
+[]$
+
+facts();
+[]$
+
+contexts;
+[initial,global]$

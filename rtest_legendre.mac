@@ -1,0 +1,234 @@
+(kill(all),0);
+0$
+
+/* bogus arguments */
+errcatch(legendre_p());
+[]$
+
+errcatch(legendre_p(12));
+[]$
+
+errcatch(legendre_p(a,b,c));
+[]$
+
+(op_and_args(e) := block([inflag : true],
+  if mapatom(e) then false else [nounify(op(e)), args(e)]),0);
+0$
+
+/* basic values */
+legendre_p(0,x);
+1$
+
+legendre_p(1,x);
+x$
+
+/* require explicit integer for degree */
+op_and_args(legendre_p(1.0,x));
+[legendre_p, [1.0, x]]$
+
+/* Check values at ±1 */
+
+block([ans],
+  declare(n,even),
+  ans : [legendre_p(n,1), legendre_p(n,-1)],
+  remove(n,even),
+  ans);
+[1, 1]$
+
+block([ans],
+  declare(n,odd),
+  ans : [legendre_p(n,1), legendre_p(n,-1)],
+  remove(n,odd),
+  ans);
+[1, - 1]$
+
+/* Simplifications */
+legendre_p(n,-x);
+(-1)^n*legendre_p(n,x)$
+
+legendre_p(n,1);
+1$
+
+block([ans],
+    declare(n,integer),
+    ans : legendre_p(2*n,0),
+    remove(n,integer),
+    ans);
+((-1)^n*pochhammer(1/2,n))/n!$
+
+block([ans],
+  declare(n,integer),
+  ans : legendre_p(8,0) - subst(n=4, legendre_p(2*n,0)),
+  remove(n,integer),
+  ans);
+0$
+
+/* Check the Rodrigues form */
+(fn : orthopoly_rodrigues(legendre_p),0);
+0$
+
+makelist(ratsimp(fn(k,x) - legendre_p(k,x)),k,0,10);
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
+
+/* Check a derivative identity: (1-x^2) P_n' = n (P_{n-1} - x P_n) */
+
+(df : diff(legendre_p(n,x),x),
+ expand(makelist(
+   subst(n=k,(1-x^2)*df - k*(legendre_p(k-1,x) - x*legendre_p(k,x))),
+   k,1,10)));
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
+
+(remvalue(fn,df),0);
+0$
+
+/* tests adapted from rtest_orthopoly  */
+/* Orthogonality: ∫_{-1}^1 P_n P_m dx = 2/(2n+1) δ_{nm} */
+
+block([ans],
+  fn(n,m) := integrate(legendre_p(n,x)*legendre_p(m,x),x,-1,1)
+             - kron_delta(n,m)*2/(2*n+1),
+  ans : makelist(makelist(fn(n,m),m,0,4), n,0,4),
+  remfunction(fn),
+  ans);
+[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0],[0, 0, 0, 0, 0]]$
+
+/* Bonnet recurrence: (n+1)P_{n+1} = (2n+1)x P_n - n P_{n-1} */
+
+ratsimp(makelist(
+  (n+1)*legendre_p(n+1,x)
+   - (2*n+1)*x*legendre_p(n,x)
+   + n*legendre_p(n-1,x),
+  n,1,7));
+[0, 0, 0, 0, 0, 0, 0]$
+
+/* First few explicit polynomials */
+ratsimp([legendre_p(0,x) - 1,
+         legendre_p(1,x) - x,
+         legendre_p(2,x) - (3*x^2-1)/2,
+         legendre_p(3,x) - (5*x^3-3*x)/2,
+         legendre_p(4,x) - (35*x^4-30*x^2+3)/8]);
+[0, 0, 0, 0, 0]$
+
+/* conjugation */
+
+(declare(z,complex),0);
+0$
+
+conjugate(legendre_p(n,z));
+legendre_p(n, conjugate(z))$
+
+(remove(z,complex),0);
+0$
+
+/* gradient-style check via gradef (symbolic consistency) */
+
+(df : diff(legendre_p(n,x),x),
+ ratsimp(makelist(subst(n=k,df) - diff(legendre_p(k,x),x),k,0,10)));
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
+
+(remvalue(df),0);
+0$
+
+/* Make sure legendre_p returns values in rectangular form */
+legendre_p(5, (1 + sqrt(3)*%i/2));
+-((1411*3^(3/2)*%i+4154)/256)$
+
+/* --- Orthogonality checks via orthopoly_weight --- */
+
+([w,a,b] : orthopoly_weight('legendre_p)(z),0);
+0$
+
+integrate(legendre_p(0,z)*legendre_p(1,z)*w, z, a,b);
+0$
+
+integrate(legendre_p(2,z)*legendre_p(3,z)*w, z, a,b);
+0$
+
+integrate(legendre_p(2,z)^2*w, z, a,b);
+2/(2*2+1)$
+
+(remvalue(w,a,b),0);
+0$
+
+/* negative degree checks */
+
+makelist(ratsimp(legendre_p(-n-1,x) - legendre_p(n,x)),n,-8,8);
+ [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
+
+/* binary64 tests (real argument) */
+(approx_equal(x,y) := is(abs(x-y) < 10^(-15) * max(1,abs(x))),0);
+0$
+
+block([N : 4, okay : true, maxD : 16,x],
+ for d : maxD-1 thru maxD do (
+  for k : -N thru N do (
+    x : float(k/N),
+    okay : okay and approx_equal(
+                     legendre_p(d, rationalize(x)),
+                     legendre_p(d, x)))),
+    okay);
+true$
+
+(fpprec : 28,0);
+0$
+
+block([N : 4, okay : true, maxD : 16,x],
+ for d : maxD-1 thru maxD do (
+  for k : -N thru N do (
+    x : bfloat(k/N),
+    okay : okay and approx_equal(
+                     legendre_p(d, rationalize(x)),
+                     legendre_p(d, x)))),
+    okay);
+true$
+
+(reset(fpprec),0);
+0$
+
+block([bad : [],n,x,exact, approx, eps : 10^-14],
+     for i : -5000 thru 5000 do (
+         n : random(32),
+         x : float(i/5000), /* keep x in [-1,1] */
+         exact : legendre_p(n,rationalize(x)),
+         approx : legendre_p(n,x),
+         if abs(exact-approx)  > eps * max(1, abs(exact)) then
+             push([n,rationalize(x)], bad)), 
+    bad);
+[]$
+
+
+/* ode */
+(fn : orthopoly_ode('legendre_p),0);
+0$
+
+fn(10, z,legendre_p(10,z)), expand;
+0$
+
+/* recursion */
+(fn : orthopoly_recursion('legendre_p),0);
+0$
+
+is(fn(0,z));
+true$
+
+is(apply(equal, args(fn(1,z))));
+true$
+
+is(apply(equal, args(fn(28,z))));
+true$
+
+(remvalue(fn),0);
+0$
+
+(remfunction(op_and_args), remfunction(approx_equal),0);
+0$
+
+/* Let's keep our environment tidy. */
+values;
+[]$
+
+facts();
+[]$
+
+contexts;
+[initial,global]$

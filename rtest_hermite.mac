@@ -169,6 +169,12 @@ integrate(hermite(2,z)^2*w, z, a,b);
 (remvalue(w,a,b),0);
 0$
 
+/* antiderivative */
+integrate(hermite(n,x),x,z);
+hermite(n+1,z)/(2*n+2)-hermite(n+1,0)/(2*n+2)$
+
+integrate(hermite(-1,x),x);
+
 /* Nounform return checks */
 block([ans : hermite(-1, x)], [op(ans), args(ans)]);
 [hermite, [- 1, x]]$
@@ -189,6 +195,22 @@ block([N : 4, okay : true, maxD : 16,x,y],
         okay : okay and approx_equal(hermite(d, rationalize(x+%i*y)), hermite(d, x+%i*y))))),
     okay);
 true$
+
+(fpprec : 28,0);
+0$
+
+block([N : 4, okay : true, maxD : 16,x,y],
+ for d : maxD-1 thru maxD do (
+  for k : -N thru N do (
+    for l : -N thru N do (
+        x : bfloat(k/N),
+        y : bfloat(l/N),
+        okay : okay and approx_equal(hermite(d, rationalize(x+%i*y)), hermite(d, x+%i*y))))),
+    okay);
+true$
+
+(reset(fpprec),0);
+0$
 
 block([bad : [],n,x,exact, approx, eps : 10^-14],
      for i : -5000 thru 5000 do (
