@@ -121,7 +121,7 @@ chebyshev_t(n,conjugate(z))$
 (remove(z,complex),0);
 0$
 
-/* gradient-style consistency */
+/* gradient consistency */
 (df : diff(chebyshev_t(n,x),x),
  expand(makelist(subst(n=k,df) - diff(chebyshev_t(k,x),x),k,0,10)));
 [0,0,0,0,0,0,0,0,0,0,0]$

@@ -1769,12 +1769,6 @@ Our measure of sufficiently small is
             (list ',arglist ,@entries)
             'integral))
 
-
-
-;;; ======================================================================
-;;;  orthopoly-integral.lisp
-;;;  Integral subsystem for orthogonal polynomials in Maxima
-
 (defmacro def-integral (name arglist &rest entries)
   "Define integral properties for orthogonal polynomials.
    ARG list is (n x a b ...).
@@ -1784,9 +1778,11 @@ Our measure of sufficiently small is
             (list ',arglist ,@entries)
             'integral))
 
+
+;; This needs protection for n=-1, but I don't know how to get Maxima to do this gracefully
 (def-integral %hermite ($n $x)
   nil
-  #$$ hermite(n+1,x)/(2*(n+1))$)
+  #$$hermite(n+1,x)/(2*(n+1))$)
 
 (def-integral %legendre_p ($n $x)
   nil
@@ -1980,24 +1976,7 @@ Our measure of sufficiently small is
          + (b-a - (a+b+2)*x)*diff(y,x)
          + n*(n+a+b+1)*y) $)
 
-;;; ======================================================================
-;;; End of file
-;;; ======================================================================
-
-;;; ======================================================================
 ;;;  orthopoly-hypergeom.lisp
-;;;  Hypergeometric representation subsystem for orthogonal polynomials
-;;;
-;;;  Provides:
-;;;    • Reader macro #$$ … $
-;;;    • def-hypergeom macro (stores Maxima lambda forms)
-;;;    • User-level accessor
-;;;    • Hypergeometric forms for classical families
-;;; ======================================================================
-
-;;; ----------------------------------------------------------------------
-;;; def-hypergeom macro
-;;; ----------------------------------------------------------------------
 
 (defmacro def-hypergeom (name lambda-form)
   "Store hypergeometric representation as a Maxima lambda form."
@@ -2005,32 +1984,12 @@ Our measure of sufficiently small is
             ,lambda-form
             'hypergeom))
 
-;;; ----------------------------------------------------------------------
-;;; User-level interface
-;;; ----------------------------------------------------------------------
-
 (defmfun $orthopoly_hypergeom (name)
     (or (get name 'hypergeom)
         (merror "No hypergeometric form registered for ~M" name)))
 
-;;; ======================================================================
-;;; Hypergeometric representations
-;;; ======================================================================
-
-;;; ----------------------------------------------------------------------
-;;; Legendre P_n
-;;; P_n(x) = 2F1(-n, n+1; 1; (1-x)/2)
-;;; ----------------------------------------------------------------------
-
 (def-hypergeom %legendre_p
-  #$$ lambda([n,x],
-       hypergeometric([ -n, n+1 ], [ 1 ], (1-x)/2)) $)
-
-;;; ----------------------------------------------------------------------
-;;; Jacobi P_n^(a,b)
-;;; P_n^(a,b)(x) =
-;;;   (a+1)_n / n! * 2F1(-n, n+a+b+1; a+1; (1-x)/2)
-;;; ----------------------------------------------------------------------
+  #$$ lambda([n,x],  hypergeometric([ -n, n+1 ], [ 1 ], (1-x)/2)) $)
 
 (def-hypergeom %jacobi_p
   #$$ lambda([n,a,b,x],
@@ -2038,11 +1997,6 @@ Our measure of sufficiently small is
          * hypergeometric([ -n, n+a+b+1 ],
                           [ a+1 ],
                           (1-x)/2)) $)
-
-;;; ----------------------------------------------------------------------
-;;; Laguerre L_n^(a)
-;;; L_n^(a)(x) = (a+1)_n / n! * 1F1(-n; a+1; x)
-;;; ----------------------------------------------------------------------
 
 (def-hypergeom %laguerre
   #$$ lambda([n,a,x],
@@ -2068,8 +2022,10 @@ Our measure of sufficiently small is
 (def-hypergeom %chebyshev_u
   #$$ lambda([n,x], (n+1) * hypergeometric([ -n, n+2 ], [ 3/2 ], (1-x)/2)) $)
 
-(def-hypergeom %hermite
-  #$$ lambda([n,x], 2^n * hypergeometric([ -n/2 ], [ 1/2 ], x^2)) $)
+;; Hermite to hypergeometric is not supported. For n ≥ 0, Hermite polynomials can be written using 1F1, but
+;; this representation doesn't extend off the nonnegative integers. To do that, we need the  parabolic cylinder function,
+;; that Maxima does not provide. 
+
 
 ;;; conjugate stuff
 
