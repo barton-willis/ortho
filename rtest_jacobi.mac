@@ -1,0 +1,177 @@
+(kill(all),0);
+0$
+
+/* bogus arguments */
+errcatch(jacobi_p());
+[]$
+
+errcatch(jacobi_p(3));
+[]$
+
+errcatch(jacobi_p(a,b,c,d,e));
+[]$
+
+(op_and_args(e) := block([inflag:true],
+    if mapatom(e) then false else [nounify(op(e)), args(e)]),0);
+0$
+
+/* basic values */
+jacobi_p(0,a,b,x);
+1$
+
+jacobi_p(1,a,b,x);
+((a+b+2)*x + (a-b))/2$
+
+/* require explicit integer degree */
+op_and_args(jacobi_p(1.0,a,b,x));
+[jacobi_p, [1.0, a, b, x]]$
+
+/* value at x = 1: A&S 22.5.20 */
+block([ans],
+    declare(n,integer),
+    ans : jacobi_p(n,a,b,1),
+    remove(n,integer),
+    ans);
+binomial(n+a,n)$
+
+makelist(is(subst(n=k,binomial(k+a,k)) = jacobi_p(k,a,b,1)), k,0,6);
+[true,true,true,true,true,true,true]$
+
+/* Rodrigues formula */
+(fn : orthopoly_rodrigues(jacobi_p),0);
+0$
+
+makelist(ratsimp(fn(k,a,b,x) - jacobi_p(k,a,b,x)), k,0,10);
+[0,0,0,0,0,0,0,0,0,0,0]$
+
+/* gradient */
+(df : diff(jacobi_p(n,a,b,x),x),
+ expand(makelist(subst(n=k,df) - diff(jacobi_p(k,a,b,x),x),k,0,10)));
+[0,0,0,0,0,0,0,0,0,0,0]$
+
+(remvalue(fn,df),0);
+0$
+
+/* orthogonality: A&S 22.2.1 */
+block([ans],
+  fn(n,m) := integrate(jacobi_p(n,a,b,x)*jacobi_p(m,a,b,x)
+                       *(1-x)^a*(1+x)^b, x,-1,1)
+             - kron_delta(n,m)
+               * (2^(a+b+1)*gamma(n+a+1)*gamma(n+b+1))
+                 /(n!*(2*n+a+b+1)*gamma(n+a+b+1)),
+  ans : makelist(makelist(ratsimp(fn(n,m)),m,0,4), n,0,4),
+  remfunction(fn),
+  ans);
+[[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]]$
+
+/* reflection: P_n^{(a,b)}(-x) = (-1)^n P_n^{(b,a)}(x) */
+ratsimp(makelist(jacobi_p(n,a,b,-x) - (-1)^n*jacobi_p(n,b,a,x), n,0,10));
+[0,0,0,0,0,0,0,0,0,0,0]$
+
+/* explicit low-degree checks */
+ratsimp([
+ jacobi_p(0,a,b,x) - 1,
+ jacobi_p(1,a,b,x) - ((a+b+2)*x + (a-b))/2,
+ jacobi_p(2,a,b,x) - (( (a+b+3)*(a+b+2)*x^2
+                        + 2*(a-b)*(a+b+2)*x
+                        + (a-b)^2 - (a+b+2) )/8 )
+]);
+[0,0,0]$
+
+/* numeric tests */
+/* numeric tests */
+jacobi_p(5,0,0,2.3);
+404.71326125$
+
+jacobi_p(5,0,0,23/10);
+323770609/800000$
+
+subst(x=23/10, jacobi_p(5,0,0,x));
+323770609/800000$
+
+/* rectangular form */
+(declare(z,complex),0);
+0$
+
+conjugate(jacobi_p(n,a,b,z));
+jacobi_p(n,conjugate(a),conjugate(b),conjugate(z))$
+
+(remove(z,complex),0);
+0$
+
+/* ODE check */
+(fn : orthopoly_ode('jacobi_p),0);
+0$
+
+expand(fn(5,a,b,z,jacobi_p(5,a,b,z)));
+0$
+
+(remvalue(fn),0);
+0$
+
+/* recursion check */
+(fn : orthopoly_recursion('jacobi_p),0);
+0$
+
+is(fn(0,a,b,z));
+true$
+
+is(apply(equal,args(fn(1,a,b,z))));
+true$
+
+is(apply(equal,args(fn(12,a,b,z))));
+true$
+
+(remvalue(fn),0);
+0$
+
+/* nounform return checks */
+block([ans : jacobi_p(-1,a,b,x)], [op(ans), args(ans)]);
+[jacobi_p, [-1, a, b, x]]$
+
+block([ans : jacobi_p(-1,a,b,42)], [op(ans), args(ans)]);
+[jacobi_p, [-1, a, b, 42]]$
+
+/* binary64 tests */
+(approx_equal(x,y) := is(abs(x-y) < 10^(-15)*max(1,abs(x))),0);
+0$
+
+block([N:4, okay:true, maxD:12, x,y],
+  for d:maxD-1 thru maxD do (
+    for k:-N thru N do (
+      for l:-N thru N do (
+        x:float(k/N),
+        y:float(l/N),
+        okay:okay and approx_equal(
+                 jacobi_p(d,3/2,1/2,rationalize(x+%i*y)),
+                 jacobi_p(d,3/2,1/2,x+%i*y))))),
+  okay);
+true$
+
+(fpprec:28,0);
+0$
+
+block([N:4, okay:true, maxD:12, x,y],
+  for d:maxD-1 thru maxD do (
+    for k:-N thru N do (
+      for l:-N thru N do (
+        x:bfloat(k/N),
+        y:bfloat(l/N),
+        okay:okay and approx_equal(
+                 jacobi_p(d,3/2,1/2,rationalize(x+%i*y)),
+                 jacobi_p(d,3/2,1/2,x+%i*y))))),
+  okay);
+true$
+
+(reset(fpprec),0);
+0$
+
+/* tidy up */
+values;
+[]$
+
+facts();
+[]$
+
+contexts;
+[initial,global]$

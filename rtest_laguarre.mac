@@ -1,0 +1,175 @@
+(kill(all),0);
+0$
+
+/* bogus arguments */
+errcatch(gen_laguerre());
+[]$
+
+errcatch(gen_laguerre(3));
+[]$
+
+errcatch(gen_laguerre(a,b,c,d));
+[]$
+
+(op_and_args(e) := block([inflag:true],
+    if mapatom(e) then false else [nounify(op(e)), args(e)]),0);
+0$
+
+/* basic values */
+gen_laguerre(0,a,x);
+1$
+
+gen_laguerre(1,a,x);
+- x + a + 1$
+
+/* require explicit integer degree */
+op_and_args(gen_laguerre(1.0,a,x));
+[gen_laguerre, [1.0, a, x]]$
+
+/* value at x = 0: L_n^{(a)}(0) = binomial(n+a,n) */
+block([ans],
+    declare(n,integer),
+    ans : gen_laguerre(n,a,0),
+    remove(n,integer),
+    ans);
+binomial(n+a,n)$
+
+makelist(is(subst(n=k,binomial(k+a,k)) = gen_laguerre(k,a,0)), k,0,6);
+[true,true,true,true,true,true,true]$
+
+/* Rodrigues formula */
+(fn : orthopoly_rodrigues(gen_laguerre),0);
+0$
+
+makelist(ratsimp(fn(k,a,x) - gen_laguerre(k,a,x)), k,0,10);
+[0,0,0,0,0,0,0,0,0,0,0]$
+
+/* gradient (matches orthopoly gradef) */
+(df : diff(gen_laguerre(n,a,x),x),
+ expand(makelist(subst(n=k,df) - diff(gen_laguerre(k,a,x),x),k,0,10)));
+[0,0,0,0,0,0,0,0,0,0,0]$
+
+(remvalue(fn,df),0);
+0$
+
+/* orthogonality:
+   ∫_0^∞ e^{-x} x^a L_n^{(a)}(x) L_m^{(a)}(x) dx
+   = Γ(n+a+1)/n! δ_{nm}
+*/
+block([ans],
+  fn(n,m) := integrate(
+               gen_laguerre(n,a,x)*gen_laguerre(m,a,x)
+               * exp(-x)*x^a,
+               x,0,inf)
+             - kron_delta(n,m)*gamma(n+a+1)/factorial(n),
+  ans : makelist(makelist(ratsimp(fn(n,m)),m,0,4), n,0,4),
+  remfunction(fn),
+  ans);
+[[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]]$
+
+/* explicit low-degree checks */
+ratsimp([
+ gen_laguerre(0,a,x) - 1,
+ gen_laguerre(1,a,x) - (-x + a + 1),
+ gen_laguerre(2,a,x) - (x^2/2 - (a+3)*x + (a+2)*(a+1)/2)
+]);
+[0,0,0]$
+
+/* numeric tests */
+gen_laguerre(5,3/2,2.3);
+-3.4609375$
+
+gen_laguerre(5,3/2,23/10);
+-11075/3200$
+
+subst(x=23/10, gen_laguerre(5,3/2,x));
+-11075/3200$
+
+/* rectangular form */
+(declare(z,complex),0);
+0$
+
+conjugate(gen_laguerre(n,a,z));
+gen_laguerre(n,conjugate(a),conjugate(z))$
+
+(remove(z,complex),0);
+0$
+
+/* ODE check:
+   x y'' + (a+1 - x) y' + n y = 0
+*/
+(fn : orthopoly_ode('gen_laguerre),0);
+0$
+
+expand(fn(5,a,z,gen_laguerre(5,a,z)));
+0$
+
+(remvalue(fn),0);
+0$
+
+/* recursion check */
+(fn : orthopoly_recursion('gen_laguerre),0);
+0$
+
+is(fn(0,a,z));
+true$
+
+is(apply(equal,args(fn(1,a,z))));
+true$
+
+is(apply(equal,args(fn(12,a,z))));
+true$
+
+(remvalue(fn),0);
+0$
+
+/* nounform return checks */
+block([ans : gen_laguerre(-1,a,x)], [op(ans), args(ans)]);
+[gen_laguerre, [-1, a, x]]$
+
+block([ans : gen_laguerre(-1,a,42)], [op(ans), args(ans)]);
+[gen_laguerre, [-1, a, 42]]$
+
+/* binary64 tests */
+(approx_equal(x,y) := is(abs(x-y) < 10^(-15)*max(1,abs(x))),0);
+0$
+
+block([N:4, okay:true, maxD:12, x,y],
+  for d:maxD-1 thru maxD do (
+    for k:-N thru N do (
+      for l:-N thru N do (
+        x:float(k/N),
+        y:float(l/N),
+        okay:okay and approx_equal(
+                 gen_laguerre(d,3/2,rationalize(x+%i*y)),
+                 gen_laguerre(d,3/2,x+%i*y))))),
+  okay);
+true$
+
+(fpprec:28,0);
+0$
+
+block([N:4, okay:true, maxD:12, x,y],
+  for d:maxD-1 thru maxD do (
+    for k:-N thru N do (
+      for l:-N thru N do (
+        x:bfloat(k/N),
+        y:bfloat(l/N),
+        okay:okay and approx_equal(
+                 gen_laguerre(d,3/2,rationalize(x+%i*y)),
+                 gen_laguerre(d,3/2,x+%i*y))))),
+  okay);
+true$
+
+(reset(fpprec),0);
+0$
+
+/* tidy up */
+values;
+[]$
+
+facts();
+[]$
+
+contexts;
+[initial,global]$

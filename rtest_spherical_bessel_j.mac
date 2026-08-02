@@ -1,0 +1,138 @@
+(kill(all),0);
+0$
+
+/* bogus arguments */
+errcatch(spherical_bessel_j());
+[]$
+
+errcatch(spherical_bessel_j(3));
+[]$
+
+errcatch(spherical_bessel_j(a,b,c));
+[]$
+
+(op_and_args(e) := block([inflag:true],
+    if mapatom(e) then false else [nounify(op(e)), args(e)]),0);
+0$
+
+/* basic values */
+spherical_bessel_j(0,x);
+sin(x)/x$
+
+spherical_bessel_j(1,x);
+(sin(x)-x*cos(x))/x^2$
+
+/* require explicit integer degree */
+op_and_args(spherical_bessel_j(1.0,x));
+[spherical_bessel_j, [1.0, x]]$
+
+/* reflection: j_n(-x) = (-1)^n j_n(x) */
+ratsimp(makelist(
+    spherical_bessel_j(n,-x) - (-1)^n*spherical_bessel_j(n,x),
+    n,0,10));
+[0,0,0,0,0,0,0,0,0,0,0]$
+
+/* derivative identity:
+   j_n'(x) = j_{n-1}(x) - (n+1)/x * j_n(x)
+*/
+ratsimp(makelist(
+    diff(spherical_bessel_j(n,x),x)
+      - (spherical_bessel_j(n-1,x)
+         - (n+1)/x * spherical_bessel_j(n,x)),
+    n,1,8));
+[0,0,0,0,0,0,0,0]$
+
+/* recurrence:
+   j_{n+1}(x) = (2n+1)/x * j_n(x) - j_{n-1}(x)
+*/
+ratsimp(makelist(
+    spherical_bessel_j(n+1,x)
+      - ((2*n+1)/x)*spherical_bessel_j(n,x)
+      + spherical_bessel_j(n-1,x),
+    n,1,8));
+[0,0,0,0,0,0,0,0]$
+
+/* differential equation:
+   x^2 y'' + 2x y' + (x^2 - n(n+1)) y = 0
+*/
+ratsimp(makelist(
+    x^2*diff(spherical_bessel_j(n,x),x,2)
+      + 2*x*diff(spherical_bessel_j(n,x),x)
+      + (x^2 - n*(n+1))*spherical_bessel_j(n,x),
+    n,0,8));
+[0,0,0,0,0,0,0,0,0]$
+
+/* explicit low-degree checks */
+ratsimp([
+ spherical_bessel_j(0,x) - sin(x)/x,
+ spherical_bessel_j(1,x) - (sin(x)/x^2 - cos(x)/x),
+ spherical_bessel_j(2,x) - ( (3/x^3 - 1/x)*sin(x) - 3*cos(x)/x^2 )
+]);
+[0,0,0]$
+
+/* numeric tests */
+spherical_bessel_j(5,2.3);
+0.005037487741787821$
+
+spherical_bessel_j(5,23/10);
+-((857038500*sin(23/10)+960328430*cos(23/10))/148035889)$
+
+expand(subst(x=23/10,spherical_bessel_j(5,x)));
+-((857038500*sin(23/10))/148035889)-(41753410*cos(23/10))/6436343$
+
+/* rectangular form */
+(declare(z,complex),0);
+0$
+
+conjugate(spherical_bessel_j(n,z));
+spherical_bessel_j(n,conjugate(z))$
+
+(remove(z,complex),0);
+0$
+
+/* negative degree */
+spherical_bessel_j(-1,x);
+-(sin(x)/x)$
+
+spherical_bessel_j(-1,42);
+-(sin(42)/42)$
+
+/* binary64 tests */
+(approx_equal(x,y) := is(abs(x-y) < 10^(-14)*max(10^(-7),abs(x))),0);
+0$
+
+block([N:40, fails:[],okay,  maxD:12, x],
+  for d:maxD-3 thru maxD do (
+    for k:-N thru N do (
+        x:float(k/N),
+        okay : approx_equal(nfloat(spherical_bessel_j(d,rationalize(x)), [], 32, 1000),
+                                     spherical_bessel_j(d,x)),
+        if not(okay) then push([d,x], fails))),                                  
+  fails);
+[]$
+
+(fpprec:28,0);
+0$
+
+block([N:40, fails:[],okay,  maxD:12, x],
+  for d:maxD-3 thru maxD do (
+    for k:-N thru N do (
+        x:bfloat(k/N),
+        okay : approx_equal(nfloat(spherical_bessel_j(d,rationalize(x)), [], 32, 1000),
+                                     spherical_bessel_j(d,x)),
+        if not(okay) then push([d,x], fails))),                                  
+  fails);
+[]$
+
+(reset(fpprec),0);
+0$
+
+/* tidy up */
+values;
+[]$
+
+facts();
+[]$
+
+contexts;
+[initial,global]$

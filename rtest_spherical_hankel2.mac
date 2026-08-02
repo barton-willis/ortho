@@ -1,0 +1,145 @@
+(kill(all),0);
+0$
+
+/* bogus arguments */
+errcatch(spherical_hankel2());
+[]$
+
+errcatch(spherical_hankel2(3));
+[]$
+
+errcatch(spherical_hankel2(a,b,c));
+[]$
+
+(op_and_args(e) := block([inflag:true],
+    if mapatom(e) then false else [nounify(op(e)), args(e)]),0);
+0$
+
+/* basic values */
+spherical_hankel2(0,x);
+(sin(x) + %i*cos(x))/x$
+
+spherical_hankel2(1,x);
+(sin(x) + %i*cos(x))/x^2 - (cos(x) - %i*sin(x))/x$
+
+/* require explicit integer degree */
+op_and_args(spherical_hankel2(1.0,x));
+[spherical_hankel2, [1.0, x]]$
+
+/* reflection: h_n^{(2)}(-x) = (-1)^n h_n^{(2)}(x) */
+ratsimp(makelist(
+    spherical_hankel2(n,-x) - (-1)^n*spherical_hankel2(n,x),
+    n,0,10));
+[0,0,0,0,0,0,0,0,0,0,0]$
+
+/* derivative identity:
+   h_n'(x) = h_{n-1}(x) - (n+1)/x * h_n(x)
+*/
+ratsimp(makelist(
+    diff(spherical_hankel2(n,x),x)
+      - (spherical_hankel2(n-1,x)
+         - (n+1)/x * spherical_hankel2(n,x)),
+    n,1,8));
+[0,0,0,0,0,0,0,0]$
+
+/* recurrence:
+   h_{n+1}(x) = (2n+1)/x * h_n(x) - h_{n-1}(x)
+*/
+ratsimp(makelist(
+    spherical_hankel2(n+1,x)
+      - ((2*n+1)/x)*spherical_hankel2(n,x)
+      + spherical_hankel2(n-1,x),
+    n,1,8));
+[0,0,0,0,0,0,0,0]$
+
+/* differential equation:
+   x^2 y'' + 2x y' + (x^2 - n(n+1)) y = 0
+*/
+ratsimp(makelist(
+    x^2*diff(spherical_hankel2(n,x),x,2)
+      + 2*x*diff(spherical_hankel2(n,x),x)
+      + (x^2 - n*(n+1))*spherical_hankel2(n,x),
+    n,0,8));
+[0,0,0,0,0,0,0,0,0]$
+
+/* explicit low-degree checks */
+ratsimp([
+ spherical_hankel2(0,x) - ((sin(x) + %i*cos(x))/x),
+ spherical_hankel2(1,x) - ((sin(x) + %i*cos(x))/x^2 - (cos(x) - %i*sin(x))/x),
+ spherical_hankel2(2,x) - (
+     ((3/x^3 - 1/x)*(sin(x) + %i*cos(x)))
+     - (3/x^2)*(cos(x) - %i*sin(x))
+ )
+]);
+[0,0,0]$
+
+/* numeric tests */
+spherical_hankel2(5,2.3);
+0.000510409702 + 0.000510409702*%i$
+
+spherical_hankel2(5,23/10);
+(510409702/1000000000000) + (510409702/1000000000000)*%i$
+
+subst(x=23/10,spherical_hankel2(5,x));
+(510409702/1000000000000) + (510409702/1000000000000)*%i$
+
+/* rectangular form */
+(declare(z,complex),0);
+0$
+
+conjugate(spherical_hankel2(n,z));
+spherical_hankel2(n,conjugate(z))$
+
+(remove(z,complex),0);
+0$
+
+/* nounform return checks */
+block([ans : spherical_hankel2(-1,x)], [op(ans), args(ans)]);
+[spherical_hankel2, [-1, x]]$
+
+block([ans : spherical_hankel2(-1,42)], [op(ans), args(ans)]);
+[spherical_hankel2, [-1, 42]]$
+
+/* binary64 tests */
+(approx_equal(x,y) := is(abs(x-y) < 10^(-15)*max(1,abs(x))),0);
+0$
+
+block([N:4, okay:true, maxD:12, x,y],
+  for d:maxD-1 thru maxD do (
+    for k:-N thru N do (
+      for l:-N thru N do (
+        x:float(k/N),
+        y:float(l/N),
+        okay:okay and approx_equal(
+                 spherical_hankel2(d,rationalize(x+%i*y)),
+                 spherical_hankel2(d,x+%i*y))))),
+  okay);
+true$
+
+(fpprec:28,0);
+0$
+
+block([N:4, okay:true, maxD:12, x,y],
+  for d:maxD-1 thru maxD do (
+    for k:-N thru N do (
+      for l:-N thru N do (
+        x:bfloat(k/N),
+        y:bfloat(l/N),
+        okay:okay and approx_equal(
+                 spherical_hankel2(d,rationalize(x+%i*y)),
+                 spherical_hankel2(d,x+%i*y))))),
+  okay);
+true$
+
+(reset(fpprec),0);
+0$
+
+/* tidy up */
+values;
+[]$
+
+facts();
+[]$
+
+contexts;
+[initial,global]$

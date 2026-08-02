@@ -154,9 +154,6 @@ Our measure of sufficiently small is
 ;; Number of base 10 digits in a binary64 number (it is 15).
 (defmvar *binary64-digits* (floor (* (float-digits 1.0d0) (log 2 10))))
 
-
-
-
 ;;; The function generic-two-term-recursion-running-error uses recursion to evaluate
 ;;; the orthogonal polynomials, but calling it properly requires a great deal of boilerplate.
 ;;; Here is a macro for calling generic-two-term-recursion-running-error
@@ -919,18 +916,32 @@ Our measure of sufficiently small is
   (give-up))
 
 (def-simplifier spherical_bessel_j (n x)
-    (cond ((and (integerp n) (complex-number-p x #'$numberp))
+    (cond 
+       ;; spherical_bessel_j(n,x) = (-1)^n spherical_bessel_j(-n-1,x)
+       ((great (neg n) n)
+        (mul  
+           (ftake 'mexpt -1 n) 
+           (ftake '%spherical_bessel_j (add (neg n) -1) x)))
+
+      ;; spherical_bessel_j(n,0) = kron_delta(n,-1) + kron_delta(n,1)
+      ((zerop1 x)
+        (add (ftake '%kron_delta n -1) (ftake '%kron_delta n 1)))
+    
+       ((and (integerp n) (complex-number-p x #'$numberp) (not (complex-number-p x #'$ratnump)))
              (let* ((digits (get-digits x))
 		                (one (multiplicative-identity x)))
-			(if one 
-			    (orthopoly-number-coerce (spherical_bessel_j-numeric n x digits) one)
-				(give-up))))
+			   (if one 
+			      (orthopoly-number-coerce (spherical_bessel_j-numeric n x digits) one)
+			  	(give-up))))
 
 		  ((integerp n)	
-		    (spherical_bessel_j-symbolic n x))
+		    (orthopoly-polynomial-simp (spherical_bessel_j-symbolic n x) x))
 
+      ;; spherical_bessel_j(n,x) = (-1)^n spherical_bessel_j(n,-x)
 		  ((great (neg x) x)
 		  	(mul (ftake 'mexpt -1 n) (ftake '%spherical_bessel_j n x)))
+
+  
 		
 		  (t (give-up))))
 		    
@@ -939,14 +950,16 @@ Our measure of sufficiently small is
         (bf-one (bigfloat::to 1))
         (bf-two (bigfloat::to 2)))
       
-  :f0 (bigfloat::/ (bigfloat::sin bf-x) bf-x)
+  :f0 (if (zerop1 x) bf-one (bigfloat::/ (bigfloat::sin bf-x) bf-x))
 
-  :f1 (bigfloat::- (bigfloat::/
+  :f1 (if (zerop1 x) 
+        (bigfloat::to 0)
+        (bigfloat::- (bigfloat::/
                    (bigfloat::sin bf-x)
                    (bigfloat::expt bf-x 2))
-                  (bigfloat::/
+                   (bigfloat::/
                    (bigfloat::cos bf-x)
-                   bf-x))
+                   bf-x)))
 
              ;; p(k) = (2k+1)/x
   :p #'(lambda (k)
@@ -962,9 +975,12 @@ Our measure of sufficiently small is
    j_0(x) = sin(x)/x
    j_1(x) = sin(x)/x^2 - cos(x)/x
    j_{n+1}(x) = ((2n+1)/x) * j_n(x) - j_{n-1}(x)."
-  (let* ((f0 (div (ftake '%sin x) x))
-         (f1 (add (div (ftake '%sin x) (ftake 'mexpt x 2))
-                  (mul -1 (div (ftake '%cos x) x))))
+  (let* ((f0 (if (zerop1 x) 
+               1
+               (div (ftake '%sin x) x)))
+         (f1 (if (zerop1 x) 
+                  0
+                  (add (div (ftake '%sin x) (ftake 'mexpt x 2)) (mul -1 (div (ftake '%cos x) x)))))
          ;; p(k) = ((2k+1)/x)
          (p #'(lambda (k) (div (add (mul 2 k) 1) x)))
          ;; q(k) = -1
@@ -1044,7 +1060,7 @@ Our measure of sufficiently small is
   (epsilon (cl:realpart x)))
 
 (defun relative-error-p (x err eps)
-  (< (abs err) (* eps (max 1 (abs x)))))
+  (< (abs err) (* eps (max eps (abs x)))))
 
 (defun componentwise-abs (x)
 "Return the componentwise absolute value of a real or complex number.
@@ -2057,4 +2073,4 @@ Our measure of sufficiently small is
 (define-orthopoly-conjugator %chebyshev_u :check 1)
 (define-orthopoly-conjugator %assoc_legendre_p :check 2)
 (define-orthopoly-conjugator %assoc_legendre_q :check 2)
-
+(define-orthopoly-conjugator %spherical_bessel_j :check 1)
