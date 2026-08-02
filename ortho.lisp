@@ -1067,41 +1067,6 @@ Our measure of sufficiently small is
      (okay (realpart x) (realpart err) eps)
      (okay (imagpart x) (imagpart err) eps))))
 
-
-#|
-(defun componentwise-abs (x)
-"Return the componentwise absolute value of a real or complex number.
-   For a real input, this is simply (abs x). For a complex input z = a + i b, 
-   this returns the complex value abs(a) + i abs(b)."
-  (complex (abs (realpart x)) (abs (imagpart x))))
-
-(defun generic-two-term-recursion-running-error (p q f0 f1 n)
-  "Evaluate the recurrence forward while tracking an absolute running error bound
-   using the IEEE‑754 real floating‑point model."
-  (cond ((eql n 0) (values f0 0))
-        ((eql n 1) (values f1 0))
-        (t
-         (let ((e0 1)          ; error for f0
-               (e1 1)          ; error for f1
-               (end (1- n))    ; last k value to compute
-               f2 e2)
-           (do ((k 1 (1+ k)))
-               ((> k end) (values f1 (* (epsilon f1) e1)))
-             (let ((a (funcall p k))
-                   (b (funcall q k)))
-               ;; next recurrence value
-               (setq f2 (+ (* a f1) (* b f0)))
-               ;; running absolute error bound
-               (setq e2 (+ (abs (* a e1))
-                           (abs (* b e0))
-                           (abs f2)))
-               ;; update state
-               (setq f0 f1
-                     f1 f2
-                     e0 e1
-                     e1 e2)))))))
-              
- |#
 (defun componentwise-abs (z)
   "Return the componentwise absolute value of a real or complex number.
    For real x, returns (abs x).
@@ -1115,11 +1080,9 @@ Our measure of sufficiently small is
   "Evaluate the recurrence forward while tracking a componentwise absolute
    running error bound using the IEEE‑754 real floating‑point model.
 
-   Recurrence:
-      f_{k+1} = p(k)*f_k + q(k)*f_{k-1}
+   Recurrence: f(k+1) = p(k)*f(k) + q(k)*f(k-1)
 
-   Returns two values:
-      (values f_n  error-bound-for-f_n)"
+   Returns two values: (values f_n  error-bound-for-f_n)"
   (cond ((eql n 0) (values f0 0))
         ((eql n 1) (values f1 0))
         (t
@@ -1459,12 +1422,9 @@ Our measure of sufficiently small is
 (register-orthopoly-recursion
  '%jacobi_p
  #$$ lambda([n,a,b,x],
-      2*(n+1)*(n+a+b+1)*jacobi_p(n+1,a,b,x)
-        = (2*n+a+b+1)
-            * ((2*n+a+b+2)*x + a - b)
-            * jacobi_p(n,a,b,x)
-          - 2*(n+a)*(n+b)*(2*n+a+b+2)
-            * jacobi_p(n-1,a,b,x)) $)
+      jacobi_p(n+1, a, b, x)
+      = jacobi_p(n, a, b, x) * ((2*n + a + b + 1) * (2*n + a + b + 2)*x /(2*(n+1)*(n+a+b+1)) + (a^2-b^2)*(2*n+a+b+1)/(2*(n+1)*(n+a+b+1)*(2*n+a+b)))
+      - (n+a)*(n+b)*(2*n + a + b + 2) * jacobi_p(n-1, a, b, x)/((n+1)*(n+a+b+1)*(2*n+a+b)))$)
 
 (register-orthopoly-recursion
  '%spherical_bessel_j
@@ -1921,17 +1881,17 @@ Our measure of sufficiently small is
          * (1-x^2)^(1/2 - lambda)
          * diff((1-x^2)^(n+lambda-1/2), x, n)) $)
 
-(def-rodrigues laguerre
+(def-rodrigues %laguerre
   #$$ lambda([n,a,x],
        x^(-a) * exp(x)/factorial(n)
          * diff(x^(n+a) * exp(-x), x, n)) $)
 
-(def-rodrigues gen_laguerre
+(def-rodrigues %gen_laguerre
   #$$ lambda([n,a,x],
        x^(-a) * exp(x)/factorial(n)
          * diff(x^(n+a) * exp(-x), x, n)) $)
 
-(def-rodrigues jacobi_p
+(def-rodrigues %jacobi_p
   #$$ lambda([n,a,b,x],
        (-1)^n/(2^n * factorial(n))
          * (1-x)^(-a) * (1+x)^(-b)
@@ -2125,6 +2085,7 @@ Our measure of sufficiently small is
 (define-orthopoly-conjugator %gegenbauer :check 1)
 (define-orthopoly-conjugator %chebyshev_t :check 1)
 (define-orthopoly-conjugator %chebyshev_u :check 1)
+(define-orthopoly-conjugator %jacobi_p :check 1)
 (define-orthopoly-conjugator %assoc_legendre_p :check 2)
 (define-orthopoly-conjugator %assoc_legendre_q :check 2)
 (define-orthopoly-conjugator %spherical_bessel_j :check 1)
