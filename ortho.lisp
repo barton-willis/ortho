@@ -182,7 +182,7 @@ Our measure of sufficiently small is
              (multiple-value-bind (value err)
                  (bigfloat::generic-two-term-recursion-running-error
                   p q f0 f1 ,n-var)
-               (cond ((bigfloat::relative-error-p value err eps)
+               (cond ((bigfloat::modified-relative-error-p value err eps)
                       (maxima::to value))
                      (t
                       ;; restart with doubled precision
@@ -1059,9 +1059,16 @@ Our measure of sufficiently small is
   ;; by extracting the real part and evaluating its epsilon.
   (epsilon (cl:realpart x)))
 
-(defun relative-error-p (x err eps)
-  (< (abs err) (* eps (max eps (abs x)))))
+(defun modified-relative-error-p (x err eps)
+  "Return T if the componentwise modified relative error is <= eps.  Works for real or complex x and err"
+  (flet ((okay (x err eps)
+           (< (abs err) (* eps (max eps (abs x))))))
+    (and
+     (okay (realpart x) (realpart err) eps)
+     (okay (imagpart x) (imagpart err) eps))))
 
+
+#|
 (defun componentwise-abs (x)
 "Return the componentwise absolute value of a real or complex number.
    For a real input, this is simply (abs x). For a complex input z = a + i b, 
@@ -1093,6 +1100,53 @@ Our measure of sufficiently small is
                      f1 f2
                      e0 e1
                      e1 e2)))))))
+              
+ |#
+(defun componentwise-abs (z)
+  "Return the componentwise absolute value of a real or complex number.
+   For real x, returns (abs x).
+   For complex z = a + i b, returns abs(a) + i abs(b)."
+  (if (complexp z)
+      (complex (abs (realpart z))
+               (abs (imagpart z)))
+      (abs z)))
+
+(defun generic-two-term-recursion-running-error (p q f0 f1 n)
+  "Evaluate the recurrence forward while tracking a componentwise absolute
+   running error bound using the IEEE‑754 real floating‑point model.
+
+   Recurrence:
+      f_{k+1} = p(k)*f_k + q(k)*f_{k-1}
+
+   Returns two values:
+      (values f_n  error-bound-for-f_n)"
+  (cond ((eql n 0) (values f0 0))
+        ((eql n 1) (values f1 0))
+        (t
+         (let ((e0 (componentwise-abs f0))   ; initial error bounds
+               (e1 (componentwise-abs f1))
+               (end (1- n))
+               f2 e2)
+           (do ((k 1 (1+ k)))
+               ((> k end)
+                ;; final error bound: ε * e1, componentwise
+                (values f1 (componentwise-abs (* (epsilon f1) e1))))
+             (let* ((a (funcall p k))
+                    (b (funcall q k))
+                    ;; recurrence step
+                    (next (+ (* a f1) (* b f0))))
+               (setq f2 next)
+               ;; componentwise error propagation
+               (setq e2 (+ (componentwise-abs (* a e1))
+                           (componentwise-abs (* b e0))
+                           ;; rounding error from forming f2 itself
+                           (componentwise-abs (* (epsilon next) next))))
+               ;; update state
+               (setq f0 f1
+                     f1 f2
+                     e0 e1
+                     e1 e2)))))))
+
 
 (in-package :maxima)
 
