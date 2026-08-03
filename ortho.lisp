@@ -919,28 +919,31 @@ Our measure of sufficiently small is
 		    
 
 (define-two-term-numeric* spherical_bessel_j-numeric (n x digits)
-  :let ((bf-x   (bigfloat::to x))
+  :let ((bf-x (bigfloat::to x))
+        (bf-zero (bigfloat::to 0))
         (bf-one (bigfloat::to 1))
-        (bf-two (bigfloat::to 2)))
-      
-  :f0 (if (zerop1 x) bf-one (bigfloat::/ (bigfloat::sin bf-x) bf-x))
+        (bf-minus-one (bigfloat::to -1)))
 
-  :f1 (if (zerop1 x) 
-        (bigfloat::to 0)
-        (bigfloat::- (bigfloat::/ (bigfloat::sin bf-x) (bigfloat::* bf-x bf-x))
-                     (bigfloat::/ (bigfloat::cos bf-x) bf-x)))
+  :f0 (if (bigfloat::zerop bf-x)
+         bf-one
+         (bigfloat::/ (bigfloat::sin bf-x) bf-x))
+
+  :f1 (if (bigfloat::zerop bf-x)
+         bf-zero
+         (bigfloat::-
+           (bigfloat::/ (bigfloat::sin bf-x) (bigfloat::* bf-x bf-x))
+           (bigfloat::/ (bigfloat::cos bf-x) bf-x)))
 
   ;; p(k) = (2k+1)/x
   :p #'(lambda (k)
-                    (bigfloat::/
-                     (bigfloat::+
-                      (bigfloat::* bf-two (bigfloat::to k))
-                      bf-one)
-                     bf-x))
-  :q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1)))
+         (bigfloat::/ (bigfloat:to (+ (* 2 k) 1))  bf-x))
+
+  ;; q(k) = -1   
+  :q #'(lambda (k) (declare (ignore k)) bf-minus-one))
+  
 
 (defun spherical_bessel_j-symbolic (n x)
-  "Symbolic spherical Bessel j_n(x) using the standard two-term recurrence.
+  "Symbolic spherical Bessel j_n(x) using the recurrence:
    j_0(x) = sin(x)/x
    j_1(x) = sin(x)/x^2 - cos(x)/x
    j_{n+1}(x) = ((2n+1)/x) * j_n(x) - j_{n-1}(x)."
@@ -949,9 +952,9 @@ Our measure of sufficiently small is
                (div (ftake '%sin x) x)))
          (f1 (if (zerop1 x) 
                   0
-                  (add (div (ftake '%sin x) (ftake 'mexpt x 2)) (mul -1 (div (ftake '%cos x) x)))))
+                  (sub (div (ftake '%sin x) (ftake 'mexpt x 2)) (div (ftake '%cos x) x))))
          ;; p(k) = ((2k+1)/x)
-         (p #'(lambda (k) (div (add (mul 2 k) 1) x)))
+         (p #'(lambda (k) (div (+ (* 2 k) 1) x)))
          ;; q(k) = -1
          (q #'(lambda (k) (declare (ignore k)) -1)))
     (generic-two-term-recursion-symbolic p q f0 f1 n)))
