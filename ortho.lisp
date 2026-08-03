@@ -917,7 +917,6 @@ Our measure of sufficiently small is
 
 		  (t (give-up))))
 		    
-
 (define-two-term-numeric* spherical_bessel_j-numeric (n x digits)
   :let ((bf-x (bigfloat::to x))
         (bf-zero (bigfloat::to 0))
@@ -959,11 +958,97 @@ Our measure of sufficiently small is
          (q #'(lambda (k) (declare (ignore k)) -1)))
     (generic-two-term-recursion-symbolic p q f0 f1 n)))
 	    
-;; For analytic continuation, see A&S 10.1.35.
+(def-simplifier spherical_bessel_y (n x)
+  (cond
+     ;; spherical_bessel_y(n,0) is not real.
+    ((zerop1 x)
+     (merror "spherical_bessel_y: encountered spherical_bessel_y(n,0)"))
+
+    ;; spherical_bessel_y(n,x) = (-1)^n spherical_bessel_y(-n-1,x)
+    ((great (neg n) n)
+     (mul
+       (ftake 'mexpt -1 n)
+       (ftake '%spherical_bessel_y (add (neg n) -1) x)))
+
+    ;; numeric evaluation path
+    ((and (integerp n)
+          (complex-number-p x #'$numberp)
+          (not (complex-number-p x #'$ratnump)))
+     (let* ((digits (get-digits x))
+            (one (multiplicative-identity x)))
+       (if one
+           (orthopoly-number-coerce
+             (spherical_bessel_y-numeric n x digits)
+             one)
+           (give-up))))
+
+    ;; symbolic polynomial-like form
+    ((integerp n)
+     (orthopoly-polynomial-simp  (spherical_bessel_y-symbolic n x) x))
+
+    ;; spherical_bessel_y(n,x) = (-1)^n spherical_bessel_y(n,-x)
+    ((great (neg x) x)
+     (mul
+       (ftake 'mexpt -1 n)
+       (ftake '%spherical_bessel_y n x)))
+
+    (t (give-up))))
+
+(define-two-term-numeric* spherical_bessel_y-numeric (n x digits)
+  :let ((bf-x         (bigfloat::to x))
+        (bf-zero      (bigfloat::to 0))
+        (bf-one       (bigfloat::to 1))
+        (bf-minus-one (bigfloat::to -1)))
+
+  ;; y_0(x) = -cos(x)/x,  y_0(0) = -1  (limit)
+  :f0 (if (bigfloat::zerop bf-x)
+         bf-minus-one
+         (bigfloat::/ (bigfloat::- (bigfloat::cos bf-x)) bf-x))
+
+  ;; y_1(x) = -cos(x)/x^2 - sin(x)/x,  y_1(0) = 0  (limit)
+  :f1 (if (bigfloat::zerop bf-x)
+         bf-zero
+         (bigfloat::-
+           (bigfloat::/ (bigfloat::- (bigfloat::cos bf-x))
+                        (bigfloat::* bf-x bf-x))
+           (bigfloat::/ (bigfloat::sin bf-x) bf-x)))
+
+  ;; p(k) = (2k+1)/x
+  :p #'(lambda (k)
+         (bigfloat::/
+           (bigfloat::to (+ (* 2 k) 1))
+           bf-x))
+
+  ;; q(k) = -1
+  :q #'(lambda (k)
+         (declare (ignore k))
+         bf-minus-one))
+
+(defun spherical_bessel_y-symbolic (n x)
+  "Symbolic spherical Bessel y_n(x) using the recurrence:
+   y_0(x) = -cos(x)/x
+   y_1(x) = -cos(x)/x^2 - sin(x)/x
+   y_{n+1}(x) = ((2n+1)/x) * y_n(x) - y_{n-1}(x)."
+  (let* ((f0 (if (zerop1 x)
+                 -1
+                 (div (sub 0 (ftake '%cos x)) x)))
+
+         (f1 (if (zerop1 x)
+                 0
+                 (sub (div (sub 0 (ftake '%cos x))
+                           (ftake 'mexpt x 2))
+                      (div (ftake '%sin x) x))))
+
+         ;; p(k) = ((2k+1)/x)
+         (p #'(lambda (k)
+                (div (+ (* 2 k) 1) x)))
+
+         ;; q(k) = -1
+         (q #'(lambda (k)
+                (declare (ignore k))
+                -1)))
+    (generic-two-term-recursion-symbolic p q f0 f1 n)))
  
-(defun $spherical_bessel_y (n x)
-   (declare (ignore n x))
-   (merror "spherical_bessel_y"))
 
 (def-simplifier spherical_harmonic (l m theta phi)
   (cond ((or (eq t (mgrp (ftake 'mabs m) l)) (eq t (mgrp 0 l))) 0) 
