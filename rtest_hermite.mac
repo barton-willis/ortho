@@ -216,7 +216,7 @@ block([bad : [],n,x,exact, approx, eps : 10^-14],
          x : float(i/50),
          exact : hermite(n,rationalize(x)),
          approx : hermite(n,x),
-         if abs(exact-approx)  > eps * max(1, abs(exact)) then push([n,rationalize(x)], bad)), 
+         if abs(exact-approx) > eps * max(1, abs(exact)) then push([n,rationalize(x)], bad)), 
     bad);
 []$
 

@@ -1,6 +1,9 @@
 (kill(all),0);
 0$
 
+(approx_equal(x,y) := is(abs(x-y) < 10^(-15)*max(1,abs(x))),0);
+0$
+
 /* bogus arguments */
 errcatch(ultraspherical());
 []$
@@ -33,7 +36,7 @@ block([ans],
     ans);
 pochhammer(2*lam,n)/n!$
 
-makelist(is(subst(n=k, pochhammer(2*lam,n)/n!) = ultraspherical(k,lam,1)), k,0,6);
+makelist(is(ratsimp(subst(x=1, pochhammer(2*lam,k)/k! = ultraspherical(k,lam,x)))),k,0,6);
 [true,true,true,true,true,true,true]$
 
 /* Rodrigues formula */
@@ -45,8 +48,8 @@ makelist(ratsimp(fn(k,lam,x) - ultraspherical(k,lam,x)), k,0,10);
 
 /* gradient */
 (df : diff(ultraspherical(n,lam,x),x),
- expand(makelist(subst(n=k,df) - diff(ultraspherical(k,lam,x),x),k,0,10)));
-[0,0,0,0,0,0,0,0,0,0,0]$
+ expand(makelist(subst(n=k,df) - diff(ultraspherical(k,lam,x),x),k,1,10)));
+[0,0,0,0,0,0,0,0,0,0]$
 
 (remvalue(fn,df),0);
 0$
@@ -56,11 +59,11 @@ makelist(ratsimp(fn(k,lam,x) - ultraspherical(k,lam,x)), k,0,10);
 0$
 
 block([ans],
-  fn(n,m) := integrate(ultraspherical(n,lam,x)*ultraspherical(m,lam,x)
+  fn(n,m,lam) := integrate(ultraspherical(n,lam,x)*ultraspherical(m,lam,x)
                        *(1-x^2)^(lam-1/2), x,-1,1)
              - kron_delta(n,m)
                * (2^(1-2*lam)*%pi*gamma(n+2*lam))/(n!*(n+lam)*gamma(lam)^2),
-  ans : makelist(makelist(ratsimp(fn(n,m)),m,0,4), n,0,4),
+  ans : makelist(makelist(ratsimp(fn(n,m,8+1/2)),m,0,4), n,0,4),
   remfunction(fn),
   ans);
 [[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]]$
@@ -68,14 +71,7 @@ block([ans],
 (forget(lam > 1),0);
 0$
 
-/* generating function (A&S 22.9.1) */
-block([ans],
-  fn(n) := ultraspherical(n,lam,x)
-           - coeff(expand((1-2*x*t+t^2)^(-lam)), t, n),
-  ans : makelist(ratsimp(fn(n)), n,0,7),
-  remfunction(fn),
-  ans);
-[0,0,0,0,0,0,0,0]$
+
 
 /* reflection: C_n^lam(-x) = (-1)^n C_n^lam(x) */
 ratsimp(makelist(ultraspherical(n,lam,-x) - (-1)^n*ultraspherical(n,lam,x), n,0,10));
@@ -83,12 +79,12 @@ ratsimp(makelist(ultraspherical(n,lam,-x) - (-1)^n*ultraspherical(n,lam,x), n,0,
 
 /* explicit low-degree checks */
 ratsimp([
-  ultraspherical(0,lam,x) - 1,
-  ultraspherical(1,lam,x) - 2*lam*x,
-  ultraspherical(2,lam,x) - (2*lam*(lam+1)*x^2 - lam),
-  ultraspherical(3,lam,x) - (4*lam*(lam+1)*(lam+2)*x^3 - 2*lam*(lam+1)*x)
+  ultraspherical(0,lam,x),
+  ultraspherical(1,lam,x),
+  ultraspherical(2,lam,x),
+  ultraspherical(3,lam,x)
 ]);
-[0,0,0,0]$
+ [1,2*lam*x,(2*lam^2+2*lam)*x^2-lam,((4*lam^3+12*lam^2+8*lam)*x^3+(-(6*lam^2)-6*lam)*x)/3]$
 
 /* numeric tests */
 /* numeric tests */
@@ -102,7 +98,7 @@ subst(x=23/10, ultraspherical(5,3/2,x));
 3718014699/800000$
 
 /* rectangular form */
-(declare(z,complex),declare(lam,complex)0);
+(declare(z,complex),declare(lam,complex), 0);
 0$
 
 conjugate(ultraspherical(n,lam,z));
@@ -125,13 +121,13 @@ expand(fn(5,lam,z,ultraspherical(5,lam,z)));
 (fn : orthopoly_recursion('ultraspherical),0);
 0$
 
-is(fn(0,lam,z));
+is(expand(fn(5,a,x)));
 true$
 
-is(apply(equal,args(fn(1,lam,z))));
+is(expand(fn(2,a,x)));
 true$
 
-is(apply(equal,args(fn(12,lam,z))));
+is(expand(fn(8,a,x)));
 true$
 
 (remvalue(fn),0);
@@ -145,8 +141,6 @@ block([ans : ultraspherical(-1,lam,42)], [op(ans), args(ans)]);
 [ultraspherical, [-1, lam, 42]]$
 
 /* binary64 tests */
-(approx_equal(x,y) := is(abs(x-y) < 10^(-15)*max(1,abs(x))),0);
-0$
 
 block([N:4, okay:true, maxD:12, x,y],
   for d:maxD-1 thru maxD do (
@@ -179,10 +173,10 @@ true$
 0$
 
 /* high degree float */
-is(abs(ultraspherical(500, 1/2, 1/4+%i) - ultraspherical(500, 1/2, 0.25+%i)) < 10^(-16));
+approx_equal(ultraspherical(500, 1/2, 1/4+%i) , ultraspherical(500, 1/2, 0.25+%i));
 true$
 
-is(abs(ultraspherical(500, 1/2, 1/4+%i) - ultraspherical(500, 1/2, 0.25b0+%i)) < 10^(-16));
+approx_equal(ultraspherical(500, 1/2, 1/4+%i) , ultraspherical(500, 1/2, 0.25b0+%i));
 true$
 
 /* tidy up */

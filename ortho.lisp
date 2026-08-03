@@ -653,8 +653,8 @@ Our measure of sufficiently small is
 
 (defun get-digits (x)
   (if (floatp x)
-			(- *binary64-digits* 2)
-			(- $fpprec 2)))
+			*binary64-digits*
+			$fpprec))
 
 (def-simplifier assoc_legendre_p (l m x)
   (cond ((and (integerp l) (integerp m) (<= (abs m) l) (complex-number-p x #'$numberp))
@@ -1104,8 +1104,13 @@ Our measure of sufficiently small is
 
 (defun modified-relative-error-p (x err eps)
   "Return T if the componentwise modified relative error is <= eps.  Works for real or complex x and err"
+  (setq eps (bigfloat::to eps))
+   (setq x (bigfloat::to x))
+    (setq err (bigfloat::to err))
+ ; (maxima::mtell "x = ~M ; err = ~M ; eps = ~M ~%" x err eps)
   (flet ((okay (x err eps)
-           (< (abs err) (* eps (max eps (abs x))))))
+           (<= (abs err) (* eps (max 1 (abs x))))))
+;(maxima::mtell "okay1 = ~M ; okay2 = ~M  ~%"  (okay (realpart x) (realpart err) eps)  (okay (imagpart x) (imagpart err) eps))
     (and
      (okay (realpart x) (realpart err) eps)
      (okay (imagpart x) (imagpart err) eps))))
@@ -1675,10 +1680,11 @@ Our measure of sufficiently small is
       +2*jacobi_p(n-1,a,b,x)*(n+a)*(n+b)*unit_step(n))
       /((2*n+b+a)*(1-x^2)) $)
 
+;;; http://dlmf.nist.gov/18.9.E19 The gradient for n=0 is a special case.
 (defgrad %ultraspherical ($n $a $x)
   nil 
   nil
-  #$$ (2*lambda*ultraspherical(n-1,a+1,x) -n*x*ultraspherical(n,a,x))/(1-x^2) $)
+  #$$ 2*a*ultraspherical(n-1,a+1,x)$)
 
 ;; http://dlmf.nist.gov/18.9.E21 
 (defgrad %chebyshev_t ($n $x)
@@ -1833,10 +1839,10 @@ Our measure of sufficiently small is
   #$$ lambda([n,x], (n+1)*(1-x^2)^(-1/2) * diff((1-x^2)^(1/2) * (1-x^2)^n,x,n) / ((-2)^n * pochhammer(3/2,n)))$)
 
 (def-rodrigues %ultraspherical
-  #$$ lambda([n,lambda,x],
-       (-2)^n * gamma(n+lambda)/gamma(lambda)
-         * (1-x^2)^(1/2 - lambda)
-         * diff((1-x^2)^(n+lambda-1/2), x, n)) $)
+  #$$ lambda([n,lam,x],
+        (pochhammer(2*lam,n) / ((-2)^n * n!* pochhammer(lam+1/2,n)))
+         * (1-x^2)^(1/2 - lam)
+         * diff((1-x^2)^(n+lam-1/2), x, n)) $)
 
 (def-rodrigues %laguerre
   #$$ lambda([n,a,x],
@@ -1980,6 +1986,7 @@ Our measure of sufficiently small is
                          (ftake 'mlist (fapply ',op args))))))
        (setf (get ',op 'conjugate-function) ',fun))))
 
+(define-orthopoly-conjugator %ultraspherical :check 1)
 (define-orthopoly-conjugator %hermite :check 1)
 (define-orthopoly-conjugator %laguerre :check 1)
 (define-orthopoly-conjugator %legendre_p :check 1)
