@@ -994,24 +994,19 @@ Our measure of sufficiently small is
 
     (t (give-up))))
 
+;; The spherical_bessel_y simplifier traps the case x = 0.
 (define-two-term-numeric* spherical_bessel_y-numeric (n x digits)
   :let ((bf-x         (bigfloat::to x))
-        (bf-zero      (bigfloat::to 0))
-        (bf-one       (bigfloat::to 1))
         (bf-minus-one (bigfloat::to -1)))
 
-  ;; y_0(x) = -cos(x)/x,  y_0(0) = -1  (limit)
-  :f0 (if (bigfloat::zerop bf-x)
-         bf-minus-one
-         (bigfloat::/ (bigfloat::- (bigfloat::cos bf-x)) bf-x))
+  ;; y_0(x) = -cos(x)/x
+  :f0 (bigfloat::/ (bigfloat::- (bigfloat::cos bf-x)) bf-x)
 
-  ;; y_1(x) = -cos(x)/x^2 - sin(x)/x,  y_1(0) = 0  (limit)
-  :f1 (if (bigfloat::zerop bf-x)
-         bf-zero
-         (bigfloat::-
-           (bigfloat::/ (bigfloat::- (bigfloat::cos bf-x))
-                        (bigfloat::* bf-x bf-x))
-           (bigfloat::/ (bigfloat::sin bf-x) bf-x)))
+  ;; y_1(x) = -cos(x)/x^2 - sin(x)/x
+  :f1 (bigfloat::-
+        (bigfloat::/ (bigfloat::- (bigfloat::cos bf-x))
+                     (bigfloat::* bf-x bf-x))
+        (bigfloat::/ (bigfloat::sin bf-x) bf-x))
 
   ;; p(k) = (2k+1)/x
   :p #'(lambda (k)
@@ -1029,24 +1024,15 @@ Our measure of sufficiently small is
    y_0(x) = -cos(x)/x
    y_1(x) = -cos(x)/x^2 - sin(x)/x
    y_{n+1}(x) = ((2n+1)/x) * y_n(x) - y_{n-1}(x)."
-  (let* ((f0 (if (zerop1 x)
-                 -1
-                 (div (sub 0 (ftake '%cos x)) x)))
+  (let* ((f0 (div (sub 0 (ftake '%cos x)) x))
 
-         (f1 (if (zerop1 x)
-                 0
-                 (sub (div (sub 0 (ftake '%cos x))
-                           (ftake 'mexpt x 2))
-                      (div (ftake '%sin x) x))))
+         (f1  (sub (div (neg (ftake '%cos x)) (ftake 'mexpt x 2))  (div (ftake '%sin x) x)))
 
          ;; p(k) = ((2k+1)/x)
-         (p #'(lambda (k)
-                (div (+ (* 2 k) 1) x)))
+         (p #'(lambda (k) (div (+ (* 2 k) 1) x)))
 
          ;; q(k) = -1
-         (q #'(lambda (k)
-                (declare (ignore k))
-                -1)))
+         (q #'(lambda (k) (declare (ignore k))  -1)))
     (generic-two-term-recursion-symbolic p q f0 f1 n)))
  
 
