@@ -129,20 +129,10 @@ Our measure of sufficiently small is
 
 (in-package :maxima)
 
-;;; Let's not spew compiler warnings, OK?
-(declaim (ftype function assoc_legendre_q-symbolic))
-(declaim (ftype function assoc_legendre_q-numeric))
-(declaim (ftype function legendre_q-symbolic))
-
-
 (defun orthopoly-default-simp (p x)
   "Default cleanup for orthogonal polynomials."
   (declare (ignore x))
   (sratsimp p))
-
-;; If you prefer a Horner representation:
-(defun orthopoly-horner-simp (p x)
-  ($horner p x))
 
 ;; Function applied to every symbolically generated polynomial.
 (defun orthopoly-polynomial-simp (p x &optional (simp-fn #'orthopoly-default-simp))
@@ -226,8 +216,8 @@ Our measure of sufficiently small is
 (defun unit_step-sign-function (x)
    (declare (ignore x))
    (setq sign '$pz))
-(setf (get '%unit_step 'sign-function) 'unit_step-sign-function)
-(setf (get '$unit_step 'sign-function) 'unit_step-sign-function)
+;(setf (get '%unit_step 'sign-function) 'unit_step-sign-function)
+;(setf (get '$unit_step 'sign-function) 'unit_step-sign-function)
 
 ;; antiderivative of unit_step
 (putprop '%unit_step
@@ -249,7 +239,7 @@ Our measure of sufficiently small is
            ((or (eq lim '$und) (eq lim '$infinity)) (throw 'limit nil)) ; don't know
            (t (ftake '%unit_step lim))))) ; use direct substitution
 
-(setf (get '%unit_step 'simplim%function) 'simplim%unit_step)
+;(setf (get '%unit_step 'simplim%function) 'simplim%unit_step)
 
 (defun multiplicative-identity (&rest a)
   "Return the appropriate multiplicative identity (1 for rational numbers, 1.0do for binary64, and 1.0b0 for bigfloats)
@@ -275,7 +265,7 @@ Our measure of sufficiently small is
 ;;; simplifier for the Jacobi polynomials
 (def-simplifier jacobi_p (n a b x)
   (cond
-    ;; Numeric evaluation: all arguments are numeric (complex-number-p)
+    ;; Numeric evaluation: all arguments are numeric (either real or complex)
     ((and (integerp n)
           (complex-number-p a #'$numberp)
           (complex-number-p b #'$numberp)
@@ -308,14 +298,7 @@ Our measure of sufficiently small is
     (t
      (give-up))))
 
-;; Derivatives of the Jacobi polynomials. 
-(defgrad %jacobi_p ($n $a $b $x)
-  nil
-  nil
-  nil
-  #$$ (n*jacobi_p(n,a,b,x)*((-(2*n)-b-a)*x-b+a)+2*jacobi_p(n-1,a,b,x)*(n+a)*(n+b)*unit_step(n))/((2*n+b+a)*(1-x^2))$)
-
-;;; For the Jacobi polynoimals, we need to special case negative integer parameters. The code
+;;; For the Jacobi polynomials, we need to special case negative integer parameters. The code
 ;;; jacobi_p-dispatch handles these special cases.
 (defun jacobi_p-dispatch (n a b x digits)
   "Top-level dispatcher for Jacobi polynomials that special cases negative integer parameters."
@@ -534,8 +517,6 @@ Our measure of sufficiently small is
            (orthopoly-polynomial-simp (chebyshev_t-symbolic (neg n) x) x)
 		       (orthopoly-polynomial-simp (chebyshev_t-symbolic n x) x)))
 
-      
-
       ;; See DLMF Table Table 18.6.1 for the following three simplifications:
 		  ((eql x 1)  1)
 		  ((and (eql x 0) ($featurep n '$even)) (ftake 'mexpt 1 (div n 2)))
@@ -721,9 +702,6 @@ Our measure of sufficiently small is
                (ftake 'mexpt (sub 1 (mul x x)) (div m 2))
                (ftake '%ultraspherical (sub l m) (add m (div 1 2)) x))))))
 
-;; For the derivative of the associated legendre p function, see
-;; A & S 8.5.4 page 334.
-
 ;;; Simplifier for the Hermite polynomial H_n, not He_n; see DLMF Table Table 18.3.1. 
 ;;; (https://dlmf.nist.gov/18.3) For the recusion, see DLMF Table http://dlmf.nist.gov/18.9.T1. 
 ;;; For special values, see DLMF Table http://dlmf.nist.gov/18.6.i
@@ -760,10 +738,6 @@ Our measure of sufficiently small is
         ;; hermite(2n+1,0) = 0
         ((and (eql 0 x) ($featurep n '$odd))  0)
         (t (give-up))))
-
-(defgrad %hermite ($n $x)
-  nil
-  #$$ 2*n*herite(n-1,x)$)
 
 (define-two-term-numeric* hermite-numeric (n x digits)
   :let  ((bf-x  (bigfloat::to x))
@@ -941,10 +915,9 @@ Our measure of sufficiently small is
 		  ((great (neg x) x)
 		  	(mul (ftake 'mexpt -1 n) (ftake '%spherical_bessel_j n x)))
 
-  
-		
 		  (t (give-up))))
 		    
+
 (define-two-term-numeric* spherical_bessel_j-numeric (n x digits)
   :let ((bf-x   (bigfloat::to x))
         (bf-one (bigfloat::to 1))
@@ -954,14 +927,10 @@ Our measure of sufficiently small is
 
   :f1 (if (zerop1 x) 
         (bigfloat::to 0)
-        (bigfloat::- (bigfloat::/
-                   (bigfloat::sin bf-x)
-                   (bigfloat::expt bf-x 2))
-                   (bigfloat::/
-                   (bigfloat::cos bf-x)
-                   bf-x)))
+        (bigfloat::- (bigfloat::/ (bigfloat::sin bf-x) (bigfloat::* bf-x bf-x))
+                     (bigfloat::/ (bigfloat::cos bf-x) bf-x)))
 
-             ;; p(k) = (2k+1)/x
+  ;; p(k) = (2k+1)/x
   :p #'(lambda (k)
                     (bigfloat::/
                      (bigfloat::+
@@ -1109,7 +1078,6 @@ Our measure of sufficiently small is
                      f1 f2
                      e0 e1
                      e1 e2)))))))
-
 
 (in-package :maxima)
 
@@ -1302,9 +1270,6 @@ Our measure of sufficiently small is
 	       (if (or (< (abs n) $expop) return-a-rat) (setq acc ($rat acc) x ($rat x)))
 	       (dotimes (k n (if return-a-rat acc ($ratdisrep acc)))
 		 (setq acc (mul acc (add k x)))))))
-
-	 
-	   
 	  ;; return a nounform.
 	  (t `(($pochhammer simp) ,x ,n)))))
 
@@ -1345,19 +1310,6 @@ Our measure of sufficiently small is
 ;; Generalized Laguerre polynomial
 (defun lagpol (n a arg)
 	(ftake '%gen_laguerre n a arg))
-
-
-;;; ======================================================================
-;;;  orthopoly-recursions.lisp
-;;;  Unified recursion registry for orthogonal polynomials and related
-;;;  special functions in Maxima.
-;;;
-;;;  Provides:
-;;;    • Reader macro #$$ … $ for lambda forms
-;;;    • Hash table storing recursion lambdas
-;;;    • Registration and lookup functions
-;;;    • Recursions for all functions listed in user documentation
-;;; ======================================================================
 
 (in-package :maxima)
 
@@ -1478,10 +1430,6 @@ Our measure of sufficiently small is
   (or (gethash name *orthopoly-weight-table*)
       (error "No weight registered for ~A" name)))
 
-;;; ----------------------------------------------------------------------
-;;; USER-LEVEL FUNCTIONS
-;;; ----------------------------------------------------------------------
-
 (defmfun orthopoly_register_weight (name lambda_expr)
   (let* ((lname (mfuncall '$symbol name))
          (lform lambda_expr))
@@ -1556,14 +1504,6 @@ Our measure of sufficiently small is
  '%spherical_harmonic
  #$$ lambda([theta,phi], [sin(theta), [0,pi], [0,2*pi]]) $)
 
-;;;;;;;;;;;;;;;;;;;;;;
-;;; ======================================================================
-;;;  orthopoly-normalization.lisp
-;;;  Normalization subsystem for orthogonal polynomials in Maxima
-
-;;; ----------------------------------------------------------------------
-;;; Normalization table
-;;; ----------------------------------------------------------------------
 
 (defparameter *orthopoly-normalization-table*
   (make-hash-table :test #'eq :size 128))
@@ -1576,10 +1516,6 @@ Our measure of sufficiently small is
   (or (gethash name *orthopoly-normalization-table*)
       (error "No normalization registered for ~A" name)))
 
-;;; ----------------------------------------------------------------------
-;;; USER-LEVEL FUNCTIONS
-;;; ----------------------------------------------------------------------
-
 (defmfun orthopoly_register_normalization (name lambda_expr)
   (let* ((lname (mfuncall '$symbol name))
          (lform lambda_expr))
@@ -1590,49 +1526,24 @@ Our measure of sufficiently small is
     (or (gethash name *orthopoly-normalization-table*)
         (merror "No normalization registered for ~M" name)))
 
-;;; ======================================================================
-;;; Normalization definitions
-;;; ======================================================================
-
 (register-orthopoly-normalization
  '%hermite
  #$$ lambda([n], 2^n * factorial(n) * sqrt(%pi)) $)
-
-;;; ----------------------------------------------------------------------
-;;; Legendre P_n
-;;; ∫_{-1}^{1} P_n(x)^2 dx = 2/(2n+1)
-;;; ----------------------------------------------------------------------
 
 (register-orthopoly-normalization
  '%legendre_p
  #$$ lambda([n],
       2/(2*n+1)) $)
 
-;;; ----------------------------------------------------------------------
-;;; Chebyshev T_n
-;;; ∫ T_n(x)^2 /sqrt(1-x^2) dx = π (n=0), π/2 (n>0)
-;;; ----------------------------------------------------------------------
-
 (register-orthopoly-normalization
  'chebyshev_t
  #$$ lambda([n],
       if n=0 then %pi else %pi/2) $)
 
-;;; ----------------------------------------------------------------------
-;;; Chebyshev U_n
-;;; ∫ U_n(x)^2 sqrt(1-x^2) dx = π/2
-;;; ----------------------------------------------------------------------
-
 (register-orthopoly-normalization
  'chebyshev_u
  #$$ lambda([n],
       %pi/2) $)
-
-;;; ----------------------------------------------------------------------
-;;; Gegenbauer / Ultraspherical C_n^(λ)
-;;; ∫ (1-x^2)^(λ-1/2) C_n^(λ)(x)^2 dx =
-;;;   π 2^(1-2λ) Γ(n+2λ) / (n! (n+λ) Γ(λ)^2)
-;;; ----------------------------------------------------------------------
 
 (register-orthopoly-normalization
  'ultraspherical
@@ -1641,31 +1552,15 @@ Our measure of sufficiently small is
         * gamma(n+2*lambda)
         /( factorial(n)*(n+lambda)*gamma(lambda)^2 )) $)
 
-;;; ----------------------------------------------------------------------
-;;; Laguerre L_n^(a)
-;;; ∫ x^a e^{-x} L_n^(a)(x)^2 dx = Γ(n+a+1)/n!
-;;; ----------------------------------------------------------------------
-
 (register-orthopoly-normalization
  'laguerre
  #$$ lambda([n,a],
       gamma(n+a+1)/factorial(n)) $)
 
-;;; ----------------------------------------------------------------------
-;;; Generalized Laguerre
-;;; Same formula
-;;; ----------------------------------------------------------------------
-
 (register-orthopoly-normalization
  'gen_laguerre
  #$$ lambda([n,a],
       gamma(n+a+1)/factorial(n)) $)
-
-;;; ----------------------------------------------------------------------
-;;; Jacobi P_n^(a,b)
-;;; ∫ (1-x)^a (1+x)^b P_n^(a,b)(x)^2 dx =
-;;;   2^(a+b+1)/(2n+a+b+1) * Γ(n+a+1)Γ(n+b+1)/(n! Γ(n+a+b+1))
-;;; ----------------------------------------------------------------------
 
 (register-orthopoly-normalization
  'jacobi_p
@@ -1673,11 +1568,6 @@ Our measure of sufficiently small is
       2^(a+b+1)/(2*n+a+b+1)
         * gamma(n+a+1)*gamma(n+b+1)
         /( factorial(n)*gamma(n+a+b+1) )) $)
-
-;;; ----------------------------------------------------------------------
-;;; Spherical Bessel j_n, y_n, h_n^(1), h_n^(2)
-;;; Formal radial measure: ∫ f(n,x)^2 x^2 dx
-;;; ----------------------------------------------------------------------
 
 (register-orthopoly-normalization
  'spherical_bessel_j
@@ -1698,11 +1588,6 @@ Our measure of sufficiently small is
  'spherical_hankel2
  #$$ lambda([n],
       integrate(spherical_hankel2(n,x)^2 * x^2, x, 0, inf)) $)
-
-;;; ----------------------------------------------------------------------
-;;; Spherical Harmonics Y_l^m
-;;; ∫ |Y_l^m|^2 sin(θ) dθ dφ = 1
-;;; ----------------------------------------------------------------------
 
 (register-orthopoly-normalization
  'spherical_harmonic
@@ -1848,8 +1733,6 @@ Our measure of sufficiently small is
   nil
   #$$ jacobi_p(n+1,a,b,x)/(2*(n+1)) - jacobi_p(n-1,a,b,x)/(2*(n+a+b)) $)
 
-;;; ======================================================================
-;;;  orthopoly-rodrigues.lisp
 ;;;  Rodrigues subsystem for orthogonal polynomials in Maxima
 
 (defmacro def-rodrigues (name lambda-form)
@@ -1897,14 +1780,7 @@ Our measure of sufficiently small is
          * (1-x)^(-a) * (1+x)^(-b)
          * diff((1-x)^(n+a) * (1+x)^(n+b), x, n)) $)
 
-;;; ======================================================================
-;;;  orthopoly-ode.lisp
 ;;;  Sturm–Liouville (ODE) subsystem for orthogonal polynomials in Maxima
-;;;
-
-;;; ----------------------------------------------------------------------
-;;; def-ode macro
-;;; ----------------------------------------------------------------------
 
 (defparameter *orthopoly-ode-operator-table*
   (make-hash-table :test #'eq :size 32))
@@ -1919,86 +1795,37 @@ Our measure of sufficiently small is
            ,operator-lambda)
      ',name))
 
-
-;;; ----------------------------------------------------------------------
-;;; User-level interface
-;;; ----------------------------------------------------------------------
-
 (defmfun $orthopoly_ode (name)
   (or (gethash name *orthopoly-ode-operator-table*)
       (merror "No ODE operator registered for ~M" name)))
 
-;;; ======================================================================
-;;; Sturm–Liouville operators
-;;; ======================================================================
-
-;;; ----------------------------------------------------------------------
-;;; Hermite
-;;; y'' - 2 x y' + 2 n y = 0
-;;; ----------------------------------------------------------------------
-
 (def-ode %hermite
   #$$ lambda([n,x,y], diff(y,x,2) - 2*x*diff(y,x) + 2*n*y) $)
-
-;;; ----------------------------------------------------------------------
-;;; Laguerre L_n^(a)
-;;; x y'' + (a+1-x) y' + n y = 0
-;;; ----------------------------------------------------------------------
 
 (def-ode %laguerre
   #$$ lambda([n,a,x,y],
        x*diff(y,x,2) + (a+1-x)*diff(y,x) + n*y) $)
 
-;;; ----------------------------------------------------------------------
-;;; Generalized Laguerre L_n^(a)
-;;; Same ODE
-;;; ----------------------------------------------------------------------
-
 (def-ode %gen_laguerre
   #$$ lambda([n,a,x,y],
        x*diff(y,x,2) + (a+1-x)*diff(y,x) + n*y) $)
-
-;;; ----------------------------------------------------------------------
-;;; Legendre P_n
-;;; (1-x^2) y'' - 2 x y' + n(n+1) y = 0
-;;; ----------------------------------------------------------------------
 
 (def-ode %legendre_p
   #$$ lambda([n,x,y],
        (1-x^2)*diff(y,x,2) - 2*x*diff(y,x) + n*(n+1)*y) $)
 
-;;; ----------------------------------------------------------------------
-;;; Chebyshev T_n
-;;; (1-x^2) y'' - x y' + n^2 y = 0
-;;; ----------------------------------------------------------------------
-
 (def-ode %chebyshev_t
   #$$ lambda([n,x,y],
        (1-x^2)*diff(y,x,2) - x*diff(y,x) + n^2*y) $)
-
-;;; ----------------------------------------------------------------------
-;;; Chebyshev U_n
-;;; (1-x^2) y'' - 3 x y' + n(n+2) y = 0
-;;; ----------------------------------------------------------------------
 
 (def-ode %chebyshev_u
   #$$ lambda([n,x,y],
        (1-x^2)*diff(y,x,2) - 3*x*diff(y,x) + n*(n+2)*y) $)
 
-;;; ----------------------------------------------------------------------
-;;; Gegenbauer / Ultraspherical C_n^(λ)
-;;; (1-x^2) y'' - (2λ+1) x y' + n(n+2λ) y = 0
-;;; ----------------------------------------------------------------------
-
 (def-ode %ultraspherical
   #$$ lambda([n,lambda,x,y],
        (1-x^2)*diff(y,x,2) - (2*lambda+1)*x*diff(y,x)
          + n*(n+2*lambda)*y) $)
-
-;;; ----------------------------------------------------------------------
-;;; Jacobi P_n^(a,b)
-;;; (1-x^2) y'' + (b-a - (a+b+2)x) y' + n(n+a+b+1) y = 0
-;;; ----------------------------------------------------------------------
 
 (def-ode %jacobi_p
   #$$ lambda([n,a,b,x,y],
