@@ -291,7 +291,7 @@ Our measure of sufficiently small is
 
     ;; special value: jacobi_p(n,a,b,1) = pochhammer(a+1,n) / n!;
     ;; see DLMF http://dlmf.nist.gov/18.6.E1
-    ((eql x 1)
+    ((and (eql x 1) ($featurep n '$integer) (eq t (mgqp n 0)))
      (div (ftake '$pochhammer (add a 1) n) (ftake 'mfactorial n)))
 
     ;; Otherwise, no simplification available
@@ -1615,61 +1615,60 @@ Our measure of sufficiently small is
       2/(2*n+1)) $)
 
 (register-orthopoly-normalization
- 'chebyshev_t
+ '%chebyshev_t
  #$$ lambda([n],
       if n=0 then %pi else %pi/2) $)
 
 (register-orthopoly-normalization
- 'chebyshev_u
+ '%chebyshev_u
  #$$ lambda([n],
       %pi/2) $)
 
 (register-orthopoly-normalization
- 'ultraspherical
+ '%ultraspherical
  #$$ lambda([n,lambda],
       %pi * 2^(1-2*lambda)
         * gamma(n+2*lambda)
         /( factorial(n)*(n+lambda)*gamma(lambda)^2 )) $)
 
 (register-orthopoly-normalization
- 'laguerre
+ '%laguerre
  #$$ lambda([n,a],
       gamma(n+a+1)/factorial(n)) $)
 
 (register-orthopoly-normalization
- 'gen_laguerre
+ '%gen_laguerre
  #$$ lambda([n,a],
       gamma(n+a+1)/factorial(n)) $)
 
-(register-orthopoly-normalization
- 'jacobi_p
+(register-orthopoly-normalization '%jacobi_p
  #$$ lambda([n,a,b],
       2^(a+b+1)/(2*n+a+b+1)
         * gamma(n+a+1)*gamma(n+b+1)
         /( factorial(n)*gamma(n+a+b+1) )) $)
 
 (register-orthopoly-normalization
- 'spherical_bessel_j
+ '%spherical_bessel_j
  #$$ lambda([n],
       integrate(spherical_bessel_j(n,x)^2 * x^2, x, 0, inf)) $)
 
 (register-orthopoly-normalization
- 'spherical_bessel_y
+ '%spherical_bessel_y
  #$$ lambda([n],
       integrate(spherical_bessel_y(n,x)^2 * x^2, x, 0, inf)) $)
 
 (register-orthopoly-normalization
- 'spherical_hankel1
+ '%spherical_hankel1
  #$$ lambda([n],
       integrate(spherical_hankel1(n,x)^2 * x^2, x, 0, inf)) $)
 
 (register-orthopoly-normalization
- 'spherical_hankel2
+ '%spherical_hankel2
  #$$ lambda([n],
       integrate(spherical_hankel2(n,x)^2 * x^2, x, 0, inf)) $)
 
 (register-orthopoly-normalization
- 'spherical_harmonic
+ '%spherical_harmonic
  #$$ lambda([l,m],
       1) $)
 

@@ -55,23 +55,15 @@ makelist(ratsimp(fn(k,lam,x) - ultraspherical(k,lam,x)), k,0,10);
 0$
 
 /* orthogonality (A&S 22.2.3) */
-(assume(lam > 1),0);
-0$
-
-block([ans],
-  fn(n,m,lam) := integrate(ultraspherical(n,lam,x)*ultraspherical(m,lam,x)
-                       *(1-x^2)^(lam-1/2), x,-1,1)
-             - kron_delta(n,m)
-               * (2^(1-2*lam)*%pi*gamma(n+2*lam))/(n!*(n+lam)*gamma(lam)^2),
-  ans : makelist(makelist(ratsimp(fn(n,m,8+1/2)),m,0,4), n,0,4),
-  remfunction(fn),
-  ans);
-[[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]]$
-
-(forget(lam > 1),0);
-0$
-
-
+block([w,s,Q],
+  w : orthopoly_weight('ultraspherical)(x,5),
+  s : orthopoly_normalization('ultraspherical),
+  Q : lambda([n,m], integrate(ultraspherical(n,5,x)*ultraspherical(m,5,x)*first(w),x,second(w),third(w))
+      - kron_delta(n,m)*s(n,5)),
+  makelist(makelist(Q(n,m),n,0,6),m,0,6));
+ [[0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0]]$
 
 /* reflection: C_n^lam(-x) = (-1)^n C_n^lam(x) */
 ratsimp(makelist(ultraspherical(n,lam,-x) - (-1)^n*ultraspherical(n,lam,x), n,0,10));

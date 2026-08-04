@@ -53,12 +53,27 @@ makelist(ratsimp(fn(k,x)-hermite(k,x)),k,0,10);
 
 /* tests adapted from rtest_orthopoly  */
 /* See A&S 22.2.14 page 775 */
-block([ans],
-  fn(n,m) := integrate(hermite(n,x) * hermite(m,x) * exp(-x^2),x,-inf,inf) - kron_delta(n,m) * sqrt(%pi) * 2^n * n!,
-  ans : makelist(makelist(fn(n,m),m,0,4), n,0,4),
-  remfunction(fn),
-  ans);
-[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0],[0, 0, 0, 0, 0]]$
+
+block([w,s,Q],
+  w : orthopoly_weight('hermite)(x),
+  s : orthopoly_normalization('hermite),
+  Q : lambda([n,m], integrate(hermite(n,x)*hermite(m,x)*first(w),x,second(w),third(w)) - kron_delta(n,m)*s(n)),
+  makelist(makelist(Q(n,m),n,0,6),m,0,6));
+  [[0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0]]$
+
+block([w,Q],
+  w : orthopoly_weight('hermite)(x),
+  Q : lambda([n,m], integrate(x*hermite(n,x)*hermite(m,x)*first(w),x,second(w),third(w))),
+  makelist(makelist(Q(n,m),n,0,6),m,0,6));
+  
+[[0,sqrt(%pi),0,0,0,0,0],[sqrt(%pi),0,4*sqrt(%pi),0,0,0,0],
+        [0,4*sqrt(%pi),0,24*sqrt(%pi),0,0,0],
+        [0,0,24*sqrt(%pi),0,192*sqrt(%pi),0,0],
+        [0,0,0,192*sqrt(%pi),0,1920*sqrt(%pi),0],
+        [0,0,0,0,1920*sqrt(%pi),0,23040*sqrt(%pi)],
+        [0,0,0,0,0,23040*sqrt(%pi),0]]$
 
 /* See A&S 22.12.8 page 785*/
 

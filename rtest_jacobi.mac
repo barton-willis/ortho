@@ -29,13 +29,26 @@ op_and_args(jacobi_p(1.0,a,b,x));
 /* DLMF Table Table 18.6.1:*/
 block([ans],
     declare(n,integer),
+    assume(n >= 0),
     ans : jacobi_p(n,a,b,1),
     remove(n,integer),
+    forget(n >= 0),
     ans);
 pochhammer(a+1,n)/n!$
 
-makelist(is(ratsimp(pochhammer(a+1,k)/k! - jacobi_p(k,a,b,1))=0), k,0,6);
-[true,true,true,true,true,true,true]$
+/* for the jacobi_p(n,a,b,1) simplification, make sure that n is a nonnegative integer. */
+op_and_args(jacobi_p(n,3,4,1));
+[jacobi_p, [n, 3, 4, 1]]$
+
+block([ans,one],
+    declare(n,integer),
+    assume(n >= 0),
+    one : jacobi_p(n,a,b,1),
+    ans : makelist(subst(n=k, one) - subst(x=1, jacobi_p(k,a,b,x)),k,0,6),
+    remove(n,integer),
+    forget(n >= 0),
+    ratsimp(ans));
+[0, 0, 0, 0, 0, 0, 0]$
 
 /* Rodrigues formula */
 (fn : orthopoly_rodrigues(jacobi_p),0);
@@ -44,31 +57,20 @@ makelist(is(ratsimp(pochhammer(a+1,k)/k! - jacobi_p(k,a,b,1))=0), k,0,6);
 makelist(ratsimp(fn(k,a,b,x) - jacobi_p(k,a,b,x)), k,0,10);
 [0,0,0,0,0,0,0,0,0,0,0]$
 
-/* gradient 
-(df : diff(jacobi_p(n,a,b,x),x),
- expand(makelist(subst(n=k,df) - diff(jacobi_p(k,a,b,x),x),k,0,10)));
+/* gradient */
+block([df :  diff(jacobi_p(n,a,b,x),x)],
+  ratsimp(makelist(subst(n=k,df) - diff(jacobi_p(k,a,b,x),x),k,0,10)));
 [0,0,0,0,0,0,0,0,0,0,0]$
-*/
 
-42;
-42$
-(remvalue(fn,df),0);
-0$
 
-/* orthogonality: A&S 22.2.1 
-block([ans],
-  fn(n,m) := integrate(jacobi_p(n,a,b,x)*jacobi_p(m,a,b,x)
-                       *(1-x)^a*(1+x)^b, x,-1,1)
-             - kron_delta(n,m)
-               * (2^(a+b+1)*gamma(n+a+1)*gamma(n+b+1))
-                 /(n!*(2*n+a+b+1)*gamma(n+a+b+1)),
-  ans : makelist(makelist(ratsimp(fn(n,m)),m,0,4), n,0,4),
-  remfunction(fn),
-  ans);
+/* orthogonality: A&S 22.2.1 */
+block([w,s,Q],
+  w : orthopoly_weight('jacobi_p)(x,2,3),
+  s : orthopoly_normalization('jacobi_p),
+  Q : lambda([n,m], integrate(jacobi_p(n,2,3,x)*jacobi_p(m,2,3,x)*first(w),x,second(w),third(w))
+      - kron_delta(n,m)*s(n,2,3)),
+  makelist(makelist(Q(n,m),n,0,6),m,0,6));
 [[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]]$
-*/
-42;
-42$
 
 /* reflection: P_n^{(a,b)}(-x) = (-1)^n P_n^{(b,a)}(x) */
 ratsimp(makelist(jacobi_p(n,a,b,-x) - (-1)^n*jacobi_p(n,b,a,x), n,0,10));
@@ -80,7 +82,6 @@ ratsimp([
  jacobi_p(1,a,b,x) - ((a+b+2)*x + (a-b))/2]);
  [0,0]$
 
-/* numeric tests */
 /* numeric tests */
 jacobi_p(5,0,0,2.3);
 404.71326125$
