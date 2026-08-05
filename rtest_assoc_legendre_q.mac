@@ -15,36 +15,26 @@ errcatch(assoc_legendre_q(a,b,c,d));
     if mapatom(e) then false else [nounify(op(e)), args(e)]),0);
 0$
 
-/* basic values */
+/* basic values http://dlmf.nist.gov/14.7.E2*/
 assoc_legendre_q(0,0,x);
-(1/2)*log((1+x)/(1-x))$
+log(-((x+1)/(x-1)))/2$
 
 assoc_legendre_q(1,0,x);
-x/2*log((1+x)/(1-x)) - 1$
+(x*log(-((x+1)/(x-1)))-2)/2$
 
 assoc_legendre_q(1,1,x);
-- sqrt(1-x^2)/(1-x^2)$
+-((sqrt(1-x^2)*((x^2-1)*log(-((x+1)/(x-1)))-2*x))/(2*x^2-2))$
 
 /* require explicit integer degrees */
 op_and_args(assoc_legendre_q(1.0,0,x));
-[assoc_legendre_q, [1.0, 0, x]]$
+[legendre_q, [1.0, x]]$
 
 /* Condon–Shortley phase:
    Q_l^{-m}(x) = (-1)^m (l-m)!/(l+m)! Q_l^m(x)
 */
-ratsimp(makelist(
-    assoc_legendre_q(l,-m,x)
-      - (-1)^m * factorial(l-m)/factorial(l+m) * assoc_legendre_q(l,m,x),
-    l,0,6, m,0,l));
-[0,0,0,0,0,0]$
-
-/* reflection:
-   Q_l^m(-x) = (-1)^{l+1} Q_l^m(x)
-*/
-ratsimp(makelist(
-    assoc_legendre_q(l,m,-x) - (-1)^(l+1)*assoc_legendre_q(l,m,x),
-    l,0,6, m,0,l));
-[0,0,0,0,0,0]$
+ratsimp(makelist(makelist(
+    assoc_legendre_q(l,-m,x) - (-1)^m * ((l-m)!/(l+m)!) * assoc_legendre_q(l,m,x), m,0,l), l,0,6));
+[[0], [0, 0], [0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0]]$  
 
 /* derivative identity:
    (1-x^2) d/dx Q_l^m = l x Q_l^m - (l+m) Q_{l-1}^m

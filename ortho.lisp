@@ -1234,10 +1234,10 @@ Our measure of sufficiently small is
 (def-simplifier assoc_legendre_q (n m x)
   (cond 
     ;; http://dlmf.nist.gov/14.9.E4
-    ((and (integerp n) (integerp m) (< m 0) (> (+ n 1 (- m)) 0))
+    ((and (integerp n) (integerp m) (< m 0) (< (- m n) 0))
      (div
        (mul (ftake 'mexpt -1 (- m)) ; (-1)^(-m)
-            (ftake '%gamma (+ n 1 (- m))) ; gamma(n-m+1)
+            (ftake '%gamma (+ n m 1)) ; gamma(n+m+1)
             (ftake '%assoc_legendre_q n (- m) x)) ; assoc_legendre_q(n,-m,x)
        (ftake '%gamma (+ n (- m) 1))))  ;gamma(n-m+1)
   
