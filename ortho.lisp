@@ -1241,7 +1241,7 @@ Our measure of sufficiently small is
             (ftake '%assoc_legendre_q n (- m) x)) ; assoc_legendre_q(n,-m,x)
        (ftake '%gamma (+ n (- m) 1))))  ;gamma(n-m+1)
   
-    ((and (integerp n) (integerp m) (complex-number-p x #'$numberp) (> n -1) (<= (abs m) n))
+    ((and (integerp n) (integerp m) (complex-number-p x #'(lambda (q) (or (floatp q) ($bfloatp q))))   (> n -1) (<= (abs m) n))
            (let* ((digits (get-digits x))
                   (one (multiplicative-identity x)))
 			(if one 
@@ -1256,28 +1256,163 @@ Our measure of sufficiently small is
 
       (t (give-up))))
 
-(defun nth-antiderivative (e x n)
-  (dotimes (k n)
-    (setq e ($integrate e x)))
-  e)
+;; w1(nu,mu,x) := 2^mu * gamma(nu/2 + mu/2+1/2) *(1-x^2)^(-mu/2) * 
+;;      hypergeometric([-nu/2 - mu/2, nu/2-mu/2+1/2],[1/2],x^2) /(gamma(1/2) * gamma(nu/2 - mu/2+1));
+(defun w1-symbolic (nu mu x)
+    (div 
+     (mul
+       ;; 2^mu
+       (ftake 'mexpt 2 mu)
+       ;; gamma((nu + mu + 1)/2)
+       (ftake '%gamma (div (add nu mu 1) 2))
+       ;; (1 - x^2)^(-mu/2)
+       (ftake 'mexpt (sub 1 (mul x x)) (div mu -2))
 
-(defun assoc_legendre_q-symbolic (n m x)
-  (let* ((g (gensym))
-         (f (if (< m 0)
-                  (nth-antiderivative (ftake '%legendre_q n g) g (- m))
-                  ($diff (ftake '%legendre_q n g) g m))))
-         
-    (orthopoly-polynomial-simp 
-        (maxima-substitute x g
-           (mul (ftake 'mexpt -1 m)
-                (ftake 'mexpt (sub 1 (mul x x)) (div m 2))
-                f)) x)))
+       ;; hypergeometric([...], [1/2], x^2)
+       (ftake '%hypergeometric
+              (ftake 'mlist
+                ;; -nu/2 - mu/2
+                (add (div nu -2) (div mu -2))
+                ;; nu/2 - mu/2 + 1/2
+                (add (div nu 2) (div mu -2) (div 1 2)))
+              (ftake 'mlist (div 1 2))
+              (mul x x)))
 
-(defun assoc_legendre_q-numeric (n m x digits)
-    (let* ((g (gensym))
-           (f (assoc_legendre_q-symbolic n m g)))
-      (nfloat f (ftake 'mlist (ftake 'mequal g x)) digits $max_fpprec)))
+         (mul
+           (ftake '%gamma (div 1 2))
+           (ftake '%gamma (add (sub (div nu 2) (div mu 2)) 1)))))
+
+;;  2^mu * gamma(nu/2 + mu/2+1) *x*(1-x^2)^(-mu/2) * 
+;;     hypergeometric([1/2-nu/2 - mu/2, nu/2-mu/2+1],[3/2],x^2) /(gamma(3/2) * gamma(nu/2 - mu/2+1/2));
+(defun w2-symbolic (nu mu x)
+  (div
+   ;; numerator
+   (mul
+    ;; 2^mu
+    (ftake 'mexpt 2 mu)
+    ;; gamma(nu/2 + mu/2 + 1)
+    (ftake '%gamma (add (div nu 2) (div mu 2) 1))
+    ;; x
+    x
+    ;; (1 - x^2)^(-mu/2)
+    (ftake 'mexpt
+           (sub 1 (mul x x))
+           (div mu -2))
+
+    ;; hypergeometric([1/2 - nu/2 - mu/2, nu/2 - mu/2 + 1],
+    ;;                [3/2],
+    ;;                x^2)
+    (ftake '%hypergeometric
+           (ftake 'mlist
+             ;; 1/2 - nu/2 - mu/2
+             (add (div 1 2) (div nu -2) (div mu -2))
+             ;; nu/2 - mu/2 + 1
+             (add (div nu 2) (div mu -2) 1))
+           (ftake 'mlist (div 3 2))
+           (mul x x)))
+
+   ;; denominator gamma(3/2) * gamma(nu/2 - mu/2 + 1/2)
+   (mul
+    (ftake '%gamma (div 3 2))
+    (ftake '%gamma
+           (add (div nu 2) (div mu -2) (div 1 2))))))
+
+
+(defun assoc_legendre_q-symbolic (nu mu x)
+(let ((a1 (ftake '%sin (div (mul (add nu mu) '$%pi) 2)))
+      (a2 (ftake '%cos (div (mul (add nu mu) '$%pi) 2))))
+      (add 
+         (if (zerop1 a1)
+             0
+             ($expand (mul (div '$%pi -2) a1 (w1-symbolic nu mu x)) 1 0))
+         (if (zerop1 a2)
+             0
+             ($expand (mul (div '$%pi 2) a2 (w2-symbolic nu mu x)) 1 0)))))
+
+
+(in-package #:bigfloat)
+;; See DLMF http://dlmf.nist.gov/14.3.E12 
+
+;; w1(nu,mu,x) := 2^mu * gamma(nu/2 + mu/2+1/2) *(1-x^2)^(-mu/2) * 
+;;      hypergeometric([-nu/2 - mu/2, nu/2-mu/2+1/2],[1/2],x^2) /(gamma(1/2) * gamma(nu/2 - mu/2+1));
+(defun w1-dlmf-helper (nu mu x hg)
+     (/ 
+        (*
+          ;; 2^mu
+          (expt 2 mu)
+          ;; gamma((nu+mu+1)/2)
+          (gamma (+ (/ (+ nu mu 1) 2)))
+          ;; (1 - x^2)^(-mu/2)
+          (expt (- 1 (* x x)) (/ mu -2))
+          ;; hypergeometric factor
+          hg)
+        (* 
+         (gamma (/ 1 2))
+         (gamma (+ (/ nu 2) (/ mu -2) 1)))))
+
+;;  2^mu * gamma(nu/2 + mu/2+1) *x*(1-x^2)^(-mu/2) * 
+;;     hypergeometric([1/2-nu/2 - mu/2, nu/2-mu/2+1],[3/2],x^2) /(gamma(3/2) * gamma(nu/2 - mu/2+1/2));
+(defun w2-dlmf-helper (nu mu x hg)
+     (/ 
+        (*
+          ;; 2^mu
+          (expt 2 mu)
+          ;; gamma((nu+mu)/2 + 1)
+          (gamma (+ (/ (+ nu mu) 2) 1))
+          ;; x
+          x
+          ;; (1 - x^2)^(-mu/2)
+          (expt (- 1 (* x x)) (/ mu -2))
+          ;; hypergeometric factor
+          hg)
+        (* 
+         (gamma (/ 3 2))
+         (gamma (+ (/ nu 2) (/ mu -2) (/ 1 2))))))
+          
+(in-package :maxima)
+
+;;  hypergeometric([-nu/2 - mu/2, nu/2-mu/2+1/2],[1/2],x^2)
+(defun w1-dlmf (nu mu x)
+  (let ((hg
+        (ftake '%hypergeometric
+         (ftake 'mlist
+           (add (div nu -2) (div mu -2))
+           (add (add (div nu 2) (div mu -2) (div 1 2))))
+         (ftake 'mlist (div 1 2))
+         ($expand (mul x x)))))
+      (maxima::to 
+        (bigfloat::w1-dlmf-helper (bigfloat::to nu) (bigfloat::to mu) (bigfloat::to x) (bigfloat::to hg)))))
+
+;; hypergeometric([1/2-nu/2 - mu/2, nu/2-mu/2+1],[3/2],x^2)
+(defun w2-dlmf (nu mu x)
+  (let ((hg 
+         (ftake '%hypergeometric
+         (ftake 'mlist
+           (add (div 1 2) (div nu -2) (div mu -2))
+           (add (div nu 2) (div mu -2) 1))
+         (ftake 'mlist (div 3 2))
+         ($expand (mul x x)))))
+      (maxima::to 
+        (bigfloat::w2-dlmf-helper (bigfloat::to nu) (bigfloat::to mu) (bigfloat::to x) (bigfloat::to hg)))))
       
+;; QQQ(nu,mu,x) := - (%pi/2) * sin((nu+mu)*%pi/2) *  w1(nu,mu,x) + (%pi/2) * cos((nu+mu) * %pi/2) * w2(nu,mu,x);
+
+(defun assoc_legendre_q-numeric (nu mu x digits)
+    (bind-fpprec (max *binary64-digits* digits)
+       (when (> digits  *binary64-digits*)
+           (setq x ($bfloat x)))
+
+  (let ((a1 (ftake '%sin (div (mul (add nu mu) '$%pi) 2)))
+        (a2 (ftake '%cos (div (mul (add nu mu) '$%pi) 2))))
+
+      (mtell "a1 = ~M ; a2 = ~M ~%" a1 a2)
+      (add 
+         (if (zerop1 a1)
+             0
+             ($expand (mul (div '$%pi -2) a1 (w1-dlmf nu mu x)) 1 0))
+         (if (zerop1 a2)
+             0
+             ($expand (mul (div '$%pi 2) a2 (w2-dlmf nu mu x)) 1 0))))))
 ;; improve & move to gamma.lisp
 
 (defmvar $pochhammer_max_index 100)
@@ -1711,7 +1846,7 @@ Our measure of sufficiently small is
 (defgrad %assoc_legendre_q ($n $m $x)
   nil 
   nil
-  #$$ (1/(1-x^2))*(n*x*assoc_legendre_q(n,m,x) - (n+m)*assoc_legendre_q(n-1,m,x)) $)
+  #$$ (1/(1-x^2))*(-n*x*assoc_legendre_q(n,m,x) + (n+m)*assoc_legendre_q(n-1,m,x)) $)
 
 (defgrad %laguerre ($n $a $x)
   nil 
@@ -1893,6 +2028,14 @@ Our measure of sufficiently small is
   #$$ lambda([n,x,y],
        (1-x^2)*diff(y,x,2) - 2*x*diff(y,x) + n*(n+1)*y) $)
 
+(def-ode %legendre_q
+  #$$ lambda([n,x,y],
+       (1-x^2)*diff(y,x,2) - 2*x*diff(y,x) + n*(n+1)*y) $)
+
+(def-ode %assoc_legendre_q
+  #$$ lambda([n,m,x,y],
+       (1-x^2)*diff(y,x,2) - 2*x*diff(y,x) + (n*(n+1) - m^2/(1-x^2))*y) $)
+       
 (def-ode %chebyshev_t
   #$$ lambda([n,x,y],
        (1-x^2)*diff(y,x,2) - x*diff(y,x) + n^2*y) $)

@@ -11,8 +11,7 @@ errcatch(assoc_legendre_q(3));
 errcatch(assoc_legendre_q(a,b,c,d));
 []$
 
-(op_and_args(e) := block([inflag:true],
-    if mapatom(e) then false else [nounify(op(e)), args(e)]),0);
+(op_and_args(e) := if mapatom(e) then false else [inpart(e,0), args(e)],0);
 0$
 
 /* basic values http://dlmf.nist.gov/14.7.E2*/
@@ -27,7 +26,7 @@ assoc_legendre_q(1,1,x);
 
 /* require explicit integer degrees */
 op_and_args(assoc_legendre_q(1.0,0,x));
-[legendre_q, [1.0, x]]$
+['legendre_q, [1.0, x]]$
 
 /* Condon–Shortley phase:
    Q_l^{-m}(x) = (-1)^m (l-m)!/(l+m)! Q_l^m(x)
@@ -36,54 +35,53 @@ ratsimp(makelist(makelist(
     assoc_legendre_q(l,-m,x) - (-1)^m * ((l-m)!/(l+m)!) * assoc_legendre_q(l,m,x), m,0,l), l,0,6));
 [[0], [0, 0], [0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0]]$  
 
-/* derivative identity:
-   (1-x^2) d/dx Q_l^m = l x Q_l^m - (l+m) Q_{l-1}^m
-*/
-ratsimp(makelist(
-    (1-x^2)*diff(assoc_legendre_q(l,m,x),x)
-      - (l*x*assoc_legendre_q(l,m,x)
-         - (l+m)*assoc_legendre_q(l-1,m,x)),
-    l,1,8, m,0,l));
-[0,0,0,0,0,0,0,0]$
+/* gradient test */
 
-/* recurrence:
-   (l-m+1) Q_{l+1}^m = (2l+1)x Q_l^m - (l+m) Q_{l-1}^m
-*/
-ratsimp(makelist(
-    (l-m+1)*assoc_legendre_q(l+1,m,x)
-      - ((2*l+1)*x*assoc_legendre_q(l,m,x)
-         - (l+m)*assoc_legendre_q(l-1,m,x)),
-    l,1,8, m,0,l));
-[0,0,0,0,0,0,0,0]$
+(qqq : nounify('diff), op_and_args(diff(assoc_legendre_q(l,m,x),l)));
+[''qqq, [assoc_legendre_q(l, m, x), l, 1]]$
 
-/* differential equation:
-   (1-x^2) y'' - 2x y' + [l(l+1) - m^2/(1-x^2)] y = 0
-*/
-ratsimp(makelist(
-    (1-x^2)*diff(assoc_legendre_q(l,m,x),x,2)
-      - 2*x*diff(assoc_legendre_q(l,m,x),x)
-      + (l*(l+1) - m^2/(1-x^2))*assoc_legendre_q(l,m,x),
-    l,0,6, m,0,l));
-[0,0,0,0,0,0,0]$
+(qqq : nounify('diff), op_and_args(diff(assoc_legendre_q(l,m,x),m)));
+[''qqq, [assoc_legendre_q(l, m, x), m, 1]]$
 
-/* explicit low-degree checks */
-ratsimp([
- assoc_legendre_q(0,0,x) - (1/2)*log((1+x)/(1-x)),
- assoc_legendre_q(1,0,x) - (x/2*log((1+x)/(1-x)) - 1),
- assoc_legendre_q(1,1,x) + sqrt(1-x^2)/(1-x^2),
- assoc_legendre_q(2,0,x) - ( (3*x^2-1)/4*log((1+x)/(1-x)) - 3*x/2 )
-]);
-[0,0,0,0]$
+(remvalue(qqq),0);
+0$
+
+df : diff(assoc_legendre_q(l,m,x),x);
+(assoc_legendre_q(l-1,m,x)*(m+l)-l*assoc_legendre_q(l,m,x)*x)/(1-x^2)$
+
+factor(subst([l=5,m=3],''df) - diff(assoc_legendre_q(5,3,x),x));
+0$
+
+(remvalue(df),0);
+0$
+
+block([z : orthopoly_recursion(assoc_legendre_q)(5,2,x)],
+   ratsimp(rhs(z)-lhs(z)));
+0$
+
+block([z : orthopoly_recursion(assoc_legendre_q)(5,-3,x)],
+   ratsimp(rhs(z)-lhs(z)));
+0$
+
+block([de],
+   depends(y,x),
+   de : orthopoly_ode(assoc_legendre_q)(5,-3,x,y),
+   ans : subst(y = assoc_legendre_q(5,-3,x), de),
+   ans : ev(ans,nouns),
+   ans : ratsimp(ans),
+   (remove(y,depends)),
+   ans);
+0$
 
 /* numeric tests */
 assoc_legendre_q(5,2,2.3);
-0.01394728194$
+- 12099.718795024113 * %i - 0.004715663378106973$
 
-assoc_legendre_q(5,2,23/10);
-1394728194/100000000000$
+expand(assoc_legendre_q(5,2,23/10));
+6156758407/1716000-(308116809*log(-(33/13)))/80000$
 
-subst(x=23/10, assoc_legendre_q(5,2,x));
-1394728194/100000000000$
+expand(subst(x=23/10, assoc_legendre_q(5,2,x)));
+ 6156758407/1716000-(308116809*log(-(33/13)))/80000$
 
 /* rectangular form */
 (declare(z,complex),0);
@@ -95,27 +93,27 @@ assoc_legendre_q(l,m,conjugate(z))$
 (remove(z,complex),0);
 0$
 
-/* nounform return checks */
 block([ans : assoc_legendre_q(-1,0,x)], [op(ans), args(ans)]);
-[assoc_legendre_q, [-1, 0, x]]$
+[legendre_q, [-1, x]]$
 
-block([ans : assoc_legendre_q(3,4,x)], [op(ans), args(ans)]);
-[assoc_legendre_q, [3, 4, x]]$
+assoc_legendre_q(3,4,x);
+48/(x^4-2*x^2+1)$
 
 /* binary64 tests */
 (approx_equal(x,y) := is(abs(x-y) < 10^(-15)*max(1,abs(x))),0);
 0$
 
-block([L:4, okay:true, x],
+block([L:4, ans, fails : [], x],
   for l:0 thru L do (
     for m:-l thru l do (
-      for k:-L thru L do (
+      for k:-L+1 thru L-1 do (
         x:float(k/L),
-        okay:okay and approx_equal(
+        ans : errcatch(approx_equal(
                  assoc_legendre_q(l,m,rationalize(x)),
-                 assoc_legendre_q(l,m,x))))),
-  okay);
-true$
+                 assoc_legendre_q(l,m,x))),
+        if ans = []  or not ans then (push([l,m,x], fails))))),
+  fails);
+[]$
 
 (fpprec:28,0);
 0$
