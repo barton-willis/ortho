@@ -778,21 +778,15 @@ Our measure of sufficiently small is
           (let* ((digits (get-digits x)) 
 		             (one (multiplicative-identity x)))
 			(if one 
-			    (orthopoly-number-coerce (laguerre-numeric n x digits) one)
+			    (orthopoly-number-coerce (gen_laguerre-numeric n x 0 digits) one)
 				(give-up))))
           ;; symbolic case 
 		  ((integerp n)
            (if (< n 0)
               (give-up)
-              (orthopoly-polynomial-simp (laguerre-symbolic n x) x)))
+              (orthopoly-polynomial-simp (gen_laguerre-symbolic n 0 x) x)))
           ;; nothing known--noun form return
  		  (t (give-up))))
-
-(defun laguerre-numeric (n x digits)
-   (gen_laguerre-numeric n 0 x digits))
-
-(defun laguerre-symbolic (n  x)
-  (gen_laguerre-symbolic n 0 x))
 
 (define-two-term-numeric* gen_laguerre-numeric (n a x digits)
   :let ((bf-a (bigfloat::to a))
@@ -1069,7 +1063,7 @@ Our measure of sufficiently small is
         
        (t (give-up))))
 
-;; Converting to CRE form makes this calculation can be vastly faster.
+;; Converting the initial values f0 & f1 to  CRE form makes this calculation much faster.
 (defun generic-two-term-recursion-symbolic (p q f0 f1 n)
   (let (($algebraic t))
     (setq f0 ($rat f0))
@@ -1153,6 +1147,17 @@ Our measure of sufficiently small is
 
 (in-package :maxima)
 
+(defun legendre_q-at-zero (n)
+  (if ($featurep n '$even)
+      0
+      (let* ((k (div (sub n 1) 2))
+             (num (mul (ftake 'mexpt 2 (mul 2 k))
+                       (ftake 'mfactorial k)
+                       (ftake 'mfactorial k)))
+             (den (ftake 'mfactorial (add (mul 2 k) 1)))
+             (sgn (ftake 'mexpt -1 k)))
+        (div (mul sgn num) den))))
+
 (def-simplifier legendre_q (n x)
   (cond ((and (integerp n) (> n -1) (complex-number-p x #'$numberp))
           (let* ((digits (get-digits x)) 
@@ -1166,61 +1171,36 @@ Our measure of sufficiently small is
            (legendre_q-at-zero n))
 		(t (give-up))))
 
-(defun legendre_q-numeric (n x digits)
-	(let* ((g (gensym))
-	       (f (legendre_q-symbolic n g)))
-	  (mfuncall '$nfloat f (ftake 'mlist (ftake 'mequal g x)) digits)))
+(in-package #:bigfloat)
 
-(defun legendre_q-at-zero (n)
-  (if ($featurep n '$even)
-      0
-      (let* ((k (div (sub n 1) 2))
-             (num (mul (ftake 'mexpt 2 (mul 2 k))
-                       (ftake 'mfactorial k)
-                       (ftake 'mfactorial k)))
-             (den (ftake 'mfactorial (add (mul 2 k) 1)))
-             (sgn (ftake 'mexpt -1 k)))
-        (div (mul sgn num) den))))
+(defun legendre-q-degree-0 (x)
+  (/ (log (/ (+ x 1) (- 1 x))) 2))
 
-;; See http://dlmf.nist.gov/14.7.E3
+(defun legendre-q-degree-1 (x)
+  (- (* x (legendre-q-degree-0 x)) 1))
+
+(in-package :maxima)
+(define-two-term-numeric* legendre_q-numeric (n x digits)
+  :let ((bf-x (bigfloat::to x))
+         (one (bigfloat::to 1)))
+
+  :f0 (bigfloat::legendre-q-degree-0 bf-x)
+  :f1 (bigfloat::legendre-q-degree-0 bf-x)
+  :p #'(lambda (kk)
+          (let ((k (bigfloat::to kk)))
+                (bigfloat::/ (bigfloat::* (bigfloat::+ (bigfloat::* 2 k) 1) bf-x) (bigfloat::+ k 1))))
+  :q #'(lambda (kk) 
+          (let ((k (bigfloat::to kk))) 
+                (bigfloat::/ k (bigfloat::+ k one)))))
+(in-package :maxima)
+
 (defun legendre_q-symbolic (n x)
-  "Return sum_{s=0}^{n-1} (n+s)!*(psi(n+1) - psi(s+1)) * (x-1)^s/(2^s * (n-s)!*(s!)^2)+(1/2) * P_n(x) * log((1+x)/(1-x))."
-
-  ;; psi is a subscripted function: psi[0](k)
-  (flet ((psi (subscript arg)
-  
-           ;; subscript is 0 for digamma
-           ;; arg is the argument (n+1, s+1, etc.)
-           (simplify (subfunmake '$psi (list subscript) (list arg)))))
-
-    (let ((sum 0)
-          (psi-n (psi 0 (add n 1))))
-      ;; main sum: s = 0 .. n-1
-      (dotimes (s n)
-        (let* ((ns  (ftake 'mfactorial (add n s)))
-               (nm  (ftake 'mfactorial (sub n s)))
-               (sf  (ftake 'mfactorial s))
-               (psi-s (psi 0 (add s 1)))
-               (coef  (mul ns
-                           (sub psi-n psi-s)
-                           (ftake 'mexpt (sub x 1) s)))
-               (den   (mul (ftake 'mexpt 2 s)
-                           nm
-                           (mul sf sf)))
-               (term  (div coef den)))
-          (setq sum (add sum term))))
-
-      ;; add (1/2) * P_n(x) * log((1+x)/(1-x))
-      (let* ((pn   (ftake '%legendre_p n x))
-             (logt (ftake '%log
-                          (div (add 1 x)
-                               (sub 1 x))))
-             (extra (mul (div 1 2) pn logt)))
-        (setq sum (sub extra sum)))
-
-      ;; final cleanup
-      (orthopoly-polynomial-simp sum x))))
-
+    (let* ((f0 (div (ftake '%log (div (add x 1) (sub 1 x))) 2))
+		       (f1 (sub (mul x f0) 1))
+           (p #'(lambda (k) (div (mul (add (mul 2 k) 1) x) (add k 1)))) ; (2k+1)x/(k+1) 
+           (q #'(lambda (k) (mul -1 (div k (add k 1))))))
+	 (generic-two-term-recursion-symbolic p q f0 f1 n)))
+   
 (def-simplifier assoc_legendre_q (n m x)
   (cond 
      ;; domain error for x = +/-1 or n+m a negative integer. See comment in DLMF that follows http://dlmf.nist.gov/14.3.E3 
