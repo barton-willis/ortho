@@ -1,0 +1,7 @@
+(defun $legq (n m x)
+    (let* ((qn0 (ftake '%legendre_q n x))
+           (qn1 (div (mul (add n 1) (sub (ftake '%legendre_q (add n 1) x) (mul x qn0))) (sub 1 (mul x x))))
+           (w (ftake 'mexpt (sub 1 (mul x x)) (div -1 2)))
+           (p #'(lambda (m) (mul -2 m w)))
+           (q #'(lambda (m) (mul -1 (add n (neg m) 1) (add n m)))))
+         (generic-two-term-recursion-symbolic p q qn0 qn1 n)))

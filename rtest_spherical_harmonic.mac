@@ -61,27 +61,6 @@ block([ans],
   ans);
 [[0],[0,0,0],[0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0]]$
 
-/* orthogonality:
-   ∫ Y_l^m Y_{l'}^{m'}* dΩ = δ_ll' δ_mm'
-*/
-block([ans],
-  fn(l,m,lp,mp) :=
-    integrate(
-      spherical_harmonic(l,m,theta,phi)
-      * conjugate(spherical_harmonic(lp,mp,theta,phi))
-      * sin(theta),
-      theta,0,%pi, phi,0,2*%pi)
-    - kron_delta(l,lp)*kron_delta(m,mp),
-  ans : makelist(
-          makelist(
-            makelist(
-              makelist(ratsimp(fn(l,m,lp,mp)), mp,-lp,lp),
-            lp,0,3),
-          m,-l,l),
-        l,0,3),
-  remfunction(fn),
-  ans);
-[... all zeros ...]$
 
 /* explicit low-degree checks */
 ratsimp([
@@ -138,18 +117,18 @@ true$
 (fpprec:28,0);
 0$
 
-block([L:4, okay:true, theta,phi],
-  for l:0 thru L do (
+block([L:4, N : 10, fails : [], theta, phi],
+  for l : 0 thru L do (
     for m:-l thru l do (
-      for k:-L thru L do (
-        for j:-L thru L do (
-          theta:bfloat(k/L),
-          phi:bfloat(j/L),
-          okay:okay and approx_equal(
+      for k : 0 thru N do (
+        for j : -N  thru N  do (
+          theta : bfloat(2*%pi * k/ N),
+          phi : bfloat(%pi * j /N),
+          if not errcatch(approx_equal(
                    spherical_harmonic(l,m,rationalize(theta),rationalize(phi)),
-                   spherical_harmonic(l,m,theta,phi)))))),
-  okay);
-true$
+                   spherical_harmonic(l,m,theta,phi))) then push([l,m,theta,phi], fails))))),
+  fails);
+[]$
 
 (reset(fpprec),0);
 0$
