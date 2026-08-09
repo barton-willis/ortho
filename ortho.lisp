@@ -699,16 +699,6 @@ Our measure of sufficiently small is
         ((and (eql 0 x) ($featurep n '$odd))  0)
         (t (give-up))))
 
-#| 
-(define-two-term-numeric* hermite-numeric (n x digits)
-  :let  ((bf-x  (bigfloat::to x))
-         (bf-2x (bigfloat::* 2 bf-x)))
-  :f0   (bigfloat::to 1)
-  :f1   bf-2x
-  :p    (lambda (k) (declare (ignore k)) bf-2x)
-  :q    (lambda (k) (bigfloat::* -2 k)))
-|#
-
 (defun hermite-symbolic (n x)
     (let* ((f0 1)
 		       (f1 (mul 2 x))
