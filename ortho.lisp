@@ -144,46 +144,6 @@ Our measure of sufficiently small is
 ;; Number of base 10 digits in a binary64 number (it is 15).
 (defmvar *binary64-digits* (floor (* (float-digits 1.0d0) (log 2 10))))
 
-;;; The function generic-two-term-recursion-running-error uses recursion to evaluate
-;;; the orthogonal polynomials, but calling it properly requires a great deal of boilerplate.
-;;; Here is a macro for calling generic-two-term-recursion-running-error
-(defmacro define-two-term-numeric*-crusty (name lambda-list
-                                        &key let f0 f1 p q)
-  "Generalized numeric evaluator for orthogonal polynomials with
-   arbitrary parameters. The lambda-list must begin with N and end
-   with DIGITS.  All intermediate parameters are passed through and
-   coerced to bigfloat on recursive restart."
-
-  ;; Extract required positions
-  (let* ((n-var      (first lambda-list))
-         (digits-var (car (last lambda-list)))
-         (other-vars (butlast (rest lambda-list)))   ; all except n and digits
-         ;; Build ($bfloat ...) coercions for restart
-         (bf-others  (mapcar (lambda (v) `($bfloat ,v)) other-vars)))
-    
-    `(defun ,name ,lambda-list
-       (handler-case
-           (let* (,@let
-                  (eps (bigfloat::to (ftake 'mexpt 10 (- ,digits-var))))
-                  (f0 ,f0)
-                  (f1 ,f1)
-                  (p  ,p)
-                  (q  ,q))
-             (multiple-value-bind (value err)
-                 (bigfloat::generic-two-term-recursion-running-error
-                  p q f0 f1 ,n-var)
-               (cond ((bigfloat::modified-relative-error-p value err eps)
-                      (maxima::to value))
-                     (t
-                      ;; restart with doubled precision
-                      (bind-fpprec (mul 2 $fpprec)
-                        (,name ,n-var ,@bf-others ,digits-var))))))
-         (arithmetic-error (c)
-           (declare (ignore c))
-           ;; restart with same precision
-           (bind-fpprec $fpprec
-             (,name ,n-var ,@bf-others ,digits-var)))))))
-
 ;; A left continuous unit step function; thus 
 ;;
 ;;       unit_step(x) = 0 for x <= 0 and 1 for x > 0.  
