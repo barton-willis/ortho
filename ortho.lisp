@@ -12,9 +12,9 @@ Maxima code for evaluating orthogonal polynomials listed in Chapter 22 of Abramo
 
 Most functions use the two term recursion in the upward direction to evaluate these polynomials for both
 symbolic and numeric arguments. The recursion has the form f(k+1) = p(k) f(k) + q(k) f(k-1). (Some might
-might call this a three term recursion, I'll call it a two term recursion).
+might call this a three term recursion, but I will call it a two term recursion).
 
-For the floating point (either binary64 or big float numbers), the code uses a dynamic running error to 
+For floating point (either binary64 or big float numbers) evaluation, the code uses a dynamic running error to 
 estimate the rounding error. Specifically it works like this: let f(k) be the true value and let 
 fa(k) be the approximate value computed with floating point numbers.  Then
 
@@ -22,8 +22,7 @@ fa(k) be the approximate value computed with floating point numbers.  Then
      fa(k+1) = p(k) ⊗ fa(k) ⊕ q(k) ⊗ fa(k-1),
 
 where ⊕ is floating point addition and ⊗ is floating point multiplication. This code assumes
-that ⊗ = *, so that all the rounding error is from addition and none from addition. This, of 
-course is an approximation.
+that ⊗ = *, so that all the rounding error is from addition and none from addition. This is an approximation.
      
 Using the rules of ⊕, there is ε(k), whose magnitude is bounded by the machine epsilon ε, such that 
 
@@ -42,14 +41,14 @@ Rescaling the error bound as |E(k)| =  ε 𝓔(k), we have
 
     𝓔(k+1) ≤ |p(k)| 𝓔(k) + |q(k)| 𝓔(k-1) + |fa(k+1)| + O(ε).
 
-This is the rule we use to update 𝓔.
+Dropping the O(ε), this is the rule we use to update 𝓔.
 
 The function generic-two-term-recursion-running error returns the two values fa(n) and ε 𝓔(n). When 
 the value of 𝓔(n) is sufficiently small, the process is done and we accept fa(n) as the value; if not 
 the process is repeated with a smaller value for the machine epsilon. 
 
 This is called a running error method. Think of it as a "poor man's" interval arithmetic. A proper
-interval arithmetic would rack the rounding errors in all computations, not just the additions. 
+interval arithmetic would track the rounding errors in all computations, not just the additions. 
 Of course, including the rounding errors with ⊗ is possible.
 
 Also, this code assumes that for the recursion f(k+1) = p(k) f(k) + q(k) f(k-1) that the coefficients
@@ -68,39 +67,33 @@ Our measure of sufficiently small is
 
   I know what you are thinking:
 
-  (a) Shouldn't the code conditionally use downward recursion for large n, small x, or ...
+  (a) Shouldn't the code conditionally use downward recursion for large n, small x, or ... 
    
-      Oh, maybe. But a great deal of reasonable inputs are modestly sized making the choice
+      Maybe. But a great deal of reasonable inputs are modestly sized making the choice
       between directions possibly a toss-up. Plus, cases with complex parameters likely makes
-      the decision between up or down recursion a bit difficult to decide. Finally even using 
+      the decision between up or down recursion difficult to decide. Finally even using 
       the better choice for the recursion direction, rounding errors and cancellation 
       still happen and need to be managed. I'm do not want to add this much complexity 
       to the code.
 
-  (b) Instead of the running error, why not just use Kahan summation? 
+  (b) Instead of the running error, why not just use Kahan summation on a series representation?
 
       Kahan summation is a lovely method, but it does not transform an ill-conditioned sum into a 
-      well-conditioned sum. That said, there might be opportunities to use it in this code. Plus 
-      as far as I know, Kahan summation is really only useful for an accumulated sum, but the
-      two-term recursion isn't of this form.
+      well-conditioned sum. And as far as I know, Kahan summation is really only useful for an 
+      accumulated sum, but the two-term recursion isn't of this form.
 
-  (c) Doesn't Clenshaw summation eliminate all cancellation problems?
+  (c) Why not just turn over all the numerical code to the hypergeometric code?
 
-     No, I think it might be good for many cases, but not all. Again, I'm not sure that I want to add 
-     this much complexity of choosing between multiple methods.
+      I'm not sure about the trade-offs. Depending on parameters, I think that some of the functions 
+      need to be choose between different hypergeometric  representations--this adds complexity to the code,
+      plus some of the overall factors for the hypergeometric are quotients that might needlessly 
+      overflow unless tricky methods are used. The two term recursions are simple.
 
-  (d) Why not just turn over all the numerical code to the hypergeometric code?
-
-      This should work--I'm not sure about the trade-offs. Depending on parameters,
-      I think that some of the functions need to be choose between different hypergeometric 
-      representations--this adds complexity to the code. The two term recursions are simple.
-
-  (e) Why not do floating point evaluation using nfloat on the exact symbolic values?
+  (d) Why not do floating point evaluation using nfloat on the exact symbolic values?
 
     Even for modest degrees, my experiments show that this method is painfully slow.
-    Currently, code does this for assoc_legendre_q.
 
-  (f) Isn't the running error just a crude estimate? It's not rigorous!
+  (e) Isn't the running error just a crude estimate? It's not rigorous!
 
       It's an estimate that is based on the properties of floating point arithmetic. Sure, it's
       an estimate, but it's not crude. The estimate ignores the O(ε^2), the errors in computing 
@@ -108,22 +101,22 @@ Our measure of sufficiently small is
       over estimated and testing shows that the method is reliable--not sufficiently reliable to
       prove theorems, but it is pretty good.
 
-  (g) Can't you assume that rounding errors are uniformly distributed independent random variables
+  (f) Can't you assume that rounding errors are uniformly distributed independent random variables
       and get a much lower error estimate?
 
       Yes, you can make those assumptions, but they are not grounded in fact.
 
-  (h) The polynomials XXX extend to negative degree and order, but this package doesn't extend
-      the to negative degrees. Why?
+  (g) The polynomials XXX extend to negative degree and order, but this package doesn't extend
+      them to negative degrees. Why?
 
       The answer isn't very interesting--it's a design choice based on focusing on what I suspect that
       most users need and on keeping the code compact. If you need to extend a function to negative
       degrees or the like, let me know--or even better do it yourself and share it.
 
-  (i) For large `n`, shouldn't the code switch over to asymptotic series?
+  (h) For large `n`, shouldn't the code switch over to asymptotic series?
 
       Maybe, but it's a design choice to keep the code compact and focused on typical cases
-      that users need.
+      that users need. 
 
 |#
 
@@ -151,15 +144,6 @@ Our measure of sufficiently small is
 ;; This function differs from (1 + signum(x))/2 which isn't left or right
 ;; continuous at 0. We do not attempt to give unit_step a grad property.
 
-;(defmfun $unit_step (x)
- ; (ftake '%unit_step x))
-  
-;(def-simplifier unit_step (x)
- ; (let ((sgn ($csign x)))
-;	 (cond ((member sgn '($neg $nz $zero)) 0)
-	;;       ((eq sgn '$pos) 1)
-	 ;      (t (give-up)))))
-
 (defun simp-unit-step (a y z)
   (oneargcheck a)
   (setq y (simpcheck (cadr a) z))
@@ -169,37 +153,6 @@ Our measure of sufficiently small is
 	  (t `(($unit_step simp) ,y)))))
 (setf (get '$unit_step 'operators) 'simp-unit-step)
 (setf (get '%unit_step 'operators) 'simp-unit-step)
-
-;; A sign function for unit_step. When the argument to unit_step is declared to be negative or positive,
-;; unit_step is simplified away before it arrives here--so returning pz is safe. For now, unit_step(%i)
-;; is a nounform, so sign(unit_step(%i)) => pz.
-(defun unit_step-sign-function (x)
-   (declare (ignore x))
-   (setq sign '$pz))
-;(setf (get '%unit_step 'sign-function) 'unit_step-sign-function)
-;(setf (get '$unit_step 'sign-function) 'unit_step-sign-function)
-
-;; antiderivative of unit_step
-(putprop '%unit_step
-  '((x) ((mtimes) ((rat) 1 2) ((mplus) x ((mabs) x)))) 'integral)
-
-(defun simplim%unit_step (e x pt)  
- "Return limit(unit_step(X),x, pt)."
-  (let* ((*preserve-direction* t) 
-         (z (cadr e))
-         (lim (limit z x pt 'think)))
-     (cond ((eq lim '$ind)
-	        (cond ((eq t (mgrp 0 z)) 0)
-                  ((eq t (mgrp z 0)) 1)
-			      (t '$ind)))
-           ((eq lim '$minf) 0)
-		   ((eq lim '$inf) 1)
-		   ((eq lim '$zerob) 0)
-           ((eq lim '$zeroa) 1)
-           ((or (eq lim '$und) (eq lim '$infinity)) (throw 'limit nil)) ; don't know
-           (t (ftake '%unit_step lim))))) ; use direct substitution
-
-;(setf (get '%unit_step 'simplim%function) 'simplim%unit_step)
 
 (defun multiplicative-identity (&rest a)
   "Return the appropriate multiplicative identity (1 for rational numbers, 1.0do for binary64, and 1.0b0 for bigfloats)
@@ -236,8 +189,6 @@ Our measure of sufficiently small is
 
     (t
      ($bfloat x))))
-
-
 
 ;;; simplifier for the Jacobi polynomials
 (def-simplifier jacobi_p (n a b x)
@@ -1793,15 +1744,9 @@ Our measure of sufficiently small is
             (list ',arglist ,@entries)
             'integral))
 
-(defmacro def-integral (name arglist &rest entries)
-  "Define integral properties for orthogonal polynomials.
-   ARG list is (n x a b ...).
-   ENTRIES is a list of expressions, one per argument.
-   Use NIL for undefined integrals."
-  `(putprop ',name
-            (list ',arglist ,@entries)
-            'integral))
-
+;; antiderivative of unit_step
+(def-integral %unit_step ($x)
+  #$$(abs(x)+x)/2$)
 
 ;; This needs protection for n=-1, but I don't know how to get Maxima to do this gracefully
 (def-integral %hermite ($n $x)
