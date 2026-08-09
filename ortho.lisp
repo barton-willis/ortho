@@ -147,7 +147,7 @@ Our measure of sufficiently small is
 ;;; The function generic-two-term-recursion-running-error uses recursion to evaluate
 ;;; the orthogonal polynomials, but calling it properly requires a great deal of boilerplate.
 ;;; Here is a macro for calling generic-two-term-recursion-running-error
-(defmacro define-two-term-numeric* (name lambda-list
+(defmacro define-two-term-numeric*-crusty (name lambda-list
                                         &key let f0 f1 p q)
   "Generalized numeric evaluator for orthogonal polynomials with
    arbitrary parameters. The lambda-list must begin with N and end
@@ -856,29 +856,34 @@ Our measure of sufficiently small is
           ;; nothing known--noun form return
  		  (t (give-up))))
 
-(define-two-term-numeric* gen_laguerre-numeric (n a x digits)
-  :let ((bf-a (bigfloat::to a))
-        (bf-x (bigfloat::to x))
-        ;; Pre-cache static parameter term
-        (a+1 (bigfloat::+ bf-a 1)))
-  
-  :f0 (bigfloat::to 1)
-  :f1 (bigfloat::- (bigfloat::+ bf-a 1) bf-x)
-             
-  :p #'(lambda (k)
+(defun gen_laguerre-numeric (n a x digits)
+  (let* ((bf-a (bigfloat::to a))
+         (bf-x (bigfloat::to x))
+         (eps  (bigfloat::to (ftake 'mexpt 10 (- digits))))
+         ;; hoist a constant 
+         (a+1 (bigfloat::+ bf-a 1))
+         (f0 (bigfloat::to 1))
+         (f1 (bigfloat::- (bigfloat::+ bf-a 1) bf-x))
+         (p #'(lambda (k)
                     (let* ((bf-k (bigfloat::to k))
                            (k+1 (bigfloat::+ bf-k 1))
                            ;; Numerator: 2k + a + 1 - x
                            (num (bigfloat::- (bigfloat::+ (bigfloat::* 2 bf-k) a+1) bf-x)))
-                      (bigfloat::/ num k+1)))
+                      (bigfloat::/ num k+1))))
              
-  :q #'(lambda (k)
+         (q #'(lambda (k)
                     (let* ((bf-k (bigfloat::to k))
                            (k+1 (bigfloat::+ bf-k 1))
                            ;; Numerator: -(k + a)
                            (num (bigfloat::- (bigfloat::+ bf-k bf-a))))
-                      (bigfloat::/ num k+1))))
-        
+                      (bigfloat::/ num k+1)))))
+       (multiple-value-bind (value err)
+            (bigfloat::generic-two-term-recursion-running-error  p q f0 f1 n)
+          (if (bigfloat::modified-relative-error-p value err eps)
+              (maxima::to value)
+              ;; restart with doubled precision
+              (bind-fpprec (mul 2 $fpprec)
+                (gen_laguerre-numeric n ($bfloat a) ($bfloat x) digits))))))
 
 (defun gen_laguerre-symbolic (n a x)
   (let* ((f0 1)
