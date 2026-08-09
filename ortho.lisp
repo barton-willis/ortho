@@ -361,26 +361,21 @@ Our measure of sufficiently small is
       (t nil))))
 
 ;;; Recursion for the Jacobi polynomials; see http://dlmf.nist.gov/18.9.E1 
-(define-two-term-numeric* jacobi_p-numeric (n a b x digits)
-  :let ((bf-a   (bigfloat::to a))
-        (bf-b   (bigfloat::to b))
-        (bf-x   (bigfloat::to x))
-        (a+b    (bigfloat::+ bf-a bf-b))
-        (a+b+1  (bigfloat::+ bf-a bf-b 1))
-        (a+b+2  (bigfloat::+ bf-a bf-b 2))
-        ;; a^2 - b^2
-        (a2-b2  (bigfloat::- (bigfloat::* bf-a bf-a)
-                             (bigfloat::* bf-b bf-b))))
+(defun jacobi_p-numeric (n a b x digits)
+  (let* ((bf-a   (bigfloat::to a))
+         (bf-b   (bigfloat::to b))
+         (bf-x   (bigfloat::to x))
+         (eps   (bigfloat::to (ftake 'mexpt 10 (- digits))))
+         (a+b    (bigfloat::+ bf-a bf-b))
+         (a+b+1  (bigfloat::+ bf-a bf-b 1))
+         (a+b+2  (bigfloat::+ bf-a bf-b 2))
+         ;; a^2 - b^2
+         (a2-b2  (bigfloat::- (bigfloat::* bf-a bf-a) (bigfloat::* bf-b bf-b)))
   
-  :f0 (bigfloat::to 1)
+        (f0 (bigfloat::to 1))
+        (f1 (bigfloat::/ (bigfloat::+ (bigfloat::* (bigfloat::+ bf-a bf-b 2) bf-x) (bigfloat::- bf-a bf-b))  2))
 
-  :f1 (bigfloat::/
-       (bigfloat::+
-        (bigfloat::* (bigfloat::+ bf-a bf-b 2) bf-x)
-        (bigfloat::- bf-a bf-b))
-       2)
-
-  :p #'(lambda (k)
+     (p #'(lambda (k)
          (let* ((bf-k (bigfloat::to k))
                 (2k   (bigfloat::* 2 bf-k))
                 (k+1  (bigfloat::+ bf-k 1))
@@ -401,9 +396,9 @@ Our measure of sufficiently small is
                                    k+1
                                    (bigfloat::+ bf-k a+b+1)
                                    (bigfloat::+ 2k a+b))))
-           (bigfloat::/ num den)))
+           (bigfloat::/ num den))))
 
-  :q #'(lambda (k)
+  (q #'(lambda (k)
          (let* ((bf-k (bigfloat::to k))
                 (2k   (bigfloat::* 2 bf-k))
                 (k+1  (bigfloat::+ bf-k 1))
@@ -421,7 +416,15 @@ Our measure of sufficiently small is
                                    k+1
                                    (bigfloat::+ bf-k a+b+1)
                                    (bigfloat::+ 2k a+b))))
-           (bigfloat::/ num den))))
+           (bigfloat::/ num den)))))
+
+    (multiple-value-bind (value err)
+            (bigfloat::generic-two-term-recursion-running-error  p q f0 f1 n)
+          (if (bigfloat::modified-relative-error-p value err eps)
+              (maxima::to value)
+              ;; restart with doubled precision
+              (bind-fpprec (mul 2 $fpprec)
+                (hermite-numeric n ($bfloat x) digits))))))
 
 ;; To avoid the complications for negative integer parameters, we'll use explict summation for the
 ;; Jacobi polynomials: see http://dlmf.nist.gov/18.5.E8 
@@ -565,12 +568,21 @@ Our measure of sufficiently small is
           ((eql n 1) f1)
           (t (generic-two-term-recursion-symbolic p q f0 f1 n)))))
 
-(define-two-term-numeric* chebyshev_t-numeric (n x digits)
-   :let ((bf-x (bigfloat::to x)))
-    :f0 (bigfloat::to 1)
-    :f1 bf-x
-    :p #'(lambda (k) (declare (ignore k)) (bigfloat::* 2 bf-x))
-    :q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1)))
+(defun chebyshev_t-numeric (n x digits)
+   (let* ((bf-x (bigfloat::to x))
+          (eps (bigfloat::to (ftake 'mexpt 10 (- digits))))
+          (f0 (bigfloat::to 1))
+          (f1 bf-x)
+          (p #'(lambda (k) (declare (ignore k)) (bigfloat::* 2 bf-x)))
+          (q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1))))
+    (multiple-value-bind (value err)
+            (bigfloat::generic-two-term-recursion-running-error  p q f0 f1 n)
+          (if (bigfloat::modified-relative-error-p value err eps)
+              (maxima::to value)
+              ;; restart with doubled precision
+              (bind-fpprec (mul 2 $fpprec)
+                (chebyshev_t-numeric n ($bfloat x) digits))))))
+
         
 (def-simplifier chebyshev_u (n x)
    (cond ((and (integerp n) (complex-number-p x #'$numberp))
@@ -615,13 +627,20 @@ Our measure of sufficiently small is
           ((eql n 1) f1)
           (t (generic-two-term-recursion-symbolic p q f0 f1 n)))))
 
-(define-two-term-numeric* chebyshev_u-numeric (n x digits)
-  :let  ((bf-x (bigfloat::to x)))
-  :f0 (bigfloat::to 1)
-  :f1 (bigfloat::* 2 bf-x)
-             
-  :p #'(lambda (k) (declare (ignore k)) (bigfloat::* 2 bf-x))
-  :q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1)))
+(defun chebyshev_u-numeric (n x digits)
+  (let*  ((bf-x (bigfloat::to x))
+         (eps (bigfloat::to (ftake 'mexpt 10 (- digits))))
+         (f0 (bigfloat::to 1))
+         (f1 (bigfloat::* 2 bf-x))
+         (p #'(lambda (k) (declare (ignore k)) (bigfloat::* 2 bf-x)))
+         (q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1))))
+      (multiple-value-bind (value err)
+            (bigfloat::generic-two-term-recursion-running-error  p q f0 f1 n)
+          (if (bigfloat::modified-relative-error-p value err eps)
+              (maxima::to value)
+              ;; restart with doubled precision
+              (bind-fpprec (mul 2 $fpprec)
+                (chebyshev_u-numeric n ($bfloat x) digits))))))
 
 (def-simplifier legendre_p (n x)
    (cond ((and (integerp n) (complex-number-p x #'$numberp)) ;evaluate numerically
@@ -654,18 +673,25 @@ Our measure of sufficiently small is
 
  		(t (give-up))))
 
-(define-two-term-numeric* legendre_p-numeric (n x digits)
-  :let ((bf-x (bigfloat::to x))
-         (one (bigfloat::to 1)))
-
-  :f0 one
-  :f1 bf-x
-  :p #'(lambda (kk)
-          (let ((k (bigfloat::to kk)))
-                (bigfloat::/ (bigfloat::* (bigfloat::+ (bigfloat::* 2 k) 1) bf-x) (bigfloat::+ k 1))))
-  :q #'(lambda (kk) 
-          (let ((k (bigfloat::to kk))) 
-                (bigfloat::/ k (bigfloat::+ k one)))))
+(defun legendre_p-numeric (n x digits)
+  (let* ((bf-x (bigfloat::to x))   
+         (one (bigfloat::to 1))
+         (eps (bigfloat::to (ftake 'mexpt 10 (- digits))))
+         (f0 one)
+         (f1 bf-x)
+         (p #'(lambda (kk)
+             (let ((k (bigfloat::to kk)))
+                   (bigfloat::/ (bigfloat::* (bigfloat::+ (bigfloat::* 2 k) 1) bf-x) (bigfloat::+ k 1)))))
+         (q #'(lambda (kk) 
+          (let ((k (bigfloat::to kk))) (bigfloat::/ k (bigfloat::+ k one))))))
+      (multiple-value-bind (value err)
+            (bigfloat::generic-two-term-recursion-running-error  p q f0 f1 n)
+          (if (bigfloat::modified-relative-error-p value err eps)
+              (maxima::to value)
+              ;; restart with doubled precision
+              (bind-fpprec (mul 2 $fpprec)
+                (legendre_p-numeric n ($bfloat x) digits))))))
+  
 
 (defun legendre_p-symbolic (n x)
     (let* ((f0 1)
@@ -962,30 +988,33 @@ Our measure of sufficiently small is
 
 		  (t (give-up))))
 		    
-(define-two-term-numeric* spherical_bessel_j-numeric (n x digits)
-  :let ((bf-x (bigfloat::to x))
-        (bf-zero (bigfloat::to 0))
-        (bf-one (bigfloat::to 1))
-        (bf-minus-one (bigfloat::to -1)))
+(defun spherical_bessel_j-numeric (n x digits)
+  (let* ((bf-x (bigfloat::to x))
+          (bf-zero (bigfloat::to 0))
+          (bf-one (bigfloat::to 1))
+          (eps (bigfloat::to (ftake 'mexpt 10 (- digits))))
+          (bf-minus-one (bigfloat::to -1))
+          (f0 (if (bigfloat::zerop bf-x)
+                  bf-one
+                  (bigfloat::/ (bigfloat::sin bf-x) bf-x)))
 
-  :f0 (if (bigfloat::zerop bf-x)
-         bf-one
-         (bigfloat::/ (bigfloat::sin bf-x) bf-x))
-
-  :f1 (if (bigfloat::zerop bf-x)
-         bf-zero
-         (bigfloat::-
-           (bigfloat::/ (bigfloat::sin bf-x) (bigfloat::* bf-x bf-x))
-           (bigfloat::/ (bigfloat::cos bf-x) bf-x)))
-
-  ;; p(k) = (2k+1)/x
-  :p #'(lambda (k)
-         (bigfloat::/ (bigfloat:to (+ (* 2 k) 1))  bf-x))
-
-  ;; q(k) = -1   
-  :q #'(lambda (k) (declare (ignore k)) bf-minus-one))
+          (f1 (if (bigfloat::zerop bf-x)
+                  bf-zero
+                  (bigfloat::-
+                    (bigfloat::/ (bigfloat::sin bf-x) (bigfloat::* bf-x bf-x))
+                    (bigfloat::/ (bigfloat::cos bf-x) bf-x))))
+          ;; p(k) = (2k+1)/x
+          (p #'(lambda (k) (bigfloat::/ (bigfloat:to (+ (* 2 k) 1))  bf-x)))
+          ;; q(k) = -1   
+          (q #'(lambda (k) (declare (ignore k)) bf-minus-one)))
+      (multiple-value-bind (value err)
+            (bigfloat::generic-two-term-recursion-running-error  p q f0 f1 n)
+          (if (bigfloat::modified-relative-error-p value err eps)
+              (maxima::to value)
+              ;; restart with doubled precision
+              (bind-fpprec (mul 2 $fpprec)
+                (spherical_bessel_j-numeric n ($bfloat x) digits))))))
   
-
 (defun spherical_bessel_j-symbolic (n x)
   "Symbolic spherical Bessel j_n(x) using the recurrence:
    j_0(x) = sin(x)/x
@@ -1040,29 +1069,26 @@ Our measure of sufficiently small is
     (t (give-up))))
 
 ;; The spherical_bessel_y simplifier traps the case x = 0.
-(define-two-term-numeric* spherical_bessel_y-numeric (n x digits)
-  :let ((bf-x         (bigfloat::to x))
-        (bf-minus-one (bigfloat::to -1)))
-
-  ;; y_0(x) = -cos(x)/x
-  :f0 (bigfloat::/ (bigfloat::- (bigfloat::cos bf-x)) bf-x)
-
-  ;; y_1(x) = -cos(x)/x^2 - sin(x)/x
-  :f1 (bigfloat::-
-        (bigfloat::/ (bigfloat::- (bigfloat::cos bf-x))
+(defun spherical_bessel_y-numeric (n x digits)
+  (let* ((bf-x (bigfloat::to x))
+         (eps  (bigfloat::to (ftake 'mexpt 10 (- digits))))
+         ;; y_0(x) = -cos(x)/x
+         (f0 (bigfloat::/ (bigfloat::- (bigfloat::cos bf-x)) bf-x))
+         ;; y_1(x) = -cos(x)/x^2 - sin(x)/x
+         (f1 (bigfloat::- (bigfloat::/ (bigfloat::- (bigfloat::cos bf-x))
                      (bigfloat::* bf-x bf-x))
-        (bigfloat::/ (bigfloat::sin bf-x) bf-x))
-
-  ;; p(k) = (2k+1)/x
-  :p #'(lambda (k)
-         (bigfloat::/
-           (bigfloat::to (+ (* 2 k) 1))
-           bf-x))
-
-  ;; q(k) = -1
-  :q #'(lambda (k)
-         (declare (ignore k))
-         bf-minus-one))
+            (bigfloat::/ (bigfloat::sin bf-x) bf-x)))
+        ;; p(k) = (2k+1)/x
+        (p #'(lambda (k) (bigfloat::/ (bigfloat::to (+ (* 2 k) 1)) bf-x)))
+        ;; q(k) = -1
+        (q #'(lambda (k) (declare (ignore k)))))
+     (multiple-value-bind (value err)
+            (bigfloat::generic-two-term-recursion-running-error  p q f0 f1 n)
+          (if (bigfloat::modified-relative-error-p value err eps)
+              (maxima::to value)
+              ;; restart with doubled precision
+              (bind-fpprec (mul 2 $fpprec)
+                (hermite-numeric n ($bfloat x) digits))))))
 
 (defun spherical_bessel_y-symbolic (n x)
   "Symbolic spherical Bessel y_n(x) using the recurrence:
