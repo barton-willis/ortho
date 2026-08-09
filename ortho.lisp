@@ -262,6 +262,23 @@ Our measure of sufficiently small is
 	      ((floatp one) ($float x))
 		    (t ($bfloat x))))
 
+(defun orthopoly-number-coerce (x one)
+  (cond
+    (($ratnump one)
+     ($rationalize x))
+
+    ((floatp one)
+     ;; Try float conversion, but fall back to bigfloat on overflow
+     (let ((f (errcatch ($float x))))
+      (if f
+          (car f)
+          ($bfloat x))))
+
+    (t
+     ($bfloat x))))
+
+
+
 ;;; simplifier for the Jacobi polynomials
 (def-simplifier jacobi_p (n a b x)
   (cond
@@ -739,6 +756,7 @@ Our measure of sufficiently small is
         ((and (eql 0 x) ($featurep n '$odd))  0)
         (t (give-up))))
 
+#| 
 (define-two-term-numeric* hermite-numeric (n x digits)
   :let  ((bf-x  (bigfloat::to x))
          (bf-2x (bigfloat::* 2 bf-x)))
@@ -746,6 +764,7 @@ Our measure of sufficiently small is
   :f1   bf-2x
   :p    (lambda (k) (declare (ignore k)) bf-2x)
   :q    (lambda (k) (bigfloat::* -2 k)))
+|#
 
 (defun hermite-symbolic (n x)
     (let* ((f0 1)
@@ -753,6 +772,46 @@ Our measure of sufficiently small is
            (p #'(lambda (k) (declare (ignore k)) (mul 2 x)))
            (q #'(lambda (k) (mul -2 k))))
 		    (generic-two-term-recursion-symbolic p q f0 f1 n)))
+
+;; floating-point traps are disabled by defaultfloating-point traps are disabled by default f
+(defun hermite-numeric (n x digits)
+      (let* ((bf-x  (bigfloat::to x))
+             (bf-2x (bigfloat::* 2 bf-x))
+             (eps   (bigfloat::to (ftake 'mexpt 10 (- digits))))
+             (f0    (bigfloat::to 1))
+             (f1    bf-2x)
+             (p     (lambda (k) (declare (ignore k)) bf-2x))
+             (q     (lambda (k) (bigfloat::* -2 k))))
+        (multiple-value-bind (value err)
+            (bigfloat::generic-two-term-recursion-running-error  p q f0 f1 n)
+          (if (bigfloat::modified-relative-error-p value err eps)
+              (maxima::to value)
+              ;; restart with doubled precision
+              (bind-fpprec (mul 2 $fpprec)
+                (hermite-numeric n ($bfloat x) digits))))))
+
+(defun hermite-numeric (n x digits)
+  (handler-case
+      (let* ((bf-x  (bigfloat::to x))
+             (bf-2x (bigfloat::* 2 bf-x))
+             (eps   (bigfloat::to (ftake 'mexpt 10 (- digits))))
+             (f0    (bigfloat::to 1))
+             (f1    bf-2x)
+             (p     (lambda (k) (declare (ignore k)) bf-2x))
+             (q     (lambda (k) (bigfloat::* -2 k))))
+        (multiple-value-bind (value err)
+            (bigfloat::generic-two-term-recursion-running-error
+             p q f0 f1 n)
+          (if (bigfloat::modified-relative-error-p value err eps)
+              (maxima::to value)        ;; <-- return bigfloat directly
+              (bind-fpprec (mul 2 $fpprec)
+                (hermite-numeric n ($bfloat x) digits)))))
+
+    (arithmetic-error (c)
+      (declare (ignore c))
+      (bind-fpprec $fpprec
+        (hermite-numeric n ($bfloat x) digits)))))
+
 
 (def-simplifier gen_laguerre (n a x)
 	(cond ((and (integerp n) (complex-number-p a #'$numberp) (complex-number-p x #'$numberp)
@@ -1180,19 +1239,26 @@ Our measure of sufficiently small is
   (- (* x (legendre-q-degree-0 x)) 1))
 
 (in-package :maxima)
-(define-two-term-numeric* legendre_q-numeric (n x digits)
-  :let ((bf-x (bigfloat::to x))
-         (one (bigfloat::to 1)))
 
-  :f0 (bigfloat::legendre-q-degree-0 bf-x)
-  :f1 (bigfloat::legendre-q-degree-0 bf-x)
-  :p #'(lambda (kk)
+(defun  legendre_q-numeric (n x digits)
+  (let* ((bf-x (bigfloat::to x))
+         (one (bigfloat::to 1))
+         (f0 (bigfloat::legendre-q-degree-0 bf-x))
+         (f1 (bigfloat::legendre-q-degree-1 bf-x))
+         (eps (bigfloat::to (ftake 'mexpt 10 (- digits))))
+         (p #'(lambda (kk)
           (let ((k (bigfloat::to kk)))
-                (bigfloat::/ (bigfloat::* (bigfloat::+ (bigfloat::* 2 k) 1) bf-x) (bigfloat::+ k 1))))
-  :q #'(lambda (kk) 
+                (bigfloat::/ (bigfloat::* (bigfloat::+ (bigfloat::* 2 k) 1) bf-x) (bigfloat::+ k 1)))))
+         (q #'(lambda (kk) 
           (let ((k (bigfloat::to kk))) 
-                (bigfloat::/ k (bigfloat::+ k one)))))
-(in-package :maxima)
+                (bigfloat::/ (bigfloat::- k) (bigfloat::+ k one))))))
+            (multiple-value-bind (value err)
+            (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
+          (if (bigfloat::modified-relative-error-p value err eps)
+              (maxima::to value)
+              ;; restart with doubled precision
+              (bind-fpprec (mul 2 $fpprec)
+                (legendre_q-numeric n ($bfloat x) digits))))))
 
 (defun legendre_q-symbolic (n x)
     (let* ((f0 (div (ftake '%log (div (add x 1) (sub 1 x))) 2))
@@ -1241,16 +1307,25 @@ Our measure of sufficiently small is
             (q   #'(lambda (m)  (mul -1 (add n (neg m) 1) (add n m)))))
        (generic-two-term-recursion-symbolic  p q qn0 qn1 m)))
 
-(define-two-term-numeric* assoc_legendre_q-numeric (n m x digits)
-  :let  ((bf-x (bigfloat::to x))
-         (w (bigfloat::sqrt (bigfloat::- 1 (bigfloat::* x x))))
-         (qn0 (bigfloat::to (legendre_q-numeric n x digits)))
-         (zzz (bigfloat::to (legendre_q-numeric (+ n 1) x digits))) ; zzz=assoc_legendre_q(n,1,x)
-         (qn1 (bigfloat::/ (bigfloat::* (+ n 1) (bigfloat::- zzz (bigfloat::* bf-x qn0))) w)))
-  :f0   qn0
-  :f1   qn1
-  :p    (lambda (m) (bigfloat::/ (bigfloat::* -2 m bf-x) w))
-  :q    (lambda (m) (bigfloat::* -1 (+ n (- m) 1) (+ n m))))
+(defun assoc_legendre_q-numeric (n m x digits)
+  (let*  ((bf-x (bigfloat::to x))
+          (w (bigfloat::sqrt (bigfloat::- 1 (bigfloat::* bf-x bf-x))))
+          (qn0 (bigfloat::to (legendre_q-numeric n x digits)))
+          (zzz (bigfloat::to (legendre_q-numeric (+ n 1) x digits))) ; zzz=assoc_legendre_q(n,1,x)
+          (qn1 (bigfloat::/ (bigfloat::* (+ n 1) (bigfloat::- zzz (bigfloat::* bf-x qn0))) w))
+          (eps   (bigfloat::to (ftake 'mexpt 10 (- digits))))
+          (f0 qn0)
+          (f1 qn1)
+          (p  (lambda (m) (bigfloat::/ (bigfloat::* -2 m bf-x) w)))
+          (q  (lambda (m) (bigfloat::* -1 (+ n (- m) 1) (+ n m)))))
+
+      (multiple-value-bind (value err)
+            (bigfloat::generic-two-term-recursion-running-error p q f0 f1 m)
+          (if (bigfloat::modified-relative-error-p value err eps)
+              (maxima::to value)
+              ;; restart with doubled precision
+              (bind-fpprec (mul 2 $fpprec)
+                (assoc_legendre_q-numeric n ($bfloat x) digits))))))
 
 
 (defmvar $pochhammer_max_index 100)

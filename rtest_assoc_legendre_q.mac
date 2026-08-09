@@ -121,7 +121,7 @@ block([L:4, ans, fails : [], x],
 block([L:4, okay:true, x],
   for l:0 thru L do (
     for m:-l thru l do (
-      for k:-L thru L do (
+      for k:-L+1 thru L+1 do (
         x:bfloat(k/L),
         okay:okay and approx_equal(
                  assoc_legendre_q(l,m,rationalize(x)),
