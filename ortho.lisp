@@ -335,7 +335,7 @@ Our measure of sufficiently small is
               (maxima::to value)
               ;; restart with doubled precision
               (bind-fpprec (mul 2 $fpprec)
-                (hermite-numeric n ($bfloat x) digits))))))
+                (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) digits))))))
 
 ;; To avoid the complications for negative integer parameters, we'll use explict summation for the
 ;; Jacobi polynomials: see http://dlmf.nist.gov/18.5.E8 
@@ -1004,7 +1004,7 @@ Our measure of sufficiently small is
               (maxima::to value)
               ;; restart with doubled precision
               (bind-fpprec (mul 2 $fpprec)
-                (hermite-numeric n ($bfloat x) digits))))))
+                (spherical_bessel_y-numeric n ($bfloat x) digits))))))
 
 (defun spherical_bessel_y-symbolic (n x)
   "Symbolic spherical Bessel y_n(x) using the recurrence:
@@ -1563,7 +1563,6 @@ Our measure of sufficiently small is
 (register-orthopoly-weight
  '%spherical_harmonic
  #$$ lambda([theta,phi], [sin(theta), [0,pi], [0,2*pi]]) $)
-
 
 (defparameter *orthopoly-normalization-table*
   (make-hash-table :test #'eq :size 128))
