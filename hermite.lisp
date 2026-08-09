@@ -99,39 +99,19 @@
 
 
 
-(defmacro define-two-term-numeric (name (n x digits)
-                                        &key let f0 f1 p q)
-  "Define a numeric special-function evaluator using the standard
-   two-term recurrence driver with running error control.
-   The :let argument supplies additional bindings needed by f0, f1, p, q."
-
-  `(defun ,name (,n ,x ,digits)
-     (handler-case
-         (let* (,@let
-                (eps (bigfloat::to (ftake 'mexpt 2 (- ,digits))))
-                (f0 ,f0)
-                (f1 ,f1)
-                (p  ,p)
-                (q  ,q))
-           (multiple-value-bind (value err)
-               (bigfloat::generic-two-term-recursion-running-error
-                p q f0 f1 ,n)
-             (cond ((bigfloat::relative-error-p value err eps)
-                    (maxima::to value))
-                   (t
-                    (bind-fpprec (mul 2 $fpprec)
-                      (,name ,n ($bfloat ,x) ,digits))))))
-       (arithmetic-error (c)
-         (declare (ignore c))
-         (bind-fpprec $fpprec
-           (,name ,n ($bfloat ,x) ,digits))))))
-
-
-(define-two-term-numeric hermite-numeric (n x digits)
-  :let  ((bf-x  (bigfloat::to x))
-         (bf-2x (bigfloat::* 2 bf-x)))
-  :f0   (bigfloat::to 1)
-  :f1   bf-2x
-  :p    (lambda (k) (declare (ignore k)) bf-2x)
-  :q    (lambda (k) (bigfloat::* -2 k)))
+(defun hermite-numeric (n x digits)
+      (let* ((bf-x  (bigfloat::to x))
+             (bf-2x (bigfloat::* 2 bf-x))
+             (eps   (bigfloat::to (ftake 'mexpt 10 (- digits))))
+             (f0    (bigfloat::to 1))
+             (f1    bf-2x)
+             (p     (lambda (k) (declare (ignore k)) bf-2x))
+             (q     (lambda (k) (bigfloat::* -2 k))))
+        (multiple-value-bind (value err)
+            (bigfloat::generic-two-term-recursion-running-error  p q f0 f1 n)
+          (if (bigfloat::modified-relative-error-p value err eps)
+              (maxima::to value)
+              ;; restart with doubled precision
+              (bind-fpprec (mul 2 $fpprec)
+                (hermite-numeric n ($bfloat x) digits))))))
 

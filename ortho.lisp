@@ -496,30 +496,36 @@ Our measure of sufficiently small is
           ((eql n 1) f1)
           (t (generic-two-term-recursion-symbolic p q f0 f1 n)))))
 		  
-(define-two-term-numeric* ultraspherical-numeric (n lam x digits)
-  :let  ((bf-x (bigfloat::to x))
+(defun ultraspherical-numeric (n lam x digits)
+  (let* ((bf-x (bigfloat::to x))
          (bf-lam (bigfloat::to lam))
          (2lam (bigfloat::* (bigfloat::to 2) bf-lam))
-         (2lam-1 (bigfloat::- 2lam (bigfloat::to 1))))
-
-  :f0 (bigfloat::to 1)
-  :f1 (bigfloat::* (bigfloat::to 2) (bigfloat::to lam) bf-x)
-
-  :p #'(lambda (k)
+         (eps (bigfloat::to (ftake 'mexpt 10 (- digits))))
+         (2lam-1 (bigfloat::- 2lam (bigfloat::to 1)))
+         (f0 (bigfloat::to 1))
+         (f1 (bigfloat::* (bigfloat::to 2) (bigfloat::to lam) bf-x))
+         (p #'(lambda (k)
                     (let* ((k+1 (bigfloat::+ k 1))
                            ;; Numerator: 2(k + lam)x
                            (num (bigfloat::* (bigfloat::to 2) (bigfloat::+ k bf-lam) bf-x))
                            ;; Denominator: k + 1
                            (den k+1))
-                      (bigfloat::/ num den)))
-         
-  :q #'(lambda (k)
+                      (bigfloat::/ num den))))
+        (q #'(lambda (k)
                     (let* ((k+1 (bigfloat::+ k 1))
                            ;; Numerator: -(k + 2lam - 1)
                            (num (bigfloat::- (bigfloat::+ k 2lam-1)))
                            ;; Denominator: k + 1
                            (den k+1))
-                      (bigfloat::/ num den))))
+                      (bigfloat::/ num den)))))
+      (multiple-value-bind (value err)
+            (bigfloat::generic-two-term-recursion-running-error  p q f0 f1 n)
+          (if (bigfloat::modified-relative-error-p value err eps)
+              (maxima::to value)
+              ;; restart with doubled precision
+              (bind-fpprec (mul 2 $fpprec)
+                (ultraspherical-numeric n ($bfloat lam) ($bfloat x) digits))))))
+
 
 (def-simplifier chebyshev_t (n x)
   (cond ((and (integerp n) (complex-number-p x #'$numberp))
@@ -790,29 +796,6 @@ Our measure of sufficiently small is
               (bind-fpprec (mul 2 $fpprec)
                 (hermite-numeric n ($bfloat x) digits))))))
 
-(defun hermite-numeric (n x digits)
-  (handler-case
-      (let* ((bf-x  (bigfloat::to x))
-             (bf-2x (bigfloat::* 2 bf-x))
-             (eps   (bigfloat::to (ftake 'mexpt 10 (- digits))))
-             (f0    (bigfloat::to 1))
-             (f1    bf-2x)
-             (p     (lambda (k) (declare (ignore k)) bf-2x))
-             (q     (lambda (k) (bigfloat::* -2 k))))
-        (multiple-value-bind (value err)
-            (bigfloat::generic-two-term-recursion-running-error
-             p q f0 f1 n)
-          (if (bigfloat::modified-relative-error-p value err eps)
-              (maxima::to value)        ;; <-- return bigfloat directly
-              (bind-fpprec (mul 2 $fpprec)
-                (hermite-numeric n ($bfloat x) digits)))))
-
-    (arithmetic-error (c)
-      (declare (ignore c))
-      (bind-fpprec $fpprec
-        (hermite-numeric n ($bfloat x) digits)))))
-
-
 (def-simplifier gen_laguerre (n a x)
 	(cond ((and (integerp n) (complex-number-p a #'$numberp) (complex-number-p x #'$numberp)
               (let* ((digits (get-digits x))      
@@ -932,12 +915,21 @@ Our measure of sufficiently small is
 		(/ (* -1 i (- 1 (* i x)) cis) (* x x))))
 
 (in-package :maxima)
-(define-two-term-numeric* spherical_hankel1-numeric (n x digits)
-  :let ((bf-x (bigfloat::to x)))
-	:f0 (bigfloat::order-zero-spherical_hankel1 bf-x)
-	:f1 (bigfloat::order-one-spherical_hankel1 bf-x)
-  :p #'(lambda (k) (bigfloat::/ (+ (* 2 k) 1) bf-x))
-  :q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1)))
+
+(defun spherical_hankel1-numeric (n x digits)
+  (let* ((bf-x (bigfloat::to x))
+	       (f0 (bigfloat::order-zero-spherical_hankel1 bf-x))
+	       (f1 (bigfloat::order-one-spherical_hankel1 bf-x))
+         (eps   (bigfloat::to (ftake 'mexpt 10 (- digits))))
+         (p #'(lambda (k) (bigfloat::/ (+ (* 2 k) 1) bf-x)))
+         (q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1))))
+     (multiple-value-bind (value err)
+            (bigfloat::generic-two-term-recursion-running-error  p q f0 f1 n)
+          (if (bigfloat::modified-relative-error-p value err eps)
+              (maxima::to value)
+              ;; restart with doubled precision
+              (bind-fpprec (mul 2 $fpprec)
+                (spherical_hankel1-numeric n ($bfloat x) digits))))))
 
 (def-simplifier spherical_hankel2 (n x)
   (give-up))
@@ -1240,7 +1232,7 @@ Our measure of sufficiently small is
 
 (in-package :maxima)
 
-(defun  legendre_q-numeric (n x digits)
+(defun legendre_q-numeric (n x digits)
   (let* ((bf-x (bigfloat::to x))
          (one (bigfloat::to 1))
          (f0 (bigfloat::legendre-q-degree-0 bf-x))
@@ -1325,8 +1317,7 @@ Our measure of sufficiently small is
               (maxima::to value)
               ;; restart with doubled precision
               (bind-fpprec (mul 2 $fpprec)
-                (assoc_legendre_q-numeric n ($bfloat x) digits))))))
-
+                (assoc_legendre_q-numeric n m ($bfloat x) digits))))))
 
 (defmvar $pochhammer_max_index 100)
 
