@@ -10,9 +10,9 @@ This is a new version of Maxima's package for orthogonal polynomials.  New featu
 
 - Numerical evaluation is based on the recursion relations, not the hypergeometric series. The package no longer returns intervals.
 
-- New user-level functions for the function Rodrigues formuula, recursion relation, normalizations, differential equation, and hypergeometric representation. 
+- New user-level functions for the function Rodrigues formula, recursion relation, normalizations, differential equation, and hypergeometric representation. 
 
-- Comprehensive test suite, one file per family, verifying every property and every simplifier behavior.
+- Comprehensive test suite, one file per family, verifying every property and every special value.
 
 ## Current status
 
@@ -77,7 +77,7 @@ All new `ortho` test files run to completion. Some pass cleanly; others expose m
 ($load "ortho.lisp")
 ```
 
-The last line will load the package--you might need to give the full patch to the package `ortho`. Doing so is the safest route.
+The last line will load the package, but you *might need to give the full path name*  to the package `ortho`. Doing so is the safest route (make sure the correct file is loaded).
 
 
 ## Basic usage
