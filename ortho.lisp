@@ -123,7 +123,7 @@ Our measure of sufficiently small is
       Maybe, but it's a design choice to keep the code compact and focused on typical cases
       that users need. 
 
-  (j) Why not calculate A(n) & B(n) such that fn = A(n) f0 + B(n) f1, and estimate the rounding error from just
+  (j) Why not recursively calculate A(n) & B(n) such that fn = A(n) f0 + B(n) f1, and estimate the rounding error from just
       the final addition?
 
       Yes, I think that I've seen such a scheme. Maybe this works fine, but it seems like maybe it is not as
@@ -132,6 +132,7 @@ Our measure of sufficiently small is
 |#
 
 (in-package :maxima)
+
 
 (defun orthopoly-default-simp (p x)
   "Default cleanup for orthogonal polynomials."
@@ -147,6 +148,11 @@ Our measure of sufficiently small is
 
 ;; Number of base 10 digits in a binary64 number (it is 15).
 (defmvar *binary64-digits* (floor (* (float-digits 1.0d0) (log 2 10))))
+
+(defun get-digits (x)
+  (if (floatp x)
+			*binary64-digits*
+			$fpprec))
 
 ;; A left continuous unit step function; thus 
 ;;
@@ -176,15 +182,6 @@ Our measure of sufficiently small is
     (let ((ones (mapcar #'local-one a)))
       (unless (member nil ones) ; If any element failed the check, abort numeric calculation
         (fapply 'mtimes ones)))))
-
-(defun orthopoly-number-coerce (x one)
-  "Coerce the number `x` to the numeric type indicated by `one`.
-   If `one` is an Maxima ratnump number, return an exact rationalized version of `x`.
-   If `one` is a float, convert `x` to an IEEE float. Otherwise convert X 
-   to a bigfloat."
-	(cond (($ratnump one) ($rationalize x))
-	      ((floatp one) ($float x))
-		    (t ($bfloat x))))
 
 (defun orthopoly-number-coerce (x one)
   (cond
@@ -348,7 +345,7 @@ Our measure of sufficiently small is
               (bind-fpprec (mul 2 $fpprec)
                 (jacobi_p-numeric n ($bfloat a) ($bfloat b) ($bfloat x) digits))))))
 
-;; To avoid the complications for negative integer parameters, we'll use explict summation for the
+;; To avoid the complications for negative integer parameters, we'll use explicit summation for the
 ;; Jacobi polynomials: see http://dlmf.nist.gov/18.5.E8 
 
 ;; Careful: when x=+/-1, the k=0 or k=n terms can involve a factor of the form 0^0. To avoid this, 
@@ -622,11 +619,6 @@ Our measure of sufficiently small is
            (q #'(lambda (k) (mul -1 (div k (add k 1))))))
 	 (generic-two-term-recursion-symbolic p q f0 f1 n)))
 
-(defun get-digits (x)
-  (if (floatp x)
-			*binary64-digits*
-			$fpprec))
-
 (def-simplifier assoc_legendre_p (l m x)
   (cond ((and (integerp l) (integerp m) (<= (abs m) l) (complex-number-p x #'$numberp))
            (let* ((digits (get-digits x))
@@ -717,7 +709,6 @@ Our measure of sufficiently small is
            (q #'(lambda (k) (mul -2 k))))
 		    (generic-two-term-recursion-symbolic p q f0 f1 n)))
 
-;; floating-point traps are disabled by defaultfloating-point traps are disabled by default f
 (defun hermite-numeric (n x digits)
       (let* ((bf-x  (bigfloat::to x))
              (bf-2x (bigfloat::* 2 bf-x))
@@ -831,8 +822,6 @@ Our measure of sufficiently small is
 
 		  (t (give-up))))		     
 		   
-;; Define a sequence f(n) = spherical_hanke1(n,x). A recursion for f is
-;; f(n+1) = (2n +1) f(n)/x - f(n-1,z).  
 (defun spherical_hankel1-symbolic (n x)
     (let* ((cis (ftake 'mexpt '$%e (mul '$%i x)))
 	         (f0 (div (mul -1 '$%i cis) x))
@@ -874,8 +863,67 @@ Our measure of sufficiently small is
               (bind-fpprec (mul 2 $fpprec)
                 (spherical_hankel1-numeric n ($bfloat x) digits))))))
 
+;;;; New code!
 (def-simplifier spherical_hankel2 (n x)
-  (give-up))
+  (cond ((and (integerp n) (complex-number-p x #'$numberp))
+         (spherical_hankel2-symbolic n x))
+
+        ((and (integerp n) (complex-number-p x #'$numberp))
+         (let* ((digits (get-digits x))
+                (one    (multiplicative-identity x)))
+           (if one
+               (orthopoly-number-coerce
+                 (spherical_hankel2-numeric n x digits)
+                 one)
+               (give-up))))
+
+        (t (give-up))))
+
+(defun spherical_hankel2-symbolic (n x)
+  (let* ((cis (ftake 'mexpt '$%e (mul '$%i x)))   ;; e^(i x)
+         (f0 (div (mul '$%i cis) x))              ;; (sin - i cos)/x = i e^{ix}/x
+         (f1 (mul (div (add (div '$%i x) -1) x) cis))
+         (p #'(lambda (k) (div (add (mul 2 k) 1) x)))
+         (q #'(lambda (k) (declare (ignore k)) -1)))
+    (generic-two-term-recursion-symbolic f0 f1 p q n)))
+
+(in-package #:bigfloat)
+
+(defun order-zero-spherical_hankel2 (x)
+  (let* ((i (bigfloat::complex 0 1))
+         (cis (if (realp x)
+                  (cis x)
+                  (+ (cos x) (* i (sin x))))))
+    (/ (* i cis) x)))
+
+(defun order-one-spherical_hankel2 (x)
+  (let* ((i (bigfloat::complex 0 1))
+         (cis (if (realp x)
+                  (cis x)
+                  (+ (cos x) (* i (sin x))))))
+    ;; ((%i*(1+%i*x)*%e^(%i*x))/x^2)
+    (/ (* i (+ 1 (* i x)) cis) (* x x))))
+
+(in-package :maxima)
+
+(in-package :maxima)
+
+(defun spherical_hankel2-numeric (n x digits)
+  (let* ((bf-x (bigfloat::to x))
+         (f0   (bigfloat::order-zero-spherical_hankel2 bf-x))
+         (f1   (bigfloat::order-one-spherical_hankel2 bf-x))
+         (eps  (bigfloat::to (ftake 'mexpt 10 (- digits))))
+         (p #'(lambda (k) (bigfloat::/ (+ (* 2 k) 1) bf-x)))
+         (q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1))))
+    (multiple-value-bind (value err)
+        (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
+      (if (bigfloat::modified-relative-error-p value err eps)
+          (maxima::to value)
+          ;; restart with doubled precision
+          (bind-fpprec (mul 2 $fpprec)
+            (spherical_hankel2-numeric n ($bfloat x) digits))))))
+
+;;;;;;;;;;;;;;;;end new code
 
 (def-simplifier spherical_bessel_j (n x)
     (cond 
