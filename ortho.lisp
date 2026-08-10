@@ -73,27 +73,32 @@ Our measure of sufficiently small is
       between directions possibly a toss-up. Plus, cases with complex parameters likely makes
       the decision between up or down recursion difficult to decide. Finally even using 
       the better choice for the recursion direction, rounding errors and cancellation 
-      still happen and need to be managed. I'm do not want to add this much complexity 
+      still happen and need to be managed. I do not want to add this much complexity 
       to the code.
 
   (b) Instead of the running error, why not just use Kahan summation on a series representation?
 
       Kahan summation is a lovely method, but it does not transform an ill-conditioned sum into a 
-      well-conditioned sum. And as far as I know, Kahan summation is really only useful for an 
-      accumulated sum, but the two-term recursion isn't of this form.
+      well-conditioned sum. More importantly, as far as I know, Kahan summation is really only useful for an 
+      accumulated sum, but the two-term recursion isn't of this form. Using Kahan summation would require
+      switching from the recursion to a series representing.
 
-  (c) Why not just turn over all the numerical code to the hypergeometric code?
+  (c) Why not use interval arithmetic instead of the running error? 
+
+      There are interval package for Maxima that might work, but it adds a great deal of code.
+
+  (d) Why not just turn over all the numerical code to the hypergeometric code?
 
       I'm not sure about the trade-offs. Depending on parameters, I think that some of the functions 
-      need to be choose between different hypergeometric  representations--this adds complexity to the code,
+      need to be choose between different hypergeometric representations--this adds complexity to the code,
       plus some of the overall factors for the hypergeometric are quotients that might needlessly 
       overflow unless tricky methods are used. The two term recursions are simple.
 
-  (d) Why not do floating point evaluation using nfloat on the exact symbolic values?
+  (e) Why not do floating point evaluation using nfloat on the exact symbolic values?
 
     Even for modest degrees, my experiments show that this method is painfully slow.
 
-  (e) Isn't the running error just a crude estimate? It's not rigorous!
+  (f) Isn't the running error just a crude estimate? It's not rigorous!
 
       It's an estimate that is based on the properties of floating point arithmetic. Sure, it's
       an estimate, but it's not crude. The estimate ignores the O(ε^2), the errors in computing 
@@ -101,22 +106,28 @@ Our measure of sufficiently small is
       over estimated and testing shows that the method is reliable--not sufficiently reliable to
       prove theorems, but it is pretty good.
 
-  (f) Can't you assume that rounding errors are uniformly distributed independent random variables
+  (g) Can't you assume that rounding errors are uniformly distributed independent random variables
       and get a much lower error estimate?
 
-      Yes, you can make those assumptions, but they are not grounded in fact.
+      Yes, you can make those assumptions, but they are not grounded in fact. 
 
-  (g) The polynomials XXX extend to negative degree and order, but this package doesn't extend
+  (h) The polynomials XXX extend to negative degree and order, but this package doesn't extend
       them to negative degrees. Why?
 
       The answer isn't very interesting--it's a design choice based on focusing on what I suspect that
       most users need and on keeping the code compact. If you need to extend a function to negative
       degrees or the like, let me know--or even better do it yourself and share it.
 
-  (h) For large `n`, shouldn't the code switch over to asymptotic series?
+  (i) For large `n`, shouldn't the code switch over to asymptotic series?
 
       Maybe, but it's a design choice to keep the code compact and focused on typical cases
       that users need. 
+
+  (j) Why not calculate A(n) & B(n) such that fn = A(n) f0 + B(n) f1, and estimate the rounding error from just
+      the final addition?
+
+      Yes, I think that I've seen such a scheme. Maybe this works fine, but it seems like maybe it is not as
+      robust.
 
 |#
 
@@ -1083,6 +1094,7 @@ Our measure of sufficiently small is
     (and
      (okay (realpart x) (realpart err) eps)
      (okay (imagpart x) (imagpart err) eps))))
+
 
 (defun componentwise-abs (z)
   "Return the componentwise absolute value of a real or complex number.
