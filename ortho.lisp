@@ -1051,17 +1051,16 @@ Our measure of sufficiently small is
   (let (($algebraic t))
     (setq f0 ($rat f0))
     (setq f1 ($rat f1))
-    (cond ((eql n 0) f0)
-          ((eql n 1) f1)
+    (cond ((eql n 0) (values f0 0)) ; maybe (values f0 nil)?
+          ((eql n 1) (values f1 f0))
           (t
            (let ((f2)
                  (end (1- n)))
              (do ((k 1 (1+ k)))
-                 ((> k end) ($ratdisrep f1))
+                 ((> k end) (values f1 f0))
                (setq f2 (add (mul (funcall p k) f1) (mul (funcall q k) f0)))
                (setq f0 f1
                      f1 f2)))))))
-
 
 (in-package #:bigfloat)
 
@@ -1100,9 +1099,9 @@ Our measure of sufficiently small is
 
    Recurrence: f(k+1) = p(k)*f(k) + q(k)*f(k-1)
 
-   Returns two values: (values f_n  error-bound-for-f_n)"
-  (cond ((eql n 0) (values f0 0))
-        ((eql n 1) (values f1 0))
+   Returns values f_n  error-bound-for-f_n f_{n-1})"
+  (cond ((eql n 0) (values f0 0 0))
+        ((eql n 1) (values f1 0 f0))
         (t
          (let ((e0 (componentwise-abs f0))   ; initial error bounds
                (e1 (componentwise-abs f1))
@@ -1111,7 +1110,7 @@ Our measure of sufficiently small is
            (do ((k 1 (1+ k)))
                ((> k end)
                 ;; final error bound: ε * e1, componentwise
-                (values f1 (componentwise-abs (* (epsilon f1) e1))))
+                (values f1 (componentwise-abs (* (epsilon f1) e1)) f0))
              (let* ((a (funcall p k))
                     (b (funcall q k))
                     ;; recurrence step
