@@ -75,6 +75,21 @@ The last line will load the package.
 
 ## Basic usage
 
+For rational input, Maxima returns values in rectangular form:
+
+```maxima
+(%i1) hermite(5,2/3);
+                                     8944
+(%o1)                                ────
+                                     243
+(%i2) hermite(5,2/3 + %i);
+                                89584   968 %i
+(%o2)                           ───── - ──────
+                                 243      81
+(%i3) hermite(5,1/(1+%i));
+(%o3)                             96 - 16 %i
+```
+
 The polynomial `hermite(50,x)` has a zero near `-9.182406958129317`, so maintaining a strict relative error bound for 
 numerical evaluation near this zero isn't possible, but Maxima does pretty well:
 
