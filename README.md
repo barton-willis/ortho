@@ -77,7 +77,7 @@ All new `ortho` test files run to completion. Some pass cleanly; others expose m
 ($load "ortho.lisp")
 ```
 
-The last line will load the package, but you *might need to give the full path name*  to the package `ortho`. Doing so is the safest route (make sure the correct file is loaded).
+The last line will load the package, but you *might need to give the full path name*  to the package `ortho`. Doing so is the safest route (to be certain that the correct file is loaded).
 
 
 ## Basic usage
