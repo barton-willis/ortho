@@ -89,6 +89,16 @@ For rational input, Maxima returns values in rectangular form:
 (%i3) hermite(5,1/(1+%i));
 (%o3)                             96 - 16 %i
 ```
+The same for binary64 and bigfloat evaluation:
+
+```maxima
+(%i1) ultraspherical(5,-3, 0.23);
+(%o1)                               - 1.38
+(%i2) ultraspherical(5,-3, 0.23+%i);
+(%o2)                    - 6.0 %i - 1.3800000000000001
+(%i3) ultraspherical(5,-3, 0.23b0+%i);
+(%o3)                         - 6.0b0 %i - 1.38b0
+```
 
 The polynomial `hermite(50,x)` has a zero near `-9.182406958129317`, so maintaining a strict relative error bound for 
 numerical evaluation near this zero isn't possible, but Maxima does pretty well:
