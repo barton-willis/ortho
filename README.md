@@ -1,5 +1,5 @@
 
-## A new orthogonal polynomial Package for Maxima
+## A new orthogonal polynomial package for Maxima
 
 This is a new version of Maxima's package for orthogonal polynomials.  New features:
 
