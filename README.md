@@ -82,6 +82,23 @@ The last line will load the package.
 
 ## Basic usage
 
+Symbolic and numerical evaluation of the Jacobi polynomials:
+
+```maxima
+(%i6) jacobi_p(5,-2,-2,x);
+                                  5      3
+                               3 x  - 6 x  + 3 x
+(%o6)                          ─────────────────
+                                      16
+(%i7) jacobi_p(5,-2,-2,1/2);
+                                      27
+(%o7)                                 ───
+                                      512
+(%i8) jacobi_p(5,-2,-2,0.5);
+(%o8)                             0.052734375
+(%i9)
+```
+
 For rational input, Maxima returns values in rectangular form:
 
 ```maxima
@@ -101,10 +118,19 @@ The same for binary64 and bigfloat evaluation:
 ```maxima
 (%i1) ultraspherical(5,-3, 0.23);
 (%o1)                               - 1.38
+
 (%i2) ultraspherical(5,-3, 0.23+%i);
 (%o2)                    - 6.0 %i - 1.3800000000000001
+
 (%i3) ultraspherical(5,-3, 0.23b0+%i);
 (%o3)                         - 6.0b0 %i - 1.38b0
+
+(%i4) gen_laguerre(3,0.4, 5.0);
+(%o4)                          3.170666666666667
+
+(%i5) gen_laguerre(3,0.4, 5.0 + 4.0*%i);
+(%o5)             12.346666666666668 %i + 15.970666666666666
+
 ```
 
 The polynomial `hermite(50,x)` has a zero near `-9.182406958129317`, so maintaining a strict relative error bound for 
