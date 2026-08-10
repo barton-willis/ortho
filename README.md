@@ -14,6 +14,13 @@ This is a new version of Maxima's package for orthogonal polynomials.  New featu
 
 - Comprehensive test suite, one file per family, verifying every property and every simplifier behavior.
 
+## Current status
+
+With the `ortho` package loaded, Maxima’s core testsuite and the share testsuites now run to completion with thirty failures. Of
+these 20 syntactic mismatches. I am currently reviewing the remaining ten failures. Most appear to be syntactic as well.
+
+All new `ortho` test files run to completion. Some pass cleanly; others expose missing conjugate or gradient properties, and the like.
+
 ## Installation Guide
 
 1. **Copy the package directory**  
