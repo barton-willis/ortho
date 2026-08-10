@@ -1384,7 +1384,8 @@ Our measure of sufficiently small is
 		 (setq acc (mul acc (add k x)))))))
 	  ;; return a nounform.
 	  (t `(($pochhammer simp) ,x ,n)))))
-
+(setf (get '$pochhammer 'operators) 'simp-pochhammer)
+ 
 (defgrad $pochhammer ($x $n)
   ;; ∂/∂x
   #$$ pochhammer(x,n)*(psi[0](x+n) - psi[0](x))$
