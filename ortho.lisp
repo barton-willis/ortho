@@ -756,6 +756,9 @@ Our measure of sufficiently small is
            (if (< n 0)
               (give-up)
               (orthopoly-polynomial-simp (gen_laguerre-symbolic n 0 x) x)))
+
+      ((and (eql x 0) ($featurep n '$integer))
+		   (ftake '%binomial n n))
           ;; nothing known--noun form return
  		  (t (give-up))))
 
@@ -1583,7 +1586,7 @@ Our measure of sufficiently small is
 
 (register-orthopoly-weight
  '%laguerre
- #$$ lambda([x,a], [x^a * exp(-x), 0, inf]) $)
+ #$$ lambda([x], [exp(-x), 0, inf]) $)
 
 (register-orthopoly-weight
  '%gen_laguerre
@@ -1662,8 +1665,8 @@ Our measure of sufficiently small is
 
 (register-orthopoly-normalization
  '%laguerre
- #$$ lambda([n,a],
-      gamma(n+a+1)/factorial(n)) $)
+ #$$ lambda([n],
+      gamma(n+1)/factorial(n)) $)
 
 (register-orthopoly-normalization
  '%gen_laguerre
@@ -2019,6 +2022,7 @@ Our measure of sufficiently small is
 (define-orthopoly-conjugator %ultraspherical :check 1)
 (define-orthopoly-conjugator %hermite :check 1)
 (define-orthopoly-conjugator %laguerre :check 1)
+(define-orthopoly-conjugator %gen_laguerre :check 1)
 (define-orthopoly-conjugator %legendre_p :check 1)
 (define-orthopoly-conjugator %gegenbauer :check 1)
 (define-orthopoly-conjugator %chebyshev_t :check 1)

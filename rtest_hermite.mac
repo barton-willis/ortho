@@ -21,12 +21,14 @@ hermite(0,x);
 hermite(1,x);
 2*x$
 
-/* require explicit integer for degree*/
+/* require explicit integer for degree, not a float or bigfloat. */
 op_and_args(hermite(1.0,x));
 [hermite, [1.0, x]]$
 
-/*  Check the value at 0 */
+op_and_args(hermite(1.0b0,x));
+[hermite, [1.0b0, x]]$
 
+/*  Check the value at 0 */
 block([ans], declare(n,even), ans : hermite(n,0), remove(n,even), ans);
  (2^n*sqrt(%pi))/gamma((1-n)/2)$
 
@@ -122,6 +124,7 @@ hermite(5,23/10);
 
 subst(x=23/10, hermite(5,x));
 1215343/3125$
+
 /* end tests adapted from rtest_orthopoly */
 
 (declare(z,complex),0);
@@ -144,7 +147,7 @@ hermite(n,x) - hermite(n,-x);
 hermite(n+1,x) + hermite(n+1,-x);
 0$
 
-hermite(k,-x)+ hermite(k,x);
+hermite(k,-x) + hermite(k,x);
 (-1)^k*hermite(k,x)+hermite(k,x)$
 
 (remove(n,even),0);
@@ -188,6 +191,9 @@ integrate(hermite(2,z)^2*w, z, a,b);
 integrate(hermite(n,x),x,0,z);
 hermite(n+1,z)/(2*n+2)-hermite(n+1,0)/(2*n+2)$
 
+ratsimp(diff(integrate(hermite(n,x),x,0,z),z));
+hermite(n,z)$
+
 /* Nounform return checks */
 block([ans : hermite(-1, x)], [op(ans), args(ans)]);
 [hermite, [- 1, x]]$
@@ -199,7 +205,7 @@ block([ans : hermite(-1, 42)], [op(ans), args(ans)]);
 (approx_equal(x,y) := is(abs(x-y) < 10^(-15) * max(1,abs(x))),0);
 0$
 
-block([N : 4, okay : true, maxD : 16,x,y],
+block([N : 4, okay : true, maxD : 32,x,y],
  for d : maxD-1 thru maxD do (
   for k : -N thru N do (
     for l : -N thru N do (
@@ -212,7 +218,7 @@ true$
 (fpprec : 28,0);
 0$
 
-block([N : 4, okay : true, maxD : 16,x,y],
+block([N : 4, okay : true, maxD : 32,x,y],
  for d : maxD-1 thru maxD do (
   for k : -N thru N do (
     for l : -N thru N do (
@@ -235,6 +241,13 @@ block([bad : [],n,x,exact, approx, eps : 10^-14],
     bad);
 []$
 
+/* see  https://github.com/JuliaApproximation/ClassicalOrthogonalPolynomials.jl/issues/280 */
+block([n : 50, x : -9.182406958129], approx_equal(hermite(n,x), hermite(n, rationalize(x))));
+true$
+
+block([n : 5, x : 2.0201828704560856], approx_equal(hermite(n,x), hermite(n, rationalize(x))));
+true$
+
 /* ode */
  (fn : orthopoly_ode('hermite),0);
  0$
@@ -249,10 +262,10 @@ fn(10, z,hermite(10,z)), expand;
 is(fn(0,z));
 true$
 
- is(apply(equal, args(fn(1,z))));
+ is(fn(1,z));
  true$
 
-is(apply(equal, args(fn(28,z))));
+is(ratsimp(fn(28,z)));
 true$
 
 (remvalue(fn),0);
