@@ -24,7 +24,6 @@ these 20 syntactic mismatches. I am currently reviewing the remaining ten failur
 
 Here is a typical syntactic failure:
 ```maxima
-
 ********************* rtesthyp.mac: Problem 85 (line 357) *********************
 Input:
 hgfred([- 2, - 4], [], z)
@@ -37,7 +36,6 @@ This differed from the expected result:
 12 (─── + ───── + 1) z
     3 z       2
           12 z
-
 ```
 Arguably, the new value is better--it doesn't have the spurious singularity at zero.
 
