@@ -1138,8 +1138,8 @@ Our measure of sufficiently small is
 (defun modified-relative-error-p (x err eps)
   "Return T if the componentwise modified relative error is <= eps.  Works for real or complex x and err"
   (setq eps (bigfloat::to eps))
-   (setq x (bigfloat::to x))
-    (setq err (bigfloat::to err))
+  (setq x (bigfloat::to x))
+  (setq err (bigfloat::to err))
   (flet ((okay (x err eps)
            (<= (abs err) (* eps (max 1 (abs x))))))
     (and
@@ -1156,6 +1156,8 @@ Our measure of sufficiently small is
                (abs (imagpart z)))
       (abs z)))
 
+;;; spherical_bessel_j(12, 0.225) wasn't as accurate as it should be, so I inserted multiplier of safety (currently equal
+;;; to four) for the running error. I should revisit this choice.
 (defun generic-two-term-recursion-running-error (p q f0 f1 n)
   "Evaluate the recurrence forward while tracking a componentwise absolute
    running error bound using the IEEE‑754 real floating‑point model.
