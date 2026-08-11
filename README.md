@@ -178,26 +178,26 @@ Another example: Again, Maxima does pretty well:
 (%i5) float(hermite(5,rationalize(2.0201828704560856)));
 (%o5)                      - 4.5687075073857527e-14
 ```
-### Testsuite failures 
+### Status
 
-Here are the results of the tests: 
+The `ortho` package is not ready for serious work. Here are the results of the tests: 
 
 ❌ (some failures) ✔️ (no failures) ⏳ (not yet done)
  
  Function | Test Results | Comment(s) |
 |---------|--------------|----------|
-| hermite   | ✔️ (67/67 pass) | runtime 10.1 seconds | 
-| jacobi_p    | ✔️ (40/40 pass) | runtime 2.0 seconds |
-| laguerre  |✔️ (41/41 pass) | runtime 13.6 seconds, includes the generalized polynomials|
-| legendre  | ⏳ | test file hasn't been constructed |
-| assoc_legendre_p | ❌ (21/34 pass) | tests are incomplete |
-| legendre_q  | ⏳ | test file hasn't been constructed |
-| assoc_legendre_q |❌ (28/35)|  some tests are missing  |
-| spherical_bessel_j | ❌ (28/29 pass) | accuracy for spherical_bessel_j(9, ±0.05) fails |
-| spherical_bessel_y | ❌ (20/29 pass) | some serious bugs  |
-| spherical_hankel_h1 | ❌ (16/29 pass) |some serious bugs |
-| spherical_hankel_h2 |❌ (16/29 pass)| some serious bugs  |
-| ultraspherical | ✔️ (45/45 pass) | runtime 8.8 seconds |
+| rtest_hermite   | ✔️ (67/67 pass) | runtime 19.1 seconds | 
+|  rtest_jacobi_p    | ✔️ (40/40 pass) | runtime 2.0 seconds |
+|  rtest_laguerre  |✔️ (41/41 pass) | runtime 13.6 seconds, includes the generalized polynomials|
+|  rtest_legendre  | ⏳ | test file hasn't been constructed |
+|  rtest_assoc_legendre_p | ❌ (21/34 pass) | tests are incomplete |
+|  rtest_legendre_q  | ⏳ | test file hasn't been constructed |
+|  rtest_assoc_legendre_q |❌ (28/35)|  runtime 0.4 seconds, some tests are missing  |
+|  rtest_spherical_bessel_j | ✔️ (29/29 pass) | runtime 3.3 seconds |
+|  rtest_spherical_bessel_y | ❌ (20/29 pass) | some serious bugs  |
+|  rtest_spherical_hankel_h1 | ❌ (16/29 pass) |some serious bugs |
+|  rtest_spherical_hankel_h2 |❌ (16/29 pass)| some serious bugs  |
+|  rtest_ultraspherical | ✔️ (45/45 pass) | runtime 8.7 seconds |
 
 ### Controlling subtractive cancellation
 
