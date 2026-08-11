@@ -1,16 +1,19 @@
 
 ## A new orthogonal polynomial package for Maxima
 
-This is a new version of Maxima's package for orthogonal polynomials.  New features:
+This is a new version of Maxima's package for orthogonal polynomials. New features:
 
-- The orthogonal polynomials are now simplifying functions. This gives the orthogonal polynomials noun/verb correctness.
+- The orthogonal polynomials are now simplifying functions.
 
 - Each function has basic simplifications built in, a gradient property, an antiderivative property, and a 
   conjugate property.
 
-- Numerical evaluation is based on the recursion relations, not the hypergeometric series. The package no longer returns intervals.
+- Numerical evaluation is based on the recursion relations, not the hypergeometric series. 
 
-- New user-level functions for the function Rodrigues formula, recursion relation, normalizations, differential equation, and hypergeometric representation. 
+- The package no longer returns intervals for numerical evaluation.
+
+- New user-level functions for the Rodrigues formula, recursion relation, normalizations, differential equation, and hypergeometric representation
+  for the orthogonal polynomials.
 
 - Comprehensive test suite, one file per family, verifying every property and every special value.
 
@@ -19,9 +22,35 @@ This is a new version of Maxima's package for orthogonal polynomials.  New featu
 With the `ortho` package loaded, Maxima’s core testsuite and the share testsuites now run to completion with thirty failures. Of
 these 20 syntactic mismatches. I am currently reviewing the remaining ten failures. Most appear to be syntactic as well.
 
+Here is a typical syntactic failure:
+```maxima
+
+********************* rtesthyp.mac: Problem 85 (line 357) *********************
+
+Input:
+hgfred([- 2, - 4], [], z)
+
+
+Result:
+    2
+12 z  + 8 z + 1
+
+This differed from the expected result:
+     2      1         2
+12 (─── + ───── + 1) z
+    3 z       2
+          12 z
+
+```
+Arguably, the new value is better--it doesn't have the "fake" singularity at zero.
+
 All new `ortho` test files run to completion. Some pass cleanly; others expose missing conjugate or gradient properties, and the like.
 
 ## Installation Guide
+
+Maxima's `orthopoly` package resides in the share library, but it autoloads. Installing the new package requires
+deactivating the autoload property for the old package.  Alternatively, you could simply replace the files in your
+share library, but doing so is not easily reversed.  Here is how to install the new package by deactivating the autoload property:
 
 1. **Copy the package directory**  
    Copy the folder containing the `ortho` package files to a location where you normally keep Maxima source files.
@@ -74,10 +103,10 @@ All new `ortho` test files run to completion. Some pass cleanly; others expose m
     ;; Remove autoload created by (autof 'simp-unit-step "orthopoly")
     (remprop simp 'autoload)))
 
-($load "ortho.lisp")
+($load "<full path to ortho.lisp>")
 ```
 
-The last line will load the package, but you *might need to give the full path name*  to the package `ortho`. Doing so is the safest route (to be certain that the correct file is loaded).
+The last line will load the package. 
 
 
 ## Basic usage
