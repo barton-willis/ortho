@@ -26,15 +26,12 @@ Here is a typical syntactic failure:
 ```maxima
 
 ********************* rtesthyp.mac: Problem 85 (line 357) *********************
-
 Input:
 hgfred([- 2, - 4], [], z)
-
 
 Result:
     2
 12 z  + 8 z + 1
-
 This differed from the expected result:
      2      1         2
 12 (─── + ───── + 1) z
@@ -42,7 +39,7 @@ This differed from the expected result:
           12 z
 
 ```
-Arguably, the new value is better--it doesn't have the "fake" singularity at zero.
+Arguably, the new value is better--it doesn't have the spurious singularity at zero.
 
 All new `ortho` test files run to completion. Some pass cleanly; others expose missing conjugate or gradient properties, and the like.
 
