@@ -184,8 +184,40 @@ Another example: Again, Maxima does pretty well:
 (%o5)                      - 4.5687075073857527e-14
 ```
 
-The recursion relation for the next case suffers from subtractive cancellation. Internally, the 
-method uses a running error to track the error. When it is too large, it starts over using 
+### Controlling subtractive cancellation
+
+Computing the orthogonal polynomials using the recursion relation is algorithmically simple. But 
+to avoid subtractive cancellation, we must be valiant. Here is an example: Let's compute the 
+Laguerre polynomials using recursion and binary64 numbers.  In Maxima, a simple why to do this
+is to use a memoizing function; for example
+
+```maxima
+(%i1)	a : -200.0$
+
+(%i2)	x : -90.0$
+
+(%i3)	L[n] := if n = 0 then 1.0 elseif n = 1 then a+1-x else ((2*n+a-1)/n  - x/n) * L[n-1] - (n-1+a) * L[n-2]/n$
+
+(%i4)	L[50];
+(%o4)	6.163505607863041*10^35
+
+(%i5)	gen_laguerre(50,-200,-90);
+(%o5)	17385421159024287119634798567925009237310328534245553393384246091596/28207033894550201495240534048951
+
+(%i6)	float(%);
+(%o6)	6.163505607863035*10^35
+
+(%i7)	L[150];
+(%o7)	6.743887046036587*10^38
+
+(%i8)	float(gen_laguerre(150,-200,-90));
+(%o8)	1.512947155869013*10^16 
+```
+
+The value of the 50-th degree polynomial is okay, but value of the 150-th degree case is off by a factor of 10^22.
+
+
+To mitigate subtractive cancellation, the `orth` package uses a running error to track the error. When it is too large, it starts over using 
 higher precision numbers. Example
 
 ```maxima 
