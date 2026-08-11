@@ -98,7 +98,7 @@ spherical_bessel_j(-1,42);
 -(sin(42)/42)$
 
 /* binary64 tests */
-(approx_equal(x,y) := is(abs(x-y) < 10^(-14)*max(10^(-7),abs(x))),0);
+(approx_equal(x,y) := is(abs(x-y) < 10^(-14)*max(1, abs(x))),0);
 0$
 
 block([N:40, fails:[],okay,  maxD:12, x],

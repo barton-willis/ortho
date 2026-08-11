@@ -182,7 +182,7 @@ Another example: Again, Maxima does pretty well:
 ### Controlling subtractive cancellation
 
 Computing the orthogonal polynomials using the recursion relation is algorithmically simple. But 
-to avoid subtractive cancellation, we must be valiant. Here is an example: Let's compute the 
+to avoid subtractive cancellation, we must be vigilant. Here is an example: Let's compute the 
 Laguerre polynomials using recursion and binary64 numbers.  In Maxima, a simple why to do this
 is to use a memoizing function; for example
 
