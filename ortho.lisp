@@ -1168,12 +1168,13 @@ Our measure of sufficiently small is
         (t
          (let ((e0 (componentwise-abs f0))   ; initial error bounds
                (e1 (componentwise-abs f1))
+               (safety 4)
                (end (1- n))
                f2 e2)
            (do ((k 1 (1+ k)))
                ((> k end)
                 ;; final error bound: ε * e1, componentwise
-                (values f1 (componentwise-abs (* (epsilon f1) e1)) f0))
+                (values f1 (componentwise-abs (* safety (epsilon f1) e1)) f0))
              (let* ((a (funcall p k))
                     (b (funcall q k))
                     ;; recurrence step
