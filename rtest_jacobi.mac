@@ -70,7 +70,7 @@ block([w,s,Q],
   Q : lambda([n,m], integrate(jacobi_p(n,2,3,x)*jacobi_p(m,2,3,x)*first(w),x,second(w),third(w))
       - kron_delta(n,m)*s(n,2,3)),
   makelist(makelist(Q(n,m),n,0,6),m,0,6));
-[[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]]$
+[[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0], [0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]]$
 
 /* reflection: P_n^{(a,b)}(-x) = (-1)^n P_n^{(b,a)}(x) */
 ratsimp(makelist(jacobi_p(n,a,b,-x) - (-1)^n*jacobi_p(n,b,a,x), n,0,10));
