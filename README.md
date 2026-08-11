@@ -37,7 +37,7 @@ This differed from the expected result:
     3 z       2
           12 z
 ```
-Arguably, the new value is better--it doesn't have the spurious singularity at zero.
+Arguably, the new value is better - it doesn't have the spurious singularity at zero.
 
 All new `ortho` test files run to completion. Some pass cleanly; others expose missing conjugate or gradient properties, and the like.
 
