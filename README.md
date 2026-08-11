@@ -178,6 +178,26 @@ Another example: Again, Maxima does pretty well:
 (%i5) float(hermite(5,rationalize(2.0201828704560856)));
 (%o5)                      - 4.5687075073857527e-14
 ```
+### Testsuite failures 
+
+Here are the results of the tests: 
+
+❌ (some failures) ✔️ (no failures) ⏳ (not yet done)
+ 
+ Function | Test Results | Comment(s) |
+|---------|--------------|----------|
+| hermite   | ✔️ (67/67 pass) | runtime 10.1 seconds | 
+| jacobi_p    | ✔️ (40/40 pass) | runtime 2.0 seconds |
+| laguerre  |✔️ (41/41 pass) | runtime 13.6 seconds, includes the generalized polynomials|
+| legendre  | ⏳ | test file hasn't been constructed |
+| assoc_legendre_p | ❌ (21/34 pass) | tests are incomplete |
+| legendre_q  | ⏳ | test file hasn't been constructed |
+| assoc_legendre_q |❌ (28/35)|  some tests are missing  |
+| spherical_bessel_j | ❌ (28/29 pass) | accuracy for spherical_bessel_j(9, ±0.05) fails |
+| spherical_bessel_y | ❌ (20/29 pass) | some serious bugs  |
+| spherical_hankel_h1 | ❌ (16/29 pass) |some serious bugs |
+| spherical_hankel_h2 |❌ (16/29 pass)| some serious bugs  |
+| ultraspherical | ✔️ (45/45 pass) | runtime 8.8 seconds |
 
 ### Controlling subtractive cancellation
 
@@ -235,3 +255,22 @@ higher precision numbers. Example
 (%i9) float(%);
 (%o9)                        1.3580967293566024e31
 ```
+
+### Testsuite failures
+
+❌ (some failures) ✔️ (no failures) ⏳ (not yet done)
+ 
+ Function | Test Results | Comment(s) |
+|---------|--------------|----------|
+| hermite   | ✔️ (67/67 pass) | runtime 9.2 seconds | 
+| jacobi_p    | ✔️ (40/40 pass) | runtime 1.0 seconds |
+| laguerre  |✔️ (41/41 pass) | runtime 6.8 seconds, includes the generalized polynomials|
+| legendre  | ⏳ | test file hasn't been constructed |
+| assoc_legendre_p | ❌ (21/13 pass) | tests are incomplete |
+| legendre_q  | ⏳ | test file hasn't been constructed |
+| assoc_legendre_q |❌ (28/35)|  some tests are missing  |
+| spherical_bessel_j | ❌ (28/29 pass) | accuracy for spherical_bessel_j(9, ±0.05) fails |
+| spherical_bessel_y | ❌ (20/29 pass) | some serious bugs  |
+| spherical_hankel_h1 | ❌ (16/29 pass) |some serious bugs |
+| spherical_hankel_h2 |❌ (16/29 pass)| some serious bugs  |
+| ultraspherical | ✔️ (45/45 pass) | runtime 8.8 seconds |

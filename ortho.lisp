@@ -501,7 +501,6 @@ Our measure of sufficiently small is
               ;; restart with doubled precision
               (bind-fpprec (mul 2 $fpprec)
                 (chebyshev_t-numeric n ($bfloat x) digits))))))
-
         
 (def-simplifier chebyshev_u (n x)
    (cond ((and (integerp n) (complex-number-p x #'$numberp))
@@ -1156,8 +1155,9 @@ Our measure of sufficiently small is
                (abs (imagpart z)))
       (abs z)))
 
-;;; spherical_bessel_j(12, 0.225) wasn't as accurate as it should be, so I inserted multiplier of safety (currently equal
-;;; to four) for the running error. I should revisit this choice.
+;;; Maybe a bound for the relative error in f0 and f1 should be passed as function arguments, 
+;;;  but for now The we'll assume that the initial values f0 & f1 have at most a realative error of 
+;; 8 * machine epsilon. See the value of `safety`.
 (defun generic-two-term-recursion-running-error (p q f0 f1 n)
   "Evaluate the recurrence forward while tracking a componentwise absolute
    running error bound using the IEEE‑754 real floating‑point model.
@@ -1168,9 +1168,9 @@ Our measure of sufficiently small is
   (cond ((eql n 0) (values f0 0 0))
         ((eql n 1) (values f1 0 f0))
         (t
-         (let ((e0 (componentwise-abs f0))   ; initial error bounds
-               (e1 (componentwise-abs f1))
-               (safety 4)
+         (let* ((safety 8)
+               (e0 (* safety (componentwise-abs f0)))   ; initial error bounds
+               (e1 (* safety (componentwise-abs f1)))
                (end (1- n))
                f2 e2)
            (do ((k 1 (1+ k)))
