@@ -1057,6 +1057,27 @@ Our measure of sufficiently small is
               (bind-fpprec (mul 2 $fpprec)
                 (spherical_bessel_y-numeric n ($bfloat x) digits))))))
 
+(defun spherical_bessel_y-numeric (n x digits)
+  (cond
+    ;; Reflect x < 0 using j_n(-x) = (-1)^n j_n(x)
+    ((eq t (mgrp 0 ($realpart x)))
+     (mul (ftake 'mexpt -1 n) (spherical_bessel_y-numeric n (neg x) digits)))
+
+    (t
+     (let* ((xx (bigfloat::to
+                 (if (> digits *binary64-digits*)
+                     ($bfloat x)
+                     x)))
+            ;; c = sqrt(pi / (2 x))
+            (c  (maxima::to
+                 (bigfloat::expt
+                  (bigfloat::/
+                   (bigfloat::to (maxima::fppi1))
+                   (bigfloat::* 2 xx))
+                  (bigfloat::/ 1 2)))))
+
+       ($expand (mul c (ftake '%bessel_y (add n (div 1 2)) x)) 1 0)))))
+
 (defun spherical_bessel_y-symbolic (n x)
   "Symbolic spherical Bessel y_n(x) using the recurrence:
    y_0(x) = -cos(x)/x

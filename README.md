@@ -187,7 +187,7 @@ The `ortho` package is not ready for serious work. Here are the results of the t
 | Function               | Test Results            | Runtime        | Comment(s)            |
 |------------------------|-------------------------|----------------|------------------------|
 | chebyshev_t            | ✔️ (51/51 pass)         | 5.4 seconds    |                        |
-| chebyshev_u            | ❌ (45/51 pass)          | 6.3 seconds    |                         |
+| chebyshev_u            | ❌ (45/51 pass)         | 6.3 seconds    |                        |
 | hermite                | ✔️ (67/67 pass)         | 19.1 seconds   |                        |
 | jacobi_p               | ✔️ (40/40 pass)         | 2.0 seconds    |                        |
 | laguerre               | ✔️ (41/41 pass)         | 13.6 seconds   |                        |
@@ -200,7 +200,7 @@ The `ortho` package is not ready for serious work. Here are the results of the t
 | spherical_hankel_h1    | ❌ (16/29 pass)         |                | some serious bugs      |
 | spherical_hankel_h2    | ❌ (16/29 pass)         |                | some serious bugs      |
 | ultraspherical         | ✔️ (45/45 pass)         | 8.7 seconds    |                        |
-| pochhammer             | ✔️ (35/35) pass           | p.1 second     |                        |
+| pochhammer             | ✔️ (35/35) pass         | 0.1 second     |                        |
 
 ### Controlling subtractive cancellation
 
