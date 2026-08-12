@@ -196,7 +196,7 @@ The `ortho` package is not ready for serious work. Here are the results of the t
 | legendre_q             | ⏳                      |                |                        |
 | assoc_legendre_q       | ❌ (28/35 pass)         | 0.4 seconds    |                        |
 | spherical_bessel_j     | ✔️ (29/29 pass)         | 3.3 seconds    |                        |
-| spherical_bessel_y     | ❌ (20/29 pass)         |                | some serious bugs      |
+| spherical_bessel_y     | ✔️ (24/24 pass)         | 0.4 seconds    |  need more tests       |
 | spherical_hankel_h1    | ❌ (16/29 pass)         |                | some serious bugs      |
 | spherical_hankel_h2    | ❌ (16/29 pass)         |                | some serious bugs      |
 | ultraspherical         | ✔️ (45/45 pass)         | 8.7 seconds    |                        |
