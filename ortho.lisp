@@ -2052,5 +2052,6 @@ Our measure of sufficiently small is
 (define-orthopoly-conjugator %assoc_legendre_p :check 2)
 (define-orthopoly-conjugator %assoc_legendre_q :check 2)
 (define-orthopoly-conjugator %spherical_bessel_j :check 1)
+(define-orthopoly-conjugator %spherical_bessel_y :check 1)
 
 

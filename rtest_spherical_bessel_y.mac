@@ -20,7 +20,7 @@ spherical_bessel_y(0,x);
 - cos(x)/x$
 
 spherical_bessel_y(1,x);
-- cos(x)/x^2 - sin(x)/x$
+-((x*sin(x)+cos(x))/x^2)$
 
 /* require explicit integer degree */
 op_and_args(spherical_bessel_y(1.0,x));
@@ -72,13 +72,13 @@ ratsimp([
 
 /* numeric tests */
 spherical_bessel_y(5,2.3);
--0.000510409702$
+-8.694824790197426$
 
 spherical_bessel_y(5,23/10);
--510409702/1000000000000$
+(857038500*cos(23/10)-960328430*sin(23/10))/148035889$(857038500*cos(23/10)-960328430*sin(23/10))/148035889$
 
-subst(x=23/10,spherical_bessel_y(5,x));
--510409702/1000000000000$
+expand(subst(x=23/10,spherical_bessel_y(5,x)),1,0);
+(857038500*cos(23/10)-960328430*sin(23/10))/148035889$
 
 /* rectangular form */
 (declare(z,complex),0);
