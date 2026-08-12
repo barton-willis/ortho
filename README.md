@@ -184,20 +184,23 @@ The `ortho` package is not ready for serious work. Here are the results of the t
 
 ❌ (some failures) ✔️ (no failures) ⏳ (not yet done)
  
- Function | Test Results | Comment(s) |
-|---------|--------------|----------|
-| rtest_hermite   | ✔️ (67/67 pass) | runtime 19.1 seconds | 
-|  rtest_jacobi_p    | ✔️ (40/40 pass) | runtime 2.0 seconds |
-|  rtest_laguerre  |✔️ (41/41 pass) | runtime 13.6 seconds, includes the generalized polynomials|
-|  rtest_legendre  | ⏳ | test file hasn't been constructed |
-|  rtest_assoc_legendre_p | ❌ (21/34 pass) | tests are incomplete |
-|  rtest_legendre_q  | ⏳ | test file hasn't been constructed |
-|  rtest_assoc_legendre_q |❌ (28/35)|  runtime 0.4 seconds, some tests are missing  |
-|  rtest_spherical_bessel_j | ✔️ (29/29 pass) | runtime 3.3 seconds |
-|  rtest_spherical_bessel_y | ❌ (20/29 pass) | some serious bugs  |
-|  rtest_spherical_hankel_h1 | ❌ (16/29 pass) |some serious bugs |
-|  rtest_spherical_hankel_h2 |❌ (16/29 pass)| some serious bugs  |
-|  rtest_ultraspherical | ✔️ (45/45 pass) | runtime 8.7 seconds |
+| Function               | Test Results            | Runtime        | Comment(s)            |
+|------------------------|-------------------------|----------------|------------------------|
+| chebyshev_t            | ✔️ (51/51 pass)         | 5.4 seconds    |                        |
+| chebyshev_u            | ❌ (45/51 pass)          | 6.3 seconds    |                         |
+| hermite                | ✔️ (67/67 pass)         | 19.1 seconds   |                        |
+| jacobi_p               | ✔️ (40/40 pass)         | 2.0 seconds    |                        |
+| laguerre               | ✔️ (41/41 pass)         | 13.6 seconds   |                        |
+| legendre               | ⏳                      |                |                        |
+| assoc_legendre_p       | ❌ (21/34 pass)         |                |                        |
+| legendre_q             | ⏳                      |                |                        |
+| assoc_legendre_q       | ❌ (28/35 pass)         | 0.4 seconds    |                        |
+| spherical_bessel_j     | ✔️ (29/29 pass)         | 3.3 seconds    |                        |
+| spherical_bessel_y     | ❌ (20/29 pass)         |                | some serious bugs      |
+| spherical_hankel_h1    | ❌ (16/29 pass)         |                | some serious bugs      |
+| spherical_hankel_h2    | ❌ (16/29 pass)         |                | some serious bugs      |
+| ultraspherical         | ✔️ (45/45 pass)         | 8.7 seconds    |                        |
+| pochhammer             | ✔️ (35/35) pass           | p.1 second     |                        |
 
 ### Controlling subtractive cancellation
 

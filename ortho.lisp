@@ -458,9 +458,10 @@ Our measure of sufficiently small is
 				(give-up))))
 
 		  ((integerp n)
+        (orthopoly-polynomial-simp
         (if (< n 0)
            (orthopoly-polynomial-simp (chebyshev_t-symbolic (neg n) x) x)
-		       (orthopoly-polynomial-simp (chebyshev_t-symbolic n x) x)))
+		       (orthopoly-polynomial-simp (chebyshev_t-symbolic n x) x)) x))
 
       ;; See DLMF Table Table 18.6.1 for the following three simplifications:
 		  ((eql x 1)  1)
@@ -955,32 +956,31 @@ Our measure of sufficiently small is
 
 		  (t (give-up))))
 		    
-(defun spherical_bessel_j-numeric (n x digits)
-  (let* ((bf-x (bigfloat::to x))
-          (bf-zero (bigfloat::to 0))
-          (bf-one (bigfloat::to 1))
-          (eps (bigfloat::to (ftake 'mexpt 10 (- digits))))
-          (bf-minus-one (bigfloat::to -1))
-          (f0 (if (bigfloat::zerop bf-x)
-                  bf-one
-                  (bigfloat::/ (bigfloat::sin bf-x) bf-x)))
+;; Especially for x near zero, the upward recursion for the spherical bessel functions are ill-conditioned. 
+;; So we'll evaluate these functoins using spherical_bessel_j(n,x) = sqrt(%pi/(2 x)) bessel(n+1/2,x).  
+;; When the real part of x is negative, use the reflection rule spherical_bessel_j(n,x) = (-1)^n spherical_bessel_j(n,-x)
+;; and trust the numerical evalution of bessel_j. The reflection rule works around spurous imaginary parts.
 
-          (f1 (if (bigfloat::zerop bf-x)
-                  bf-zero
-                  (bigfloat::-
-                    (bigfloat::/ (bigfloat::sin bf-x) (bigfloat::* bf-x bf-x))
-                    (bigfloat::/ (bigfloat::cos bf-x) bf-x))))
-          ;; p(k) = (2k+1)/x
-          (p #'(lambda (k) (bigfloat::/ (bigfloat:to (+ (* 2 k) 1))  bf-x)))
-          ;; q(k) = -1   
-          (q #'(lambda (k) (declare (ignore k)) bf-minus-one)))
-      (multiple-value-bind (value err)
-            (bigfloat::generic-two-term-recursion-running-error  p q f0 f1 n)
-          (if (bigfloat::modified-relative-error-p value err eps)
-              (maxima::to value)
-              ;; restart with doubled precision
-              (bind-fpprec (mul 2 $fpprec)
-                (spherical_bessel_j-numeric n ($bfloat x) digits))))))
+(defun spherical_bessel_j-numeric (n x digits)
+  (cond
+    ;; Reflect x < 0 using j_n(-x) = (-1)^n j_n(x)
+    ((eq t (mgrp 0 ($realpart x)))
+     (mul (ftake 'mexpt -1 n) (spherical_bessel_j-numeric n (neg x) digits)))
+
+    (t
+     (let* ((xx (bigfloat::to
+                 (if (> digits *binary64-digits*)
+                     ($bfloat x)
+                     x)))
+            ;; c = sqrt(pi / (2 x))
+            (c  (maxima::to
+                 (bigfloat::expt
+                  (bigfloat::/
+                   (bigfloat::to (maxima::fppi1))
+                   (bigfloat::* 2 xx))
+                  (bigfloat::/ 1 2)))))
+
+       ($expand (mul c (ftake '%bessel_j (add n (div 1 2)) x)) 1 0)))))
   
 (defun spherical_bessel_j-symbolic (n x)
   "Symbolic spherical Bessel j_n(x) using the recurrence:
@@ -1168,25 +1168,21 @@ Our measure of sufficiently small is
   (cond ((eql n 0) (values f0 0 0))
         ((eql n 1) (values f1 0 f0))
         (t
-         (let* ((safety 8)
-               (e0 (* safety (componentwise-abs f0)))   ; initial error bounds
-               (e1 (* safety (componentwise-abs f1)))
-               (end (1- n))
-               f2 e2)
+         (let* ((e0 (componentwise-abs f0))   ; initial error bounds
+                (e1 (componentwise-abs f1))
+                (end (1- n)))
+
            (do ((k 1 (1+ k)))
-               ((> k end)
-                ;; final error bound: ε * e1, componentwise
-                (values f1 (componentwise-abs (* safety (epsilon f1) e1)) f0))
+               ((> k end)  (values f1 (componentwise-abs (* (epsilon f1) e1)) f0)) ; return (values fn error in fn)
              (let* ((a (funcall p k))
                     (b (funcall q k))
+                    (e2)
                     ;; recurrence step
-                    (next (+ (* a f1) (* b f0))))
-               (setq f2 next)
+                    (f2 (+ (* a f1) (* b f0))))
                ;; componentwise error propagation
                (setq e2 (+ (componentwise-abs (* a e1))
                            (componentwise-abs (* b e0))
-                           ;; rounding error from forming f2 itself
-                           (componentwise-abs (* (epsilon next) next))))
+                           (componentwise-abs f2)))
                ;; update state
                (setq f0 f1
                      f1 f2

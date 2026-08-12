@@ -123,9 +123,8 @@ chebyshev_t(n,conjugate(z))$
 
 /* gradient consistency */
 (df : diff(chebyshev_t(n,x),x),
- expand(makelist(subst(n=k,df) - diff(chebyshev_t(k,x),x),k,0,10)));
-[0,0,0,0,0,0,0,0,0,0,0]$
-
+ ratsimp(makelist(subst(n=k,df) - diff(chebyshev_t(k,x),x),k,0,10)));
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
 (remvalue(df),0);
 0$
 
