@@ -1,0 +1,167 @@
+(kill(all),0);
+0$
+
+/* bogus arguments */
+errcatch(legendre_q());
+[]$
+
+errcatch(legendre_q(12));
+[]$
+
+errcatch(legendre_q(a,b,c));
+[]$
+
+(op_and_args(e) := block([inflag : true],
+  if mapatom(e) then false else [nounify(op(e)), args(e)]),0);
+0$
+
+/* basic values */
+legendre_q(0,x);
+1/2*log((1+x)/(1-x))$
+
+legendre_q(1,x);
+(x*log((x+1)/(1-x))-2)/2$
+
+/* require explicit integer for degree */
+op_and_args(legendre_q(1.0,x));
+[legendre_q, [1.0, x]]$
+
+op_and_args(legendre_q(1.0b0,x));
+[legendre_q, [1.0b0, x]]$
+
+errcatch(legendre_q(n,1));
+[]$
+
+errcatch(legendre_q(n,1));
+[]$
+
+/* Simplifications */
+legendre_q(n,-x);
+(-1)^(n+1)*legendre_q(n,x)$
+
+block([ans],
+  declare(n,integer),
+  ans : legendre_q(8,0) - subst(n=4, legendre_q(2*n,0)),
+  remove(n,integer),
+  ans);
+0$
+
+/* recursion check */
+(fn : orthopoly_recursion('legendre_q),0);
+0$
+
+is(expand(fn(5,x)));
+true$
+
+is(expand(fn(2,x)));
+true$
+
+is(expand(fn(8,x)));
+true$
+
+(remvalue(fn),0);
+0$
+
+/* First few explicit Q_n */
+ratsimp([legendre_q(0,x) - 1/2*log((1+x)/(1-x)),
+         legendre_q(1,x) - (x/2*log((1+x)/(1-x)) - 1),
+         legendre_q(2,x) - ( (3*x^2-1)/4*log((1+x)/(1-x)) - 3*x/2 )]);
+[0, 0, 0]$
+
+/* conjugation */
+
+(declare(z,complex),0);
+0$
+
+conjugate(legendre_q(n,z));
+legendre_q(n, conjugate(z))$
+
+(remove(z,complex),0);
+0$
+
+/* gradient */
+
+(df : diff(legendre_q(n,x),x),
+ ratsimp(makelist(subst(n=k,df) - diff(legendre_q(k,x),x),k,1,10)));
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
+
+(remvalue(df),0);
+0$
+
+/* rectangular form */
+legendre_q(2, (1 + sqrt(3)*%i/2));
+((4*3^(3/2)*%i-1)*log((2*%i*((sqrt(3)*%i)/2+2))/sqrt(3))-4*3^(3/2)*%i-24)/16$
+
+/* binary64 tests (real argument) */
+(approx_equal(x,y) := is(abs(x-y) < 5*10^(-14) * max(1,abs(x))),0);
+0$
+
+block([N : 8, okay, fails : [], maxD : 16,x],
+ for d : maxD-1 thru maxD do (
+  for k : -N+1 thru N-1 do (
+    x : float(k/N),
+    okay : approx_equal(legendre_q(d, rationalize(x)), legendre_q(d, x)),
+    if not okay then push([d,x],fails))),
+  fails);
+[]$
+
+(fpprec : 28,0);
+0$
+
+block([N : 8, okay, fails : [], maxD : 16,x],
+ for d : maxD-1 thru maxD do (
+  for k : -N+1 thru N-1 do (
+    x : bfloat(k/N),
+    okay : approx_equal(legendre_q(d, rationalize(x)), legendre_q(d, x)),
+    if not okay then push([d,x],fails))),
+  fails);
+[]$
+(reset(fpprec),0);
+0$
+
+block([fails : [],n,x,exact,approx],
+for i : 1 thru 500 do (
+   n : random(32),
+   x : random(10.0)-5.0,
+   exact : float(legendre_q(n, rationalize(x))),
+   approx : legendre_q(n,x),
+   if not approx_equal(exact, approx) then (       
+             push([n,x], fails))),
+   fails);
+[]$
+
+/* ode */
+(fn : orthopoly_ode('legendre_q),0);
+0$
+
+fn(10, z,legendre_q(10,z)), expand;
+0$
+
+/* recursion */
+(fn : orthopoly_recursion('legendre_q),0);
+0$
+
+is(fn(0,z));
+true$
+
+is(apply(equal, args(fn(1,z))));
+true$
+
+is(apply(equal, args(fn(28,z))));
+true$
+
+(remvalue(fn),0);
+0$
+
+(remfunction(op_and_args), remfunction(approx_equal),0);
+0$
+
+/* tidy environment */
+values;
+[]$
+
+facts();
+[]$
+
+contexts;
+[initial,global]$

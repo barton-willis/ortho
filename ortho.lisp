@@ -1179,7 +1179,10 @@ Our measure of sufficiently small is
         (div (mul sgn num) den))))
 
 (def-simplifier legendre_q (n x)
-  (cond ((and (integerp n) (> n -1) (complex-number-p x #'$numberp))
+  (cond ((or (onep1 x) (onep1 (neg x)))
+         (merror "Domain error: ~M is not in the domain of legendre_q" x))
+  
+      ((and (integerp n) (> n -1) (complex-number-p x #'$numberp))
           (let* ((digits (get-digits x)) 
 		             (one (multiplicative-identity x)))
 			(if one 
@@ -1187,8 +1190,9 @@ Our measure of sufficiently small is
 				(give-up))))
 		((and (integerp n) (> n -1))
 		   (orthopoly-polynomial-simp (legendre_q-symbolic n x) x))
-    ((and (eql x 0) ($featurep n '$integer) (or  ($featurep n '$even) ($featurep n '$odd)))
-           (legendre_q-at-zero n))
+    ;; reflection: http://dlmf.nist.gov/14.7.E18
+    ((great (neg x) x)
+      (mul (ftake 'mexpt -1 n) (ftake '%legendre_q n (neg x))))
 		(t (give-up))))
 
 (in-package #:bigfloat)
