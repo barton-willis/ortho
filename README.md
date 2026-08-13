@@ -198,7 +198,7 @@ The `ortho` package is not ready for serious work. Here are the results of the t
 | spherical_bessel_j     | ✔️ (29/29 pass)         | 3.3 seconds    |                        |
 | spherical_bessel_y     | ✔️ (24/24 pass)         | 0.4 seconds    |  need more tests       |
 | spherical_hankel1      | ✔️ (27/27 pass)         | 0.8 seconds    |                        |
-| spherical_hankel2      | ❌ (4/29 pass)          |                |                        |
+| spherical_hankel2      | ❌ (15/29 pass)         |                |                        |
 | spherical_harmonic     | ⏳                      |                |                        |
 | ultraspherical         | ✔️ (45/45 pass)         | 4.0 seconds    |                        |
 | pochhammer             | ✔️ (35/35) pass         | 0.1 second     |                        |
