@@ -220,7 +220,7 @@ The `ortho` package is not ready for serious work. Here are the results of the t
 | hermite                | ✔️ (67/67 pass)         | 9.1 seconds   |                        |
 | jacobi_p               | ✔️ (40/40 pass)         | 2.0 seconds    |                        |
 | laguerre               | ✔️ (41/41 pass)         | 13.6 seconds   |                        |
-| legendre               | ⏳                      |                |                        |
+| legendre_p             | ✔️ (55/55 pass)         |  0.3 seconds   |                        |
 | assoc_legendre_p       | ❌ (21/34 pass)         |  0.02 seconds  |                        |
 | legendre_q             | ⏳                      |                |                        |
 | assoc_legendre_q       | ❌ (28/35 pass)         | 0.4 seconds    |                        |
