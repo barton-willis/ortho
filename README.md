@@ -39,6 +39,35 @@ This differed from the expected result:
 ```
 Arguably, the new value is better - it doesn't have the spurious singularity at zero.
 
+One testsuite failure that is actually a success is:
+
+```maxima
+******************* rtest_hypgeo.mac: Problem 43 (line 324) *******************
+
+Input:
+                                       - s t
+(assume(i1 > 0), niceindices(specint(%e      laguerre(n, t), t)))
+
+
+Result:
+     1 n
+(1 - ─)
+     s
+────────
+   s
+
+This differed from the expected result:
+ n
+____                                   - i - 1
+╲     gamma(i + 1) pochhammer(- n, i) s
+ ⟩    ────────────────────────────────────────
+╱                         2
+‾‾‾‾                    i!
+i = 0
+
+```
+This appears in the testsuite twice.
+
 All new `ortho` test files run to completion. Some pass cleanly; others expose missing conjugate or gradient properties, and the like.
 
 ## Installation Guide
@@ -199,7 +228,7 @@ The `ortho` package is not ready for serious work. Here are the results of the t
 | spherical_bessel_y     | ✔️ (24/24 pass)         | 0.4 seconds    |  need more tests       |
 | spherical_hankel1      | ✔️ (27/27 pass)         | 0.8 seconds    |                        |
 | spherical_hankel2      | ❌ (15/29 pass)         |                |                        |
-| spherical_harmonic     | ⏳                      |                |                        |
+| spherical_harmonic     | ❌ (17/29 pass)         |  26.0 seconds  |                        |
 | ultraspherical         | ✔️ (45/45 pass)         | 4.0 seconds    |                        |
 | pochhammer             | ✔️ (35/35) pass         | 0.1 second     |                        |
 
