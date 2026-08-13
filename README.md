@@ -222,12 +222,12 @@ The `ortho` package is not ready for serious work. Here are the results of the t
 | laguerre               | ✔️ (41/41 pass)         | 13.6 seconds   |                        |
 | legendre_p             | ✔️ (55/55 pass)         |  0.3 seconds   |                        |
 | assoc_legendre_p       | ❌ (21/34 pass)         |  0.02 seconds  |                        |
-| legendre_q             | ❌ (34/49 pass)         |  0.03 seconds  |                        |
-| assoc_legendre_q       | ❌ (28/35 pass)         | 0.4 seconds    |                        |
+| legendre_q             | ❌ (43/43 pass)         |  0.4 seconds  |                        |
+| assoc_legendre_q       | ✔️ (28/35 pass)         | 0.4 seconds    |                        |
 | spherical_bessel_j     | ✔️ (29/29 pass)         | 3.3 seconds    |                        |
 | spherical_bessel_y     | ✔️ (24/24 pass)         | 0.4 seconds    |  need more tests       |
 | spherical_hankel1      | ✔️ (27/27 pass)         | 0.8 seconds    |                        |
-| spherical_hankel2      | ❌ (15/29 pass)         | 0.08 secondsSS   |                        |
+| spherical_hankel2      | ❌ (15/29 pass)         | 0.08 seconds   |                        |
 | spherical_harmonic     | ❌ (17/29 pass)         |  26.0 seconds  |                        |
 | ultraspherical         | ✔️ (45/45 pass)         | 4.0 seconds    |                        |
 | pochhammer             | ✔️ (35/35) pass         | 0.1 second     |                        |

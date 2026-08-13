@@ -1182,7 +1182,7 @@ Our measure of sufficiently small is
   (cond ((or (onep1 x) (onep1 (neg x)))
          (merror "Domain error: ~M is not in the domain of legendre_q" x))
   
-      ((and (integerp n) (> n -1) (complex-number-p x #'$numberp))
+      ((and (integerp n) (> n -1)  (complex-number-p x #'$numberp) (not (complex-number-p x #'$ratnump)))
           (let* ((digits (get-digits x)) 
 		             (one (multiplicative-identity x)))
 			(if one 
@@ -2004,6 +2004,7 @@ Our measure of sufficiently small is
 (define-orthopoly-conjugator %laguerre :check 1)
 (define-orthopoly-conjugator %gen_laguerre :check 1)
 (define-orthopoly-conjugator %legendre_p :check 1)
+(define-orthopoly-conjugator %legendre_q :check 1) 
 (define-orthopoly-conjugator %gegenbauer :check 1)
 (define-orthopoly-conjugator %chebyshev_t :check 1)
 (define-orthopoly-conjugator %chebyshev_u :check 1)

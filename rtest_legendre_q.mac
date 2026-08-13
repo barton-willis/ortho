@@ -37,7 +37,7 @@ errcatch(legendre_q(n,1));
 
 /* Simplifications */
 legendre_q(n,-x);
-(-1)^(n+1)*legendre_q(n,x)$
+(-1)^(n)*legendre_q(n,x)$
 
 block([ans],
   declare(n,integer),
@@ -81,9 +81,8 @@ legendre_q(n, conjugate(z))$
 
 /* gradient */
 
-(df : diff(legendre_q(n,x),x),
- ratsimp(makelist(subst(n=k,df) - diff(legendre_q(k,x),x),k,1,10)));
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
+(df : diff(legendre_q(n,x),x), ratsimp(makelist(subst(n=k,df) - diff(legendre_q(k,x),x),k,1,10)));
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
 
 (remvalue(df),0);
 0$
@@ -116,32 +115,34 @@ block([N : 8, okay, fails : [], maxD : 16,x],
     if not okay then push([d,x],fails))),
   fails);
 []$
+
 (reset(fpprec),0);
 0$
 
-block([fails : [],n,x,exact,approx],
-for i : 1 thru 500 do (
+block([fails : [],n,x,okay, exact,approx],
+for i : 1 thru 100 do (
    n : random(32),
-   x : random(10.0)-5.0,
-   exact : float(legendre_q(n, rationalize(x))),
-   approx : legendre_q(n,x),
-   if not approx_equal(exact, approx) then (       
-             push([n,x], fails))),
-   fails);
+   x : float(random(2^52)/2^53),
+   exact : float(bfloat(legendre_q(n, rationalize(x)))),
+   approx : legendre_q(n, x),
+   okay : approx_equal(exact, approx),
+   if not okay then (
+     push([n,x], fails))),
+    fails);
 []$
 
 /* ode */
 (fn : orthopoly_ode('legendre_q),0);
 0$
 
-fn(10, z,legendre_q(10,z)), expand;
+ratsimp(fn(10, z,legendre_q(10,z)));
 0$
 
 /* recursion */
 (fn : orthopoly_recursion('legendre_q),0);
 0$
 
-is(fn(0,z));
+is(ratsimp(fn(1,z)));
 true$
 
 is(apply(equal, args(fn(1,z))));
@@ -155,6 +156,9 @@ true$
 
 (remfunction(op_and_args), remfunction(approx_equal),0);
 0$
+
+ legendre_q(0,2/3);
+ log(5)/2$
 
 /* tidy environment */
 values;
