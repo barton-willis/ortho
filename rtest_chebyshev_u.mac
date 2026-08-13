@@ -51,13 +51,13 @@ makelist(ratsimp(''fn(k,x) - chebyshev_u(k,x)),k,0,10);
 (remfunction(fn),0);
 0$
 
-/* gradient */
-block([ans],
-  df(n,x) := diff(chebyshev_u(n,x),x),
-  ans : makelist(df(k,x) - diff(chebyshev_u(k,x),x), k,1,10),
-  remfunction(df),
-  ans);
-[0,0,0,0,0,0,0,0,0,0]$
+/* gradient consistency */
+(df : diff(chebyshev_u(n,x),x),
+ ratsimp(makelist(subst(n=k,df) - diff(chebyshev_u(k,x),x),k,0,10)));
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
+
+(remvalue(df),0);
+0$
 
 /* Orthogonality:
    ∫_{-1}^1 U_n(x) U_m(x) sqrt(1-x^2) dx =
@@ -187,14 +187,14 @@ block([bad : [],n,x,exact, approx, eps : 10^-14],
 (fn : orthopoly_ode('chebyshev_u),0);
 0$
 
-fn(10, z, chebyshev_u(10,z)), expand;
+expand(fn(10, z, chebyshev_u(10,z)));
 0$
 
 /* recursion */
 (fn : orthopoly_recursion('chebyshev_u),0);
 0$
 
-is(fn(0,z));
+is(fn(1,z));
 true$
 
 is(apply(equal, args(fn(1,z))));

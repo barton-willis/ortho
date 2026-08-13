@@ -187,7 +187,7 @@ The `ortho` package is not ready for serious work. Here are the results of the t
 | Function               | Test Results            | Runtime        | Comment(s)            |
 |------------------------|-------------------------|----------------|------------------------|
 | chebyshev_t            | ✔️ (51/51 pass)         | 2.5 seconds    |                        |
-| chebyshev_u            | ❌ (45/51 pass)         | 2.6 seconds    |                        |
+| chebyshev_u            | ✔️ (52/52 pass)         | 6.4 seconds    |                        |
 | hermite                | ✔️ (67/67 pass)         | 9.1 seconds   |                        |
 | jacobi_p               | ✔️ (40/40 pass)         | 2.0 seconds    |                        |
 | laguerre               | ✔️ (41/41 pass)         | 13.6 seconds   |                        |

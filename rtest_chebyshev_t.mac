@@ -125,6 +125,7 @@ chebyshev_t(n,conjugate(z))$
 (df : diff(chebyshev_t(n,x),x),
  ratsimp(makelist(subst(n=k,df) - diff(chebyshev_t(k,x),x),k,0,10)));
 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
+
 (remvalue(df),0);
 0$
 

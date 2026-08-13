@@ -513,8 +513,8 @@ Our measure of sufficiently small is
 
 		  ((integerp n)
         (if (< n 0)
-           (chebyshev_u-symbolic (sub (- n) 2) x)
-		       (chebyshev_u-symbolic n x)))
+           (orthopoly-polynomial-simp (chebyshev_u-symbolic (sub (- n) 2) x) x)
+		       (orthopoly-polynomial-simp (chebyshev_u-symbolic n x) x)))
 
 		  ;; See DLMF Table Table 18.6.1 for the following three simplifications:
 		  ((eql x 1) (add n 1))
@@ -526,9 +526,9 @@ Our measure of sufficiently small is
       ((great (neg x) x)
 		    (mul (ftake 'mexpt -1 n) (ftake '%chebyshev_u n (neg x))))
 
-      ;;U(n,x) = U(-n-2,x)
+      ;;U(n,x) = -U(-n-2,x)
       ((and ($featurep n '$integer) (great (sub (neg n) 2) n))
-        (ftake '%chebyshev_u (sub (neg n) 2) x))
+        (neg (ftake '%chebyshev_u (sub (neg n) 2) x)))
 
       ;; no simplifications--give up
 		  (t (give-up))))
