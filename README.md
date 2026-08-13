@@ -202,7 +202,7 @@ The `ortho` package is not ready for serious work. Here are the results of the t
 | spherical_harmonic     | ⏳                      |                |                        |
 | ultraspherical         | ✔️ (45/45 pass)         | 4.0 seconds    |                        |
 | pochhammer             | ✔️ (35/35) pass         | 0.1 second     |                        |
-|------------------------|-------------------------|----------------|------------------------|
+
 ### Controlling subtractive cancellation
 
 Computing the orthogonal polynomials using the recursion relation is algorithmically simple. But 
