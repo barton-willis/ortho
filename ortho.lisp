@@ -813,120 +813,75 @@ Our measure of sufficiently small is
           (t (generic-two-term-recursion-symbolic p q f0 f1 n)))))
 
 (def-simplifier spherical_hankel1 (n x)
-	(cond ((and (integerp n) (complex-number-p x #'$numberp))
-	        (spherical_hankel1-symbolic n x))
-
-		  ((and (integerp n) (complex-number-p x #'$numberp))
+	(cond 
+		  ((and (integerp n) (complex-number-p x #'$numberp) (not (complex-number-p x #'$ratnump)))
             (let* ((digits (get-digits x))
 		               (one (multiplicative-identity x)))
 			(if one 
 			    (orthopoly-number-coerce (spherical_hankel1-numeric n x digits) one)
-				(give-up))))
+          (give-up))))
 
-		  (t (give-up))))		     
-		   
-(defun spherical_hankel1-symbolic (n x)
-    (let* ((cis (ftake 'mexpt '$%e (mul '$%i x)))
-	         (f0 (div (mul -1 '$%i cis) x))
-		       (f1 (mul (div (add (div '$%i x) 1) x) cis))
-		       (p #'(lambda (k) (div (add (mul 2 k) 1) x)))
-		       (q #'(lambda (k) (declare (ignore k)) -1)))
-		 (generic-two-term-recursion-symbolic f0 f1 p q n)))
+      ((integerp n)
+          (orthopoly-polynomial-simp (spherical_hankel1-symbolic n x) x))
 
-(in-package #:bigfloat)
-(defun order-zero-spherical_hankel1 (x)
-	(let* ((i (bigfloat::complex 0 1))
-	      (cis (if (realp x)
-	               (cis x)
-				   (+ (cos x) (* i (sin x))))))
-		(/ (* -1 i cis) x)))
+      ;; reflection: http://dlmf.nist.gov/10.47.E15
+      ((great (neg x) x)
+        (mul (ftake 'mexpt -1 n) (ftake '%spherical_hankel2 n (neg x))))
 
-(defun order-one-spherical_hankel1 (x)
- 	(let* ((i (bigfloat::complex 0 1))
-	      (cis (if (realp x)
-	               (cis x)
-				   (+ (cos x) (* i (sin x))))))
-		;; -((%i*(1-%i*x)*%e^(%i*x))/x^2)
-		(/ (* -1 i (- 1 (* i x)) cis) (* x x))))
+		  (t (give-up))))
 
-(in-package :maxima)
-
+;; see http://dlmf.nist.gov/10.4.E2
 (defun spherical_hankel1-numeric (n x digits)
-  (let* ((bf-x (bigfloat::to x))
-	       (f0 (bigfloat::order-zero-spherical_hankel1 bf-x))
-	       (f1 (bigfloat::order-one-spherical_hankel1 bf-x))
-         (eps   (bigfloat::to (ftake 'mexpt 10 (- digits))))
-         (p #'(lambda (k) (bigfloat::/ (+ (* 2 k) 1) bf-x)))
-         (q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1))))
-     (multiple-value-bind (value err)
-            (bigfloat::generic-two-term-recursion-running-error  p q f0 f1 n)
-          (if (bigfloat::modified-relative-error-p value err eps)
-              (maxima::to value)
-              ;; restart with doubled precision
-              (bind-fpprec (mul 2 $fpprec)
-                (spherical_hankel1-numeric n ($bfloat x) digits))))))
+  (let* ((a (spherical_bessel_j-numeric n x digits))
+         (b (spherical_bessel_y-numeric n x digits)))
+      (add a (mul '$%i b))))
 
-;;;; New code!
+;;; rubbish
+(defun spherical_hankel1-symbolic (n x)
+  (cond ((zerop1 x)
+         (merror "spherical_hankel1: encountered spherical_hankel1(n,0)"))
+        (t
+  (let* ((cis (ftake 'mexpt '$%e (mul '$%i x))) 
+         (f0 (div (mul -1 cis '$%i) x)) ;-%i exp(%i x)/x
+         (f1 (div (mul -1 cis (add '$%i x)) (mul x x))) ; -cis (%i + x)/x^2
+         ;; p(k) = ((2k+1)/x)
+         (p #'(lambda (k) (div (+ (* 2 k) 1) x)))
+         ;; q(k) = -1
+         (q #'(lambda (k) (declare (ignore k)) -1)))
+    (generic-two-term-recursion-symbolic p q f0 f1 n)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def-simplifier spherical_hankel2 (n x)
-  (cond ((and (integerp n) (complex-number-p x #'$numberp))
-         (spherical_hankel2-symbolic n x))
+  (cond 
+      ((and (integerp n) (complex-number-p x #'$numberp))
+            (let* ((digits (get-digits x))
+                   (one (multiplicative-identity x)))
+      (if one 
+          (orthopoly-number-coerce (spherical_hankel2-numeric n x digits) one)
+        (give-up))))
 
-        ((and (integerp n) (complex-number-p x #'$numberp))
-         (let* ((digits (get-digits x))
-                (one    (multiplicative-identity x)))
-           (if one
-               (orthopoly-number-coerce
-                 (spherical_hankel2-numeric n x digits)
-                 one)
-               (give-up))))
+      ((integerp n)
+          (orthopoly-polynomial-simp (spherical_hankel2-symbolic n x) x))
 
-        (t (give-up))))
+      (t (give-up))))
+
+;; see http://dlmf.nist.gov/10.4.E2
+(defun spherical_hankel2-numeric (n x digits)
+  (let* ((a (spherical_bessel_j-numeric n x digits))
+         (b (spherical_bessel_y-numeric n x digits)))
+      (sub a (mul '$%i b))))
 
 (defun spherical_hankel2-symbolic (n x)
-  (let* ((cis (ftake 'mexpt '$%e (mul '$%i x)))   ;; e^(i x)
-         (f0 (div (mul '$%i cis) x))              ;; (sin - i cos)/x = i e^{ix}/x
-         (f1 (mul (div (add (div '$%i x) -1) x) cis))
+  (let* ((cis (ftake 'mexpt '$%e (mul -1 (mul '$%i x))))   ;; e^(-i x)
+         (f0 (mul '$%i (div cis x)))                    ;; h_0^{(2)} = i e^{-ix} / x
+         (f1 (mul -1                                    ;; h_1^{(2)} = -(e^{-ix}(1 + i x))/x^2
+                  (div (mul cis (add 1 (mul '$%i x)))
+                       (mul x x))))
          (p #'(lambda (k) (div (add (mul 2 k) 1) x)))
          (q #'(lambda (k) (declare (ignore k)) -1)))
     (generic-two-term-recursion-symbolic f0 f1 p q n)))
 
-(in-package #:bigfloat)
-
-(defun order-zero-spherical_hankel2 (x)
-  (let* ((i (bigfloat::complex 0 1))
-         (cis (if (realp x)
-                  (cis x)
-                  (+ (cos x) (* i (sin x))))))
-    (/ (* i cis) x)))
-
-(defun order-one-spherical_hankel2 (x)
-  (let* ((i (bigfloat::complex 0 1))
-         (cis (if (realp x)
-                  (cis x)
-                  (+ (cos x) (* i (sin x))))))
-    ;; ((%i*(1+%i*x)*%e^(%i*x))/x^2)
-    (/ (* i (+ 1 (* i x)) cis) (* x x))))
-
-(in-package :maxima)
-
-(in-package :maxima)
-
-(defun spherical_hankel2-numeric (n x digits)
-  (let* ((bf-x (bigfloat::to x))
-         (f0   (bigfloat::order-zero-spherical_hankel2 bf-x))
-         (f1   (bigfloat::order-one-spherical_hankel2 bf-x))
-         (eps  (bigfloat::to (ftake 'mexpt 10 (- digits))))
-         (p #'(lambda (k) (bigfloat::/ (+ (* 2 k) 1) bf-x)))
-         (q #'(lambda (k) (declare (ignore k)) (bigfloat::to -1))))
-    (multiple-value-bind (value err)
-        (bigfloat::generic-two-term-recursion-running-error p q f0 f1 n)
-      (if (bigfloat::modified-relative-error-p value err eps)
-          (maxima::to value)
-          ;; restart with doubled precision
-          (bind-fpprec (mul 2 $fpprec)
-            (spherical_hankel2-numeric n ($bfloat x) digits))))))
-
-;;;;;;;;;;;;;;;;end new code
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def-simplifier spherical_bessel_j (n x)
     (cond 
@@ -2053,5 +2008,7 @@ Our measure of sufficiently small is
 (define-orthopoly-conjugator %assoc_legendre_q :check 2)
 (define-orthopoly-conjugator %spherical_bessel_j :check 1)
 (define-orthopoly-conjugator %spherical_bessel_y :check 1)
+(define-orthopoly-conjugator %spherical_hankel1 :check 1)
+(define-orthopoly-conjugator %spherical_hankel2 :check 1)
 
 

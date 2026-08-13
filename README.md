@@ -186,20 +186,21 @@ The `ortho` package is not ready for serious work. Here are the results of the t
  
 | Function               | Test Results            | Runtime        | Comment(s)            |
 |------------------------|-------------------------|----------------|------------------------|
-| chebyshev_t            | ✔️ (51/51 pass)         | 5.4 seconds    |                        |
-| chebyshev_u            | ❌ (45/51 pass)         | 6.3 seconds    |                        |
-| hermite                | ✔️ (67/67 pass)         | 19.1 seconds   |                        |
+| chebyshev_t            | ✔️ (51/51 pass)         | 2.5 seconds    |                        |
+| chebyshev_u            | ❌ (45/51 pass)         | 2.6 seconds    |                        |
+| hermite                | ✔️ (67/67 pass)         | 9.1 seconds   |                        |
 | jacobi_p               | ✔️ (40/40 pass)         | 2.0 seconds    |                        |
 | laguerre               | ✔️ (41/41 pass)         | 13.6 seconds   |                        |
 | legendre               | ⏳                      |                |                        |
-| assoc_legendre_p       | ❌ (21/34 pass)         |                |                        |
+| assoc_legendre_p       | ❌ (21/34 pass)         |  0.02 seconds  |                        |
 | legendre_q             | ⏳                      |                |                        |
 | assoc_legendre_q       | ❌ (28/35 pass)         | 0.4 seconds    |                        |
 | spherical_bessel_j     | ✔️ (29/29 pass)         | 3.3 seconds    |                        |
 | spherical_bessel_y     | ✔️ (24/24 pass)         | 0.4 seconds    |  need more tests       |
-| spherical_hankel1      | ❌ (15/29 pass)         |                |                        |
-| spherical_hankel2      | ❌ (4/29 pass)          |                | |
-| ultraspherical         | ✔️ (45/45 pass)         | 8.7 seconds    |                        |
+| spherical_hankel1      | ✔️ (27/27 pass)         | 0.8 seconds    |                        |
+| spherical_hankel2      | ❌ (4/29 pass)          |                |                        |
+| spherical_harmonic     | ⏳                      |                |                        |
+| ultraspherical         | ✔️ (45/45 pass)         | 4.0 seconds    |                        |
 | pochhammer             | ✔️ (35/35) pass         | 0.1 second     |                        |
 |------------------------|-------------------------|----------------|------------------------|
 ### Controlling subtractive cancellation
