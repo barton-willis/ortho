@@ -620,50 +620,49 @@ Our measure of sufficiently small is
 	 (generic-two-term-recursion-symbolic p q f0 f1 n)))
 
 (def-simplifier assoc_legendre_p (l m x)
-  (cond ((and (integerp l) (integerp m) (<= (abs m) l) (complex-number-p x #'$numberp))
+  (cond ((and (integerp l) (integerp m) (<= 0 l) (>= m 0) (<= m l) 
+            (complex-number-p x #'$numberp) (not (complex-number-p x #'$ratnump)))
            (let* ((digits (get-digits x))
 		        (one (multiplicative-identity x)))
 		    	(if one 
 			        (orthopoly-number-coerce (assoc_legendre_p-numeric l m x digits) one)
 				      (give-up))))
 
-        ;; assoc_legendre_p(l,m,x) = assoc_legendre_p(-l-1,m,x)
+        ;; assoc_legendre_p(l,m,x) = assoc_legendre_p(-l-1,m,x) ; see http://dlmf.nist.gov/14.9.E5
         ((and (integerp l) (< l 0))
           (ftake '%assoc_legendre_p (sub (- l) 1) m x))
+
+        ;; see http://dlmf.nist.gov/14.9.E3 
+        ((and (integerp m) (< m 0))
+            (let ((mm (- m)))
+              (mul 
+                 (ftake 'mexpt -1 mm)
+                 (div (ftake '%gamma (+ l (- mm) 1))
+                      (ftake '%gamma (+ l mm 1)))
+                 (ftake '%assoc_legendre_p l mm x))))
 
         ((and (integerp l) (integerp m) (<= (abs m) l))
           (assoc_legendre_p-symbolic l m x))
         (t  (give-up))))
 
 (defun assoc_legendre_p-numeric (l m x digits)
-  (cond ((< m 0)
-          (mul 
-              (div 1 (ftake 'mfactorial (sub l m)))
-              (ftake 'mexpt -1 (div (- m) 2))
-              (ftake 'mfactorial (add l m))
-              (assoc_legendre_p-numeric l (- m) x digits)))
-        (t 
-          (let ((bf-x (bigfloat::to x)))
+  ;; see http://dlmf.nist.gov/18.11.E1 (valid when 0 ≤ m ≤ l)
+ (let ((bf-x (bigfloat::to x)))
                 (mul 
-                   (if (evenp m) 1 -1)
-                   (maxima::to (bigfloat::sqrt (bigfloat::- 1 (bigfloat::* bf-x bf-x))))
-                   (ultraspherical-numeric (sub l m) (add m (div 1 2)) x digits))))))
+                   (ftake '$pochhammer (div 1 2) m)
+                   (ftake 'mexpt -2 m)
+                   (maxima::to (bigfloat::expt (bigfloat::- 1 (bigfloat::* bf-x bf-x)) (bigfloat::/  m 2)))
+                   (ultraspherical-numeric (sub l m) (add m (div 1 2)) x digits))))
 
 (defun assoc_legendre_p-symbolic (l m x)
-    (cond ((< m 0)
-           (mul 
-              (div 1 (ftake 'mfactorial (sub l m)))
-              (if (evenp m) 1 -1)
-              (ftake 'mfactorial (add l m))
-              (assoc_legendre_p-symbolic l (- m) x)))
-        (t 
-           (let ((cnst (div (mul (ftake 'mexpt 2 m) (ftake '%gamma (add m (div 1 2))))
-		                    (ftake 'mexpt '$%pi (div 1 2)))))
-           (mul 
-               (if (evenp m) 1 -1)
-               cnst
-               (ftake 'mexpt (sub 1 (mul x x)) (div m 2))
-               (ftake '%ultraspherical (sub l m) (add m (div 1 2)) x))))))
+  ;; see http://dlmf.nist.gov/18.11.E1 (valid when 0 ≤ m ≤ l)
+    (mul 
+       (ftake '$pochhammer (div 1 2) m)
+       (ftake 'mexpt -2 m)
+       (if (zerop1 m) ;trap for xxx^0
+           1
+           (ftake 'mexpt (sub 1 (mul x x)) (div m 2)))
+       (ftake '%ultraspherical (sub l m) (add m (div 1 2)) x)))
 
 ;;; Simplifier for the Hermite polynomial H_n, not He_n; see DLMF Table Table 18.3.1. 
 ;;; (https://dlmf.nist.gov/18.3) For the recusion, see DLMF Table http://dlmf.nist.gov/18.9.T1. 
@@ -1836,6 +1835,13 @@ Our measure of sufficiently small is
 (def-rodrigues %legendre_p
   #$$ lambda([n,x],
        (1/(2^n * factorial(n))) * diff((x^2 - 1)^n, x, n)) $)
+
+(def-rodrigues %assoc_legendre_p
+  #$$ lambda([n,m,x],
+       (-1)^m
+       * (1 - x^2)^(m/2)
+       * (1/(2^n * factorial(n)))
+       * diff((x^2 - 1)^n, x, n + m)) $)
 
 (def-rodrigues %chebyshev_t
   #$$ lambda([n,x], (1-x^2)^(1/2) * diff((1-x^2)^(-1/2) * (1-x^2)^n,x,n) / ((-2)^n * pochhammer(1/2,n)))$)

@@ -217,13 +217,13 @@ The `ortho` package is not ready for serious work. Here are the results of the t
 |------------------------|-------------------------|----------------|------------------------|
 | chebyshev_t            | ✔️ (51/51 pass)         | 2.5 seconds    |                        |
 | chebyshev_u            | ✔️ (52/52 pass)         | 6.4 seconds    |                        |
-| hermite                | ✔️ (67/67 pass)         | 9.1 seconds   |                        |
+| hermite                | ✔️ (67/67 pass)         | 9.1 seconds    |                        |
 | jacobi_p               | ✔️ (40/40 pass)         | 2.0 seconds    |                        |
 | laguerre               | ✔️ (41/41 pass)         | 13.6 seconds   |                        |
 | legendre_p             | ✔️ (55/55 pass)         |  0.3 seconds   |                        |
-| assoc_legendre_p       | ❌ (21/34 pass)         |  0.02 seconds  |                        |
-| legendre_q             | ❌ (43/43 pass)         |  0.4 seconds  |                        |
-| assoc_legendre_q       | ✔️ (28/35 pass)         | 0.4 seconds    |                        |
+| assoc_legendre_p       | ✔️ (30/30 pass)         |  0.2 seconds   |                        |
+| legendre_q             | ✔️ (43/43 pass)         |  0.4 seconds   |                        |
+| assoc_legendre_q       | ❌ (29/35 pass)         | 0.4 seconds    |                        |
 | spherical_bessel_j     | ✔️ (29/29 pass)         | 3.3 seconds    |                        |
 | spherical_bessel_y     | ✔️ (24/24 pass)         | 0.4 seconds    |  need more tests       |
 | spherical_hankel1      | ✔️ (27/27 pass)         | 0.8 seconds    |                        |

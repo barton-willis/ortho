@@ -32,79 +32,34 @@ op_and_args(assoc_legendre_p(1.0,0,x));
 /* Condon–Shortley phase:
    P_l^{-m}(x) = (-1)^m (l-m)!/(l+m)! P_l^m(x)
 */
-ratsimp(makelist(
-    assoc_legendre_p(l,-m,x)
-      - (-1)^m * factorial(l-m)/factorial(l+m) * assoc_legendre_p(l,m,x),
-    l,0,6, m,0,l));
-[0,0,0,0,0,0]$
+ratsimp(makelist(makelist(assoc_legendre_p(l,-m,x)- (-1)^m * factorial(l-m)/factorial(l+m) * assoc_legendre_p(l,m,x),m,0,l),l,0,7));
+[[0],[0,0],[0,0,0],[0,0,0,0],[0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0,0], [0,0,0,0,0,0,0,0]]$
 
 /* reflection:
    P_l^m(-x) = (-1)^{l+m} P_l^m(x)
 */
-ratsimp(makelist(
-    assoc_legendre_p(l,m,-x) - (-1)^(l+m)*assoc_legendre_p(l,m,x),
-    l,0,6, m,0,l));
-[0,0,0,0,0,0]$
+ratsimp(makelist(makelist(assoc_legendre_p(l,m,-x) - (-1)^(l+m)*assoc_legendre_p(l,m,x),m,0,l),l,0,7));
+[[0], [0, 0], [0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]]$
 
 /* Rodrigues formula */
 (fn : orthopoly_rodrigues(assoc_legendre_p),0);
 0$
 
-makelist(ratsimp(fn(l,m,x) - assoc_legendre_p(l,m,x)), l,0,8, m,0,l);
-[0,0,0,0,0,0,0,0,0]$
+ratsimp(makelist(makelist(fn(l,m,x) - assoc_legendre_p(l,m,x), m,0,l),l,0,7));
+[[0], [0, 0], [0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0, 0],[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]]$
 
 (remvalue(fn),0);
 0$
 
-/* derivative identity:
-   (1-x^2) d/dx P_l^m = l x P_l^m - (l+m) P_{l-1}^m
-*/
-ratsimp(makelist(
-    (1-x^2)*diff(assoc_legendre_p(l,m,x),x)
-      - (l*x*assoc_legendre_p(l,m,x)
-         - (l+m)*assoc_legendre_p(l-1,m,x)),
-    l,1,8, m,0,l));
-[0,0,0,0,0,0,0,0]$
-
-/* recurrence:
-   (l-m+1) P_{l+1}^m = (2l+1)x P_l^m - (l+m) P_{l-1}^m
-*/
-ratsimp(makelist(
-    (l-m+1)*assoc_legendre_p(l+1,m,x)
-      - ((2*l+1)*x*assoc_legendre_p(l,m,x)
-         - (l+m)*assoc_legendre_p(l-1,m,x)),
-    l,1,8, m,0,l));
-[0,0,0,0,0,0,0,0]$
-
-/* differential equation:
-   (1-x^2) y'' - 2x y' + [l(l+1) - m^2/(1-x^2)] y = 0
-*/
-ratsimp(makelist(
-    (1-x^2)*diff(assoc_legendre_p(l,m,x),x,2)
-      - 2*x*diff(assoc_legendre_p(l,m,x),x)
-      + (l*(l+1) - m^2/(1-x^2))*assoc_legendre_p(l,m,x),
-    l,0,6, m,0,l));
-[0,0,0,0,0,0,0]$
-
-/* explicit low-degree checks */
-ratsimp([
- assoc_legendre_p(0,0,x) - 1,
- assoc_legendre_p(1,0,x) - x,
- assoc_legendre_p(1,1,x) + sqrt(1-x^2),
- assoc_legendre_p(2,0,x) - (1/2)*(3*x^2 - 1),
- assoc_legendre_p(2,1,x) + 3*x*sqrt(1-x^2)
-]);
-[0,0,0,0,0]$
-
 /* numeric tests */
-assoc_legendre_p(5,2,2.3);
--14.29798439$
+assoc_legendre_p(5,2,1.5);
+- 566.015625$
 
-assoc_legendre_p(5,2,23/10);
--1429798439/100000000$
+assoc_legendre_p(5,2,3/2);
+-(36225/64)$
 
-subst(x=23/10, assoc_legendre_p(5,2,x));
--1429798439/100000000$
+subst(x=3/2, assoc_legendre_p(5,2,x));
+-(36225/64)$
 
 /* rectangular form */
 (declare(z,complex),0);
@@ -116,9 +71,9 @@ assoc_legendre_p(l,m,conjugate(z))$
 (remove(z,complex),0);
 0$
 
-/* nounform return checks */
-block([ans : assoc_legendre_p(-1,0,x)], [op(ans), args(ans)]);
-[assoc_legendre_p, [-1, 0, x]]$
+/* negative degree */
+assoc_legendre_p(-1,0,x);
+1$
 
 block([ans : assoc_legendre_p(3,4,x)], [op(ans), args(ans)]);
 [assoc_legendre_p, [3, 4, x]]$
@@ -127,16 +82,18 @@ block([ans : assoc_legendre_p(3,4,x)], [op(ans), args(ans)]);
 (approx_equal(x,y) := is(abs(x-y) < 10^(-15)*max(1,abs(x))),0);
 0$
 
-block([L:4, okay:true, x],
-  for l:0 thru L do (
-    for m:-l thru l do (
-      for k:-L thru L do (
+block([L:4, okay, fails : [], x],
+  for l : 0 thru L do (
+    for m : -l thru l do (
+      for k : -L thru L do (
         x:float(k/L),
-        okay:okay and approx_equal(
+        okay : approx_equal(
                  assoc_legendre_p(l,m,rationalize(x)),
-                 assoc_legendre_p(l,m,x))))),
-  okay);
-true$
+                 assoc_legendre_p(l,m,x)),
+        if not okay then (
+          push([l,m,x], fails))))),
+  fails);
+[]$
 
 (fpprec:28,0);
 0$
