@@ -620,6 +620,7 @@ Our measure of sufficiently small is
 	 (generic-two-term-recursion-symbolic p q f0 f1 n)))
 
 (def-simplifier assoc_legendre_p (l m x)
+  (mtell "l = ~M ; m = ~M ; x = ~M ~%" l m x)
   (cond ((and (integerp l) (integerp m) (<= 0 l) (>= m 0) (<= m l) 
             (complex-number-p x #'$numberp) (not (complex-number-p x #'$ratnump)))
            (let* ((digits (get-digits x))
@@ -633,7 +634,7 @@ Our measure of sufficiently small is
           (ftake '%assoc_legendre_p (sub (- l) 1) m x))
 
         ;; see http://dlmf.nist.gov/14.9.E3 
-        ((and (integerp m) (< m 0))
+        ((and (integerp l) (integerp m) (< m 0))
             (let ((mm (- m)))
               (mul 
                  (ftake 'mexpt -1 mm)
