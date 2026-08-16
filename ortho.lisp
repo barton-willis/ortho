@@ -849,7 +849,6 @@ Our measure of sufficiently small is
          (q #'(lambda (k) (declare (ignore k)) -1)))
     (generic-two-term-recursion-symbolic p q f0 f1 n)))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def-simplifier spherical_hankel2 (n x)
   (cond 
       ((and (integerp n) (complex-number-p x #'$numberp))
@@ -862,6 +861,10 @@ Our measure of sufficiently small is
       ((integerp n)
           (orthopoly-polynomial-simp (spherical_hankel2-symbolic n x) x))
 
+        ;; reflection: http://dlmf.nist.gov/10.47.E15
+      ((great (neg x) x)
+        (mul (ftake 'mexpt -1 n) (ftake '%spherical_hankel1 n (neg x))))
+
       (t (give-up))))
 
 ;; see http://dlmf.nist.gov/10.4.E2
@@ -871,14 +874,12 @@ Our measure of sufficiently small is
       (sub a (mul '$%i b))))
 
 (defun spherical_hankel2-symbolic (n x)
-  (let* ((cis (ftake 'mexpt '$%e (mul -1 (mul '$%i x))))   ;; e^(-i x)
-         (f0 (mul '$%i (div cis x)))                    ;; h_0^{(2)} = i e^{-ix} / x
-         (f1 (mul -1                                    ;; h_1^{(2)} = -(e^{-ix}(1 + i x))/x^2
-                  (div (mul cis (add 1 (mul '$%i x)))
-                       (mul x x))))
+  (let* ((cis (ftake 'mexpt '$%e (mul -1 '$%i x)))   ;; cis = e^(-i x)
+         (f0 (mul '$%i (div cis x)))                       ;; i cis / x
+         (f1 (div (mul cis (sub '$%i x)) (mul x x)))       ;; cis (i - x))/x^2
          (p #'(lambda (k) (div (add (mul 2 k) 1) x)))
          (q #'(lambda (k) (declare (ignore k)) -1)))
-    (generic-two-term-recursion-symbolic f0 f1 p q n)))
+    (generic-two-term-recursion-symbolic p q f0 f1 n)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1750,13 +1751,11 @@ Our measure of sufficiently small is
 
 (defgrad %spherical_hankel1 ($n $x)
   nil
-  #$$ spherical_hankel1(n-1,x)
-      - (n+1)/x * spherical_hankel1(n,x) $)
+  #$$ spherical_hankel1(n-1,x)- (n+1) * spherical_hankel1(n,x)/x $)
 
 (defgrad %spherical_hankel2 ($n $x)
   nil
-  #$$ spherical_hankel2(n-1,x)
-      - (n+1)/x * spherical_hankel2(n,x) $)
+  #$$ spherical_hankel2(n-1,x)- (n+1) * spherical_hankel2(n,x) /x $)
 
 (defgrad %spherical_harmonic ($l $m $theta $phi)
   nil 

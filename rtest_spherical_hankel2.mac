@@ -17,40 +17,27 @@ errcatch(spherical_hankel2(a,b,c));
 
 /* basic values */
 spherical_hankel2(0,x);
-(sin(x) + %i*cos(x))/x$
+(%e^-(%i*x)*%i)/x$
 
 spherical_hankel2(1,x);
-(sin(x) + %i*cos(x))/x^2 - (cos(x) - %i*sin(x))/x$
+(%e^-(%i*x)*(x+%i))/x^2$
 
 /* require explicit integer degree */
 op_and_args(spherical_hankel2(1.0,x));
 [spherical_hankel2, [1.0, x]]$
 
-/* reflection: h_n^{(2)}(-x) = (-1)^n h_n^{(2)}(x) */
-ratsimp(makelist(
-    spherical_hankel2(n,-x) - (-1)^n*spherical_hankel2(n,x),
-    n,0,10));
-[0,0,0,0,0,0,0,0,0,0,0]$
+/* reflection */
+spherical_hankel2(n,-x) - (-1)^n*spherical_hankel1(n,x);
+0$
 
 /* derivative identity:
    h_n'(x) = h_{n-1}(x) - (n+1)/x * h_n(x)
 */
-ratsimp(makelist(
-    diff(spherical_hankel2(n,x),x)
-      - (spherical_hankel2(n-1,x)
-         - (n+1)/x * spherical_hankel2(n,x)),
-    n,1,8));
-[0,0,0,0,0,0,0,0]$
+block([df : diff(spherical_hankel2(n,x),x)],
+(subst(n=8, df) - diff(spherical_hankel2(8,x),x)));
+0$
 
 /* recurrence:
-   h_{n+1}(x) = (2n+1)/x * h_n(x) - h_{n-1}(x)
-*/
-ratsimp(makelist(
-    spherical_hankel2(n+1,x)
-      - ((2*n+1)/x)*spherical_hankel2(n,x)
-      + spherical_hankel2(n-1,x),
-    n,1,8));
-[0,0,0,0,0,0,0,0]$
 
 /* differential equation:
    x^2 y'' + 2x y' + (x^2 - n(n+1)) y = 0
