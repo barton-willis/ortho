@@ -620,7 +620,6 @@ Our measure of sufficiently small is
 	 (generic-two-term-recursion-symbolic p q f0 f1 n)))
 
 (def-simplifier assoc_legendre_p (l m x)
-  (mtell "l = ~M ; m = ~M ; x = ~M ~%" l m x)
   (cond ((and (integerp l) (integerp m) (<= 0 l) (>= m 0) (<= m l) 
             (complex-number-p x #'$numberp) (not (complex-number-p x #'$ratnump)))
            (let* ((digits (get-digits x))
@@ -1938,10 +1937,10 @@ Our measure of sufficiently small is
   "Store hypergeometric representation as a Maxima lambda form."
   `(putprop ',name
             ,lambda-form
-            'hypergeom))
+            'hypergeometric))
 
-(defmfun $orthopoly_hypergeom (name)
-    (or (get name 'hypergeom)
+(defmfun $orthopoly_hypergeometric (name)
+    (or (get name 'hypergeometric)
         (merror "No hypergeometric form registered for ~M" name)))
 
 (def-hypergeom %legendre_p
