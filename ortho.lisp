@@ -1403,6 +1403,21 @@ Our measure of sufficiently small is
 (defun lagpol (n a arg)
 	(ftake '%gen_laguerre n a arg))
 
+(defun legen (n m x pq)
+  ;; A&S 8.2.1: P(-n-1,m,z) = P(n,m,z)
+  (let ((n (if (or (member ($sign n) '($neg $nz)) ; negative sign or
+                   (mminusp n))                   ; negative form like -n-1
+               (mul -1 (add 1 n))
+               n)))
+    (cond ((eql m 0)
+           (if (eq pq '$q) 
+                       (ftake '%legendre_q n x)
+                       (ftake '%legendre_p n x)))
+          (t
+           (if (eq pq '$q) 
+                     (ftake '%assoc_legendre_q n m x)
+                     (ftake '%assoc_legendre_p n m x))))))
+
 (in-package :maxima)
 
 (defparameter *orthopoly-recursion-table*
