@@ -28,6 +28,16 @@ op_and_args(hermite(1.0,x));
 op_and_args(hermite(1.0b0,x));
 [hermite, [1.0b0, x]]$
 
+/*nounform for negative degree or noninteger degree*/
+op_and_args(hermite(-6,x));
+ [hermite, [- 6, x]]$
+
+op_and_args(hermite(2/3,x));
+[hermite,[2/3,x]]$
+
+op_and_args(hermite(2<5,x));
+[hermite,[2<5,x]]$
+
 /*  Check the value at 0 */
 block([ans], declare(n,even), ans : hermite(n,0), remove(n,even), ans);
  (2^n*sqrt(%pi))/gamma((1-n)/2)$
@@ -50,7 +60,20 @@ makelist(ratsimp(fn(k,x)-hermite(k,x)),k,0,10);
 (df : diff(hermite(n,x),x), expand(makelist(subst(n=k,df)-diff(hermite(k,x),x),k,0,10)));
 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
 
+ string(diff(hermite(n*x,x),x));
+"'diff(hermite(n*x,x),x,1)"$
+
+string(diff(hermite(n*x,x),n));
+"'diff(hermite(n*x,x),n,1)"$
+
 (remvalue(fn,df),0);
+0$
+
+/*taylorize */
+hermite(n,taylor(x,x,0,2));
+hermite(n,0)+2*hermite(n-1,0)*n*x+(2*n^2-2*n)*hermite(n-2,0)*x^2$
+
+ratdisrep(subst(n=8, hermite(n,taylor(x,x,0,2))) - taylor(hermite(8,x),x,0,2));
 0$
 
 /* tests adapted from rtest_orthopoly  */
