@@ -1116,7 +1116,7 @@ Our measure of sufficiently small is
   (setq x (bigfloat::to x))
   (setq err (bigfloat::to err))
   (flet ((okay (x err eps)
-           (<= (abs err) (* eps (max 1 (abs x))))))
+           (< (abs err) (* eps (max eps (abs x))))))
     (and
      (okay (realpart x) (realpart err) eps)
      (okay (imagpart x) (imagpart err) eps))))
