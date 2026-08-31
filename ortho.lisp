@@ -1147,9 +1147,6 @@ Our measure of sufficiently small is
                (abs (imagpart z)))
       (abs z)))
 
-;;; Maybe a bound for the relative error in f0 and f1 should be passed as function arguments, 
-;;;  but for now The we'll assume that the initial values f0 & f1 have at most a realative error of 
-;; 8 * machine epsilon. See the value of `safety`.
 (defun generic-two-term-recursion-running-error (p q f0 f1 n)
   "Evaluate the recurrence forward while tracking a componentwise absolute
    running error bound using the IEEE‑754 real floating‑point model.
