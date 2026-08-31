@@ -1088,7 +1088,7 @@ Our measure of sufficiently small is
   (let (($algebraic t))
     (setq f0 ($rat f0))
     (setq f1 ($rat f1))
-    (cond ((eql n 0) (values f0 0)) ; maybe (values f0 nil)?
+    (cond ((eql n 0) (values f0 nil)) 
           ((eql n 1) (values f1 f0))
           (t
            (let ((f2)
