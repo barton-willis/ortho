@@ -1083,6 +1083,22 @@ Our measure of sufficiently small is
         
        (t (give-up))))
 
+;; generic-two-term-recursion-symbolic
+;;
+;; Compute the n-th term of a symbolic two-term linear recurrence
+;;     f(k+1) = p(k) * f(k) + q(k) * f(k-1)
+;; using user-supplied coefficient functions p and q and initial
+;; values f0 = f(0) and f1 = f(1).
+;;
+;; Arguments:
+;;   p   - a function of one integer argument k returning p(k).
+;;   q   - a function of one integer argument k returning the q(k).
+;;   f0  - the value of f(0)
+;;   f1  - the value of f(1)
+;;   n   - the index of the term to compute (n >= 0).
+;;
+;; Returns: Two values: f(n) and f(n-1) or nil when n = 0
+
 ;; Converting the initial values f0 & f1 to  CRE form makes this calculation much faster.
 (defun generic-two-term-recursion-symbolic (p q f0 f1 n)
   (let (($algebraic t))
