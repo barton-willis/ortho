@@ -29,38 +29,46 @@ spherical_harmonic(1,1,theta,phi);
 op_and_args(spherical_harmonic(1.0,0,theta,phi));
 [spherical_harmonic, [1.0, 0, theta, phi]]$
 
-/* conjugation identity:
-   Y_l^m(θ,φ)^* = (-1)^m Y_l^{-m}(θ,φ)
+/* conjugation identity: see http://dlmf.nist.gov/14.30.E6
+   Y_l^(-m)(θ,φ) = (-1)^m conjugate(Y_l^m}(θ,φ)
 */
-ratsimp(makelist(
-    conjugate(spherical_harmonic(l,m,theta,phi))
-      - (-1)^m*spherical_harmonic(l,-m,theta,phi),
-    l,0,5, m,-l,l));
-[0,0,0,0,0,0]$
+block([fn : lambda([l,m], 
+  trigreduce(radcan(spherical_harmonic(l,-m,theta,phi) - (-1)^m*conjugate(spherical_harmonic(l,m,theta,phi)))))],
+  outermap(fn, [0,1,2],[-2,-1,0,1,2]));
+[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]$
 
 /* reflection identity:
    Y_l^m(π-θ, φ+π) = (-1)^l Y_l^m(θ,φ)
 */
-ratsimp(makelist(
-    spherical_harmonic(l,m,%pi-theta,phi+%pi)
-      - (-1)^l*spherical_harmonic(l,m,theta,phi),
-    l,0,5, m,-l,l));
-[0,0,0,0,0,0]$
+block([fn : lambda([l,m],
+   spherical_harmonic(l,m, %pi-theta, %pi+phi) - (-1)^l * spherical_harmonic(l,m,theta,phi))],
+   outermap(fn,[0,1,2],[-2,-1,0,1,2]));
+[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]$
 
-/* normalization:
-   ∫ |Y_l^m|^2 dΩ = 1
-*/
-block([ans],
-  fn(l,m) := integrate(
-               spherical_harmonic(l,m,theta,phi)
-               * conjugate(spherical_harmonic(l,m,theta,phi))
-               * sin(theta),
-               theta,0,%pi, phi,0,2*%pi) - 1,
-  ans : makelist(makelist(ratsimp(fn(l,m)), m,-l,l), l,0,4),
-  remfunction(fn),
-  ans);
-[[0],[0,0,0],[0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0]]$
+/* normalization: ∫ |Y_l^m|^2 dΩ = 1*/
 
+block([w : orthopoly_weight(spherical_harmonic),fn, L : [0,1,2], M : [-2,-1,0,1,2]],
+  fn : lambda([l,m,lp,mp],
+    w : w(theta,phi),
+     radcan(integrate(integrate(sin(theta) * spherical_harmonic(l,m,theta,phi) * spherical_harmonic(lp,mp,theta,phi),
+     theta,0,%pi),phi,0,2*%pi))),
+   outermap(fn,L,M,L,M));
+
+[[[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+[[0, 0, 1, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]],
+[[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+[[0, 0, 0, 0, 0], [0, 0, 0, - 1, 0], [0, 0, 0, 0, 0]],
+[[0, 0, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]],
+[[0, 0, 0, 0, 0], [0, - 1, 0, 0, 0], [0, 0, 0, 0, 0]],
+[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]],
+[[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 1]],
+[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, - 1, 0]],
+[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 1, 0, 0]],
+[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, - 1, 0, 0, 0]],
+[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [1, 0, 0, 0, 0]]]]$
 
 /* explicit low-degree checks */
 ratsimp([
