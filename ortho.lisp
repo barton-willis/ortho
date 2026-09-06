@@ -1069,12 +1069,13 @@ Our measure of sufficiently small is
                   (mul (+ (* 2 l) 1) (ftake 'mfactorial (- l m)))
                   (mul 4 '$%pi (ftake 'mfactorial (+ l m))))
                (div 1 2)))
-
+          (f0 (ftake '$pochhammer (div 1 2) m))
           (f1 (ftake '%ultraspherical (- l m) (add m (div 1 2)) (ftake '%cos theta)))
           (f2 (ftake 'mexpt (ftake '%sin theta) m))
-          (f3 (ftake 'mexpt '$%e (mul '$%i m phi))))
+          (f3 (ftake 'mexpt '$%e (mul '$%i m phi)))
+          (f4 (ftake 'mexpt (- 2) m)))
 
-          (mul cnst f1 f2 f3)))
+          (mul cnst f0 f4 f1 f2 f3)))
 
        ((great m (neg m)) ;http://dlmf.nist.gov/14.30.E6 
         (mul
@@ -1898,6 +1899,22 @@ Our measure of sufficiently small is
          * (1-x)^(-a) * (1+x)^(-b)
          * diff((1-x)^(n+a) * (1+x)^(n+b), x, n)) $)
 
+(def-rodrigues %spherical_bessel_j
+  #$$ lambda([n,x],
+       block([expr : sin(x)/x, k],
+         for k: 1 thru n do
+           expr : (1/x) * diff(expr, x),
+         (-x)^n * expr)) $)
+
+(def-rodrigues %spherical_bessel_y
+  #$$ lambda([n,x],
+       block([expr : -cos(x)/x, k],
+         for k: 1 thru n do
+           expr : (1/x) * diff(expr, x),
+         (-x)^n * expr)) $)
+
+
+
 ;;;  Sturm–Liouville (ODE) subsystem for orthogonal polynomials in Maxima
 
 (defparameter *orthopoly-ode-operator-table*
@@ -2050,3 +2067,46 @@ Our measure of sufficiently small is
 (define-orthopoly-conjugator %spherical_hankel2 :check 1)
 
 
+#|
+
+(defvar *nonlocal-exits* nil
+  "List of records of non-local exits from wrapped functions.")
+
+(defmacro define-renamed-with-nlexit (old-name new-name)
+  "Rename OLD-NAME to NEW-NAME and wrap OLD-NAME so that any non-local
+exit is recorded in *NONLOCAL-EXITS*. The wrapper pushes the argument
+list into *NONLOCAL-EXITS* before re-signaling the condition."
+  (let ((args (gensym "ARGS")))
+    `(progn
+       ;; Save the old definition under NEW-NAME
+       (setf (symbol-function ',new-name)
+             (symbol-function ',old-name))
+
+       ;; Define the wrapper under OLD-NAME
+       (setf (symbol-function ',old-name)
+             (lambda (&rest ,args)
+               (handler-case
+                   ;; Normal call
+                   (apply #',new-name ,args)
+
+                 ;; Catch ANY condition (error, throw, etc.)
+                 (condition (c)
+                   (push (list :function ',old-name
+                               :renamed  ',new-name
+                               :args     ,args
+                               :condition c
+                               :timestamp (get-universal-time))
+                         *nonlocal-exits*)
+                   ;; Re-signal so caller sees the original condition
+                   (signal c)))))
+
+       ',old-name)))
+
+(defun boom (x)
+  (error "Boom: ~A" x))
+
+(define-renamed-with-nlexit boom old-boom)
+
+(boom 42)
+
+ |#
