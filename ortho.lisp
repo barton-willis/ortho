@@ -1049,9 +1049,23 @@ Our measure of sufficiently small is
          (q #'(lambda (k) (declare (ignore k))  -1)))
     (generic-two-term-recursion-symbolic p q f0 f1 n)))
  
+#|
+ ((and (integerp n) (>= n 0) (complex-number-p x #'$numberp)) ;evaluate numerically
+           (let* ((digits (get-digits x))
+		        (one (multiplicative-identity x)))
+			(if one 
+			    (orthopoly-number-coerce (hermite-numeric n x digits) one)
+				(give-up))))
 
+ |#
 (def-simplifier spherical_harmonic (l m theta phi)
-  (cond ((or (eq t (mgrp (ftake 'mabs m) l)) (eq t (mgrp 0 l))) 0) 
+  (cond ((or (eq t (mgrp 0 l)) ; l < 0
+             (eq t (mgrp (ftake 'mabs m) l))) ; |m| > l
+          (give-up))
+
+        ((and (integerp m) (< m 0))
+          (mul (ftake 'mexpt -1 m)
+               (ftake '%spherical_harmonic l (neg m) theta phi)))
 
         ;; http://dlmf.nist.gov/14.30.E4 Y(l,m,0,phi)
         ((eql theta 0)
@@ -1061,9 +1075,11 @@ Our measure of sufficiently small is
                  0)
                 (t (give-up))))
 
+        ;; symbolic case & numeric cases
         ((and (integerp l) (integerp m))
           ;; see http://dlmf.nist.gov/14.30.E1
-          (let ((cnst
+          (mtell "l= ~M ; m = ~M theta = ~M ; phi = ~M ~%" l m theta phi)
+          (let* ((cnst
              (ftake 'mexpt 
                (div 
                   (mul (+ (* 2 l) 1) (ftake 'mfactorial (- l m)))
@@ -1071,16 +1087,20 @@ Our measure of sufficiently small is
                (div 1 2)))
           (f0 (ftake '$pochhammer (div 1 2) m))
           (f1 (ftake '%ultraspherical (- l m) (add m (div 1 2)) (ftake '%cos theta)))
-          (f2 (ftake 'mexpt (ftake '%sin theta) m))
+          (f2 (if (eql m 0) 1 (ftake 'mexpt (ftake '%sin theta) m)))
           (f3 (ftake 'mexpt '$%e (mul '$%i m phi)))
-          (f4 (ftake 'mexpt (- 2) m)))
+          (f4 (ftake 'mexpt (- 2) m))
+          (ans  (mul cnst f0 f4 f1 f2 f3)))
 
-          (mul cnst f0 f4 f1 f2 f3)))
+        (cond ((and (complex-number-p theta #'floatp)
+                    (complex-number-p phi #'floatp))
+                (let (($numer t)) ($expand ($float ans) 1 0)))
 
-       ((great m (neg m)) ;http://dlmf.nist.gov/14.30.E6 
-        (mul
-          (ftake 'mexpt -1 (neg m))
-          (ftake '$conjugate (ftake '%spherical_harmonic l (neg m) theta phi))))
+              ((and (complex-number-p theta #'(lambda (q) (or (floatp q) ($bfloatp q))))
+                    (complex-number-p phi #'(lambda (q) (or (floatp q) ($bfloatp q)))))
+                (let (($numer t)) ($bfloat ans)))
+              
+              (t ans))))
         
        (t (give-up))))
 
@@ -2066,8 +2086,18 @@ Our measure of sufficiently small is
 (define-orthopoly-conjugator %spherical_hankel1 :check 1)
 (define-orthopoly-conjugator %spherical_hankel2 :check 1)
 
+(defun conjugate-spherical_harmonic (x)
+  (let ((l (first x))
+        (m (second x))
+        (theta (third x))
+        (phi (fourth x)))
+    (cond ((and (manifestly-real-p theta) (manifestly-real-p phi))
+           (mul (ftake 'mexpt -1 m)
+                (ftake '%spherical_harmonic l (neg m) theta phi)))
+          (t ($funmake '$conjugate (ftake 'mlist (ftake '%spherical_harmonic l m theta phi)))))))
+(setf (get '%spherical_harmonic 'conjugate-function) 'conjugate-spherical_harmonic)
 
-#|
+ #|
 
 (defvar *nonlocal-exits* nil
   "List of records of non-local exits from wrapped functions.")

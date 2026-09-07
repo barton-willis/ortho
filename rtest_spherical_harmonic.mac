@@ -42,34 +42,17 @@ block([fn : lambda([l,m],
 */
 block([fn : lambda([l,m],
    spherical_harmonic(l,m, %pi-theta, %pi+phi) - (-1)^l * spherical_harmonic(l,m,theta,phi))],
-   outermap(fn,[0,1,2],[-2,-1,0,1,2]));
-[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]$
+   makelist(makelist(fn(a,b),b,-a,a),a,0,5));
+[[0], [0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0],[0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]$
 
 /* normalization: ∫ |Y_l^m|^2 dΩ = 1*/
 
-block([w : orthopoly_weight(spherical_harmonic),fn, L : [0,1,2], M : [-2,-1,0,1,2]],
-  fn : lambda([l,m,lp,mp],
-    w : w(theta,phi),
+block([fn : lambda([l,m,lp,mp],
+       block([w :  orthopoly_weight(spherical_harmonic)(theta,phi)],
      radcan(integrate(integrate(sin(theta) * spherical_harmonic(l,m,theta,phi) * spherical_harmonic(lp,mp,theta,phi),
-     theta,0,%pi),phi,0,2*%pi))),
-   outermap(fn,L,M,L,M));
-
-[[[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
-[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
-[[0, 0, 1, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
-[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
-[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]],
-[[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
-[[0, 0, 0, 0, 0], [0, 0, 0, - 1, 0], [0, 0, 0, 0, 0]],
-[[0, 0, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]],
-[[0, 0, 0, 0, 0], [0, - 1, 0, 0, 0], [0, 0, 0, 0, 0]],
-[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]],
-[[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 1]],
-[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, - 1, 0]],
-[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 1, 0, 0]],
-[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, - 1, 0, 0, 0]],
-[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [1, 0, 0, 0, 0]]]]$
-
+     theta,0,%pi),phi,0,2*%pi))))],
+   [fn(3,2,5,1), fn(1,0,5,-1)]);
+[0,0]$
 /* explicit low-degree checks */
 ratsimp([
  spherical_harmonic(0,0,theta,phi) - 1/sqrt(4*%pi),
@@ -80,20 +63,21 @@ ratsimp([
 
 /* numeric tests */
 spherical_harmonic(3,2,1.2,0.7);
-0.06894437982*exp(2*%i*0.7)$
+0.31701879374068104*%i + 0.05467836357153942$
 
 spherical_harmonic(3,2,6/5,7/10);
-(344721899/5000000000)*exp(14*%i/10)$
+(15*sqrt(7)*%e^((7*%i)/5)*cos(6/5)*sin(6/5)^2)/(4*sqrt(30)*sqrt(%pi))$
 
 subst([theta=6/5,phi=7/10], spherical_harmonic(3,2,theta,phi));
-(344721899/5000000000)*exp(14*%i/10)$
+(15*sqrt(7)*%e^((7*%i)/5)*cos(6/5)*sin(6/5)^2)/(4*sqrt(30)*sqrt(%pi))$
 
 /* rectangular form */
 (declare(z,complex),0);
 0$
 
-conjugate(spherical_harmonic(l,m,z,phi));
-spherical_harmonic(l,m,conjugate(z),phi)$
+block([ans : conjugate(spherical_harmonic(l,m,z,phi))],
+[op(ans), args(ans)]);
+[conjugate, [spherical_harmonic(l, m, z, phi)]]$
 
 (remove(z,complex),0);
 0$
