@@ -69,9 +69,7 @@ This appears in the testsuite twice.
 
 ## Installation Guide
 
-Maxima's `orthopoly` package resides in the share library, but it autoloads. Installing the new package requires
-deactivating the autoload property for the old package.  Alternatively, you could simply replace the files in your
-share library, but doing so is not easily reversed.  Here is how to install the new package by deactivating the autoload property:
+Maxima's `orthopoly` package autoloads from the share library. Installing the new package requires deactivating the autoload property for the old package. Alternatively, you could replace the files in your share library, but doing so is not easily reversed.  Here is how to install the new package by deactivating the autoload property:
 
 1. **Copy the package directory**  
    Copy the folder containing the `ortho` package files to a location where you normally keep Maxima source files.
