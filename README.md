@@ -12,15 +12,14 @@ This is a new version of Maxima's package for orthogonal polynomials. New featur
 
 - The package no longer returns intervals for numerical evaluation.
 
-- New user-level functions for the Rodrigues formula, recursion relation, normalizations, differential equation, and hypergeometric representation
-  for the orthogonal polynomials.
+- New user-level functions for the Rodrigues formula, recursion relation, normalizations, differential equation, and hypergeometric representation for the orthogonal polynomials.
 
 - Comprehensive test suite, one file per family, verifying every property and every special value.
 
 ## Current status
 
-With the `ortho` package loaded, Maxima’s core testsuite and the share testsuites now run to completion with thirty failures. Of
-these 20 syntactic mismatches. I am currently reviewing the remaining ten failures. Most appear to be syntactic as well.
+With the `ortho` package loaded, Maxima’s testsuite runs with twenty-eight failures. Of these
+failures, all but seven are syntactic mismatches.
 
 Here is a typical syntactic failure:
 ```maxima
@@ -67,8 +66,6 @@ i = 0
 
 ```
 This appears in the testsuite twice.
-
-All new `ortho` test files run to completion. Some pass cleanly; others expose missing conjugate or gradient properties, and the like.
 
 ## Installation Guide
 
@@ -236,7 +233,7 @@ The `ortho` package is not ready for serious work. Here are the results of the t
 
 Computing the orthogonal polynomials using the recursion relation is algorithmically simple. But 
 to avoid subtractive cancellation, we must be vigilant. Here is an example: Let's compute the 
-Laguerre polynomials using recursion and binary64 numbers.  In Maxima, a simple why to do this
+Laguerre polynomials using recursion and binary64 numbers.  In Maxima, a simple way to do this
 is to use a memoizing function; for example
 
 ```maxima
