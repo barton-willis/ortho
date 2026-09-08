@@ -1062,10 +1062,11 @@ Our measure of sufficiently small is
   (cond ((or (eq t (mgrp 0 l)) ; l < 0
              (eq t (mgrp (ftake 'mabs m) l))) ; |m| > l
           (give-up))
-
-        ((and (integerp m) (< m 0))
-          (mul (ftake 'mexpt -1 m)
-               (ftake '%spherical_harmonic l (neg m) theta phi)))
+       ;; spherical_harmonic (l m theta phi) = exp(2 %i m phi) spherical_harmonic (l -m theta phi)
+       ((and (integerp m) (< m 0))
+           (mul (ftake 'mexpt -1 m)
+           (ftake '$conjugate
+             (ftake '%spherical_harmonic l (neg m) theta phi))))
 
         ;; http://dlmf.nist.gov/14.30.E4 Y(l,m,0,phi)
         ((eql theta 0)
@@ -1078,7 +1079,6 @@ Our measure of sufficiently small is
         ;; symbolic case & numeric cases
         ((and (integerp l) (integerp m))
           ;; see http://dlmf.nist.gov/14.30.E1
-          (mtell "l= ~M ; m = ~M theta = ~M ; phi = ~M ~%" l m theta phi)
           (let* ((cnst
              (ftake 'mexpt 
                (div 
@@ -1089,7 +1089,7 @@ Our measure of sufficiently small is
           (f1 (ftake '%ultraspherical (- l m) (add m (div 1 2)) (ftake '%cos theta)))
           (f2 (if (eql m 0) 1 (ftake 'mexpt (ftake '%sin theta) m)))
           (f3 (ftake 'mexpt '$%e (mul '$%i m phi)))
-          (f4 (ftake 'mexpt (- 2) m))
+          (f4 (ftake 'mexpt -2 m))
           (ans  (mul cnst f0 f4 f1 f2 f3)))
 
         (cond ((and (complex-number-p theta #'floatp)
@@ -2092,7 +2092,7 @@ Our measure of sufficiently small is
         (theta (third x))
         (phi (fourth x)))
     (cond ((and (manifestly-real-p theta) (manifestly-real-p phi))
-           (mul (ftake 'mexpt -1 m)
+           (mul (ftake 'mexpt -1 (neg m))
                 (ftake '%spherical_harmonic l (neg m) theta phi)))
           (t ($funmake '$conjugate (ftake 'mlist (ftake '%spherical_harmonic l m theta phi)))))))
 (setf (get '%spherical_harmonic 'conjugate-function) 'conjugate-spherical_harmonic)

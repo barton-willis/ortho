@@ -30,12 +30,14 @@ op_and_args(spherical_harmonic(1.0,0,theta,phi));
 [spherical_harmonic, [1.0, 0, theta, phi]]$
 
 /* conjugation identity: see http://dlmf.nist.gov/14.30.E6
-   Y_l^(-m)(θ,φ) = (-1)^m conjugate(Y_l^m}(θ,φ)
+Y_{l,-m}(θ,φ) = (-1)^m conjugate(Y_{l,m}(θ,φ)
 */
 block([fn : lambda([l,m], 
-  trigreduce(radcan(spherical_harmonic(l,-m,theta,phi) - (-1)^m*conjugate(spherical_harmonic(l,m,theta,phi)))))],
-  outermap(fn, [0,1,2],[-2,-1,0,1,2]));
-[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]$
+  trigreduce(radcan(spherical_harmonic(l,-m,theta,phi) - (-1)^m * conjugate(spherical_harmonic(l,m,theta,phi)))))],
+  makelist(makelist(fn(l,m),m,-l,l),l,0,6));
+[[0], [0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]$
 
 /* reflection identity:
    Y_l^m(π-θ, φ+π) = (-1)^l Y_l^m(θ,φ)
@@ -121,6 +123,7 @@ block([L:4, N : 10, fails : [], theta, phi],
                    spherical_harmonic(l,m,theta,phi))) then push([l,m,theta,phi], fails))))),
   fails);
 []$
+
 
 (reset(fpprec),0);
 0$
