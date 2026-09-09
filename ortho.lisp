@@ -1062,11 +1062,11 @@ Our measure of sufficiently small is
   (cond ((or (eq t (mgrp 0 l)) ; l < 0
              (eq t (mgrp (ftake 'mabs m) l))) ; |m| > l
           (give-up))
-       ;; spherical_harmonic (l m theta phi) = exp(2 %i m phi) spherical_harmonic (l -m theta phi)
+       ;; see http://dlmf.nist.gov/14.30.E6 
+       ;; spherical_harmonic(l, m, theta, phi) = (-1)^(-m) conjugate(spherical_harmonic(l,-m,theta,phi))
        ((and (integerp m) (< m 0))
-           (mul (ftake 'mexpt -1 m)
-           (ftake '$conjugate
-             (ftake '%spherical_harmonic l (neg m) theta phi))))
+           (mul (ftake 'mexpt -1 (neg m))
+                (ftake '$conjugate (ftake '%spherical_harmonic l (neg m) theta phi))))
 
         ;; http://dlmf.nist.gov/14.30.E4 Y(l,m,0,phi)
         ((eql theta 0)
@@ -1080,7 +1080,7 @@ Our measure of sufficiently small is
         ((and (integerp l) (integerp m))
           ;; see http://dlmf.nist.gov/14.30.E1
           (let* ((cnst
-             (ftake 'mexpt 
+             (ftake 'mexpt  
                (div 
                   (mul (+ (* 2 l) 1) (ftake 'mfactorial (- l m)))
                   (mul 4 '$%pi (ftake 'mfactorial (+ l m))))
