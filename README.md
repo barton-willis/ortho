@@ -36,7 +36,7 @@ This differed from the expected result:
     3 z       2
           12 z
 ```
-Arguably, the new value is better - it doesn't have the spurious singularity at zero.
+The new value is better because it doesn't have the spurious singularity at zero.
 
 One testsuite failure that is actually a success is:
 
@@ -69,10 +69,11 @@ This appears in the testsuite twice.
 
 ## Installation Guide
 
-Maxima's `orthopoly` package autoloads from the share library. Installing the new package requires deactivating the autoload property for the old package. Alternatively, you could replace the files in your share library, but doing so is not easily reversed.  Here is how to install the new package by deactivating the autoload property:
+This guide explains how to install the new **ortho** package without modifying Maxima’s share library. The key requirement is to prevent Maxima from autoloading the old `orthopoly` package from the share library, since its functions would otherwise override the new ones. The steps below show how to install the new package by adding it to Maxima’s search path and removing the autoload properties associated with the old package.
 
 1. **Copy the package directory**  
    Copy the folder containing the `ortho` package files to a location where you normally keep Maxima source files.
+   Actually, any readable directory is fine.
 
 2. **Add the package directory to Maxima’s search path**  
    If your package is in `C:/LarryB/maxima/ortho`, for example, append the following lines to your `maxima-init.mac` file:
@@ -87,7 +88,9 @@ Maxima's `orthopoly` package autoloads from the share library. Installing the ne
 
 3. **Remove the autoload property for the old package.** To do this place the following in your file `maxima-init.lisp` file
 
-  ```maxima 
+
+
+  ```lisp
    (dolist (f
          '($assoc_legendre_p
            $assoc_legendre_q
