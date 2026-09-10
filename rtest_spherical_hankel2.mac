@@ -20,7 +20,7 @@ spherical_hankel2(0,x);
 (%e^-(%i*x)*%i)/x$
 
 spherical_hankel2(1,x);
-(%e^-(%i*x)*(x+%i))/x^2$
+-((%e^-(%i*x)*(x-%i))/x^2)$
 
 /* require explicit integer degree */
 op_and_args(spherical_hankel2(1.0,x));
@@ -30,14 +30,9 @@ op_and_args(spherical_hankel2(1.0,x));
 spherical_hankel2(n,-x) - (-1)^n*spherical_hankel1(n,x);
 0$
 
-/* derivative identity:
-   h_n'(x) = h_{n-1}(x) - (n+1)/x * h_n(x)
-*/
-block([df : diff(spherical_hankel2(n,x),x)],
-(subst(n=8, df) - diff(spherical_hankel2(8,x),x)));
+/* gradient check */
+block([df : diff(spherical_hankel2(n,x),x)], ratsimp((subst(n=8, df) - diff(spherical_hankel2(8,x),x))));
 0$
-
-/* recurrence:
 
 /* differential equation:
    x^2 y'' + 2x y' + (x^2 - n(n+1)) y = 0
@@ -50,25 +45,18 @@ ratsimp(makelist(
 [0,0,0,0,0,0,0,0,0]$
 
 /* explicit low-degree checks */
-ratsimp([
- spherical_hankel2(0,x) - ((sin(x) + %i*cos(x))/x),
- spherical_hankel2(1,x) - ((sin(x) + %i*cos(x))/x^2 - (cos(x) - %i*sin(x))/x),
- spherical_hankel2(2,x) - (
-     ((3/x^3 - 1/x)*(sin(x) + %i*cos(x)))
-     - (3/x^2)*(cos(x) - %i*sin(x))
- )
-]);
-[0,0,0]$
+[spherical_hankel2(0,x), spherical_hankel2(1,x), spherical_hankel2(2,x)];
+[(%e^-(%i*x)*%i)/x,-((%e^-(%i*x)*(x-%i))/x^2), -((%e^-(%i*x)*(%i*x^2+3*x-3*%i))/x^3)]$
 
 /* numeric tests */
 spherical_hankel2(5,2.3);
-0.000510409702 + 0.000510409702*%i$
+8.694824790197426*%i+0.005037487741787818$
 
 spherical_hankel2(5,23/10);
-(510409702/1000000000000) + (510409702/1000000000000)*%i$
+ -((%e^-((23*%i)/10)*(857038500*%i+960328430))/148035889)$
 
 subst(x=23/10,spherical_hankel2(5,x));
-(510409702/1000000000000) + (510409702/1000000000000)*%i$
+-((1000000*%e^-((23*%i)/10)*((1714077*%i)/2000+96032843/100000))/148035889)$
 
 /* rectangular form */
 (declare(z,complex),0);
@@ -80,13 +68,13 @@ spherical_hankel2(n,conjugate(z))$
 (remove(z,complex),0);
 0$
 
-/* nounform return checks */
-block([ans : spherical_hankel2(-1,x)], [op(ans), args(ans)]);
-[spherical_hankel2, [-1, x]]$
+/* negative degree tests  */
+spherical_hankel2(-1,x);
+-((%e^-(%i*x)*(x-%i))/x^2)$
 
-block([ans : spherical_hankel2(-1,42)], [op(ans), args(ans)]);
-[spherical_hankel2, [-1, 42]]$
-
+block([fn : lambda([n], ratsimp(spherical_hankel2(-n-1,x) / spherical_hankel2(n,x)))],
+      map(fn, [0,1,2,3,4,5,6]));
+[- 1, 1, - 1, 1, - 1, 1, - 1]$
 /* binary64 tests */
 (approx_equal(x,y) := is(abs(x-y) < 10^(-15)*max(1,abs(x))),0);
 0$

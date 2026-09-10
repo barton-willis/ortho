@@ -850,22 +850,13 @@ Our measure of sufficiently small is
     (generic-two-term-recursion-symbolic p q f0 f1 n)))))
 
 (def-simplifier spherical_hankel2 (n x)
-  (cond 
-      ((and (integerp n) (complex-number-p x #'$numberp))
-            (let* ((digits (get-digits x))
-                   (one (multiplicative-identity x)))
-      (if one 
-          (orthopoly-number-coerce (spherical_hankel2-numeric n x digits) one)
-        (give-up))))
-
-      ((integerp n)
-          (orthopoly-polynomial-simp (spherical_hankel2-symbolic n x) x))
-
-        ;; reflection: http://dlmf.nist.gov/10.47.E15
-      ((great (neg x) x)
-        (mul (ftake 'mexpt -1 n) (ftake '%spherical_hankel1 n (neg x))))
-
-      (t (give-up))))
+  (cond ((integerp n)
+           (let* (($besselexpand t)
+                  ($exponentialize t)
+                  (ht (ftake '%hankel_2 (add n (div 1 2)) x))
+                  (cnst (ftake 'mexpt (div '$%pi (mul 2 x)) (div 1 2))))
+              (sratsimp (mul cnst ht))))
+        (t (give-up))))
 
 ;; see http://dlmf.nist.gov/10.4.E2
 (defun spherical_hankel2-numeric (n x digits)
