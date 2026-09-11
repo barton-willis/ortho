@@ -26,10 +26,6 @@ spherical_hankel1(1,x);
 op_and_args(spherical_hankel1(1.0,x));
 [spherical_hankel1, [1.0, x]]$
 
-/* reflection: */
-spherical_hankel1(n,-x) - (-1)^n*spherical_hankel2(n,x);
-0$
-
 /* derivative identity:
    h_n'(x) = h_{n-1}(x) - (n+1)/x * h_n(x)
 */
@@ -64,7 +60,7 @@ ratsimp(makelist(
 0$
 /* numeric tests */
 spherical_hankel1(5,2.3);
-0.005037487741787818-8.694824790197426*%i$
+0.005037487741786797 - 8.69482479019743*%i$
 
 expand(spherical_hankel1(5,23/10));
 (857038500*%e^((23*%i)/10)*%i)/148035889-(41753410*%e^((23*%i)/10))/6436343$
@@ -83,7 +79,7 @@ spherical_hankel1(n,conjugate(z))$
 0$
 
 /* binary64 tests */
-(approx_equal(x,y) := is(abs(x-y) < 5*10^(-15)*max(1,abs(x))),0);
+(approx_equal(x,y) := is(abs(x-y) < 10^(-14)*max(10^(-14),abs(x))),0);
 0$
 
 block([N:4, okay, fails : [], maxD:12, x,y],

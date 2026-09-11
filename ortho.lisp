@@ -812,42 +812,19 @@ Our measure of sufficiently small is
           (t (generic-two-term-recursion-symbolic p q f0 f1 n)))))
 
 (def-simplifier spherical_hankel1 (n x)
-	(cond 
-		  ((and (integerp n) (complex-number-p x #'$numberp) (not (complex-number-p x #'$ratnump)))
-            (let* ((digits (get-digits x))
-		               (one (multiplicative-identity x)))
-			(if one 
-			    (orthopoly-number-coerce (spherical_hankel1-numeric n x digits) one)
-          (give-up))))
+  (cond ((integerp n)
+           (let* (($besselexpand t)
+                  ($exponentialize t)
+                  (ht (ftake '%hankel_1 (add n (div 1 2)) x))
+                  (cnst (ftake 'mexpt (div '$%pi (mul 2 x)) (div 1 2)))
+                  (ans (mul cnst ht)))
 
-      ((integerp n)
-          (orthopoly-polynomial-simp (spherical_hankel1-symbolic n x) x))
-
-      ;; reflection: http://dlmf.nist.gov/10.47.E15
-      ((great (neg x) x)
-        (mul (ftake 'mexpt -1 n) (ftake '%spherical_hankel2 n (neg x))))
-
-		  (t (give-up))))
-
-;; see http://dlmf.nist.gov/10.4.E2
-(defun spherical_hankel1-numeric (n x digits)
-  (let* ((a (spherical_bessel_j-numeric n x digits))
-         (b (spherical_bessel_y-numeric n x digits)))
-      (add a (mul '$%i b))))
-
-;;; rubbish
-(defun spherical_hankel1-symbolic (n x)
-  (cond ((zerop1 x)
-         (merror "spherical_hankel1: encountered spherical_hankel1(n,0)"))
-        (t
-  (let* ((cis (ftake 'mexpt '$%e (mul '$%i x))) 
-         (f0 (div (mul -1 cis '$%i) x)) ;-%i exp(%i x)/x
-         (f1 (div (mul -1 cis (add '$%i x)) (mul x x))) ; -cis (%i + x)/x^2
-         ;; p(k) = ((2k+1)/x)
-         (p #'(lambda (k) (div (+ (* 2 k) 1) x)))
-         ;; q(k) = -1
-         (q #'(lambda (k) (declare (ignore k)) -1)))
-    (generic-two-term-recursion-symbolic p q f0 f1 n)))))
+            (cond ((complex-number-p x #'floatp)
+                    ($float ($expand ans 1 0)))
+                  ((complex-number-p ht #'$bfloatp)
+                    ($bfloat ($expand ans 1 0)))      
+                  (t (orthopoly-polynomial-simp ans x)))))
+        (t (give-up))))
 
 (def-simplifier spherical_hankel2 (n x)
   (cond ((integerp n)
@@ -863,22 +840,6 @@ Our measure of sufficiently small is
                     ($bfloat ($expand ans 1 0)))      
                   (t (orthopoly-polynomial-simp ans x)))))
         (t (give-up))))
-
-;; see http://dlmf.nist.gov/10.4.E2
-(defun spherical_hankel2-numeric (n x digits)
-  (let* ((a (spherical_bessel_j-numeric n x digits))
-         (b (spherical_bessel_y-numeric n x digits)))
-      (sub a (mul '$%i b))))
-
-(defun spherical_hankel2-symbolic (n x)
-  (let* ((cis (ftake 'mexpt '$%e (mul -1 '$%i x)))   ;; cis = e^(-i x)
-         (f0 (mul '$%i (div cis x)))                       ;; i cis / x
-         (f1 (div (mul cis (sub '$%i x)) (mul x x)))       ;; cis (i - x))/x^2
-         (p #'(lambda (k) (div (add (mul 2 k) 1) x)))
-         (q #'(lambda (k) (declare (ignore k)) -1)))
-    (generic-two-term-recursion-symbolic p q f0 f1 n)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def-simplifier spherical_bessel_j (n x)
     (cond 
