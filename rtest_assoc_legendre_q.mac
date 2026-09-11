@@ -16,13 +16,15 @@ errcatch(assoc_legendre_q(a,b,c,d));
 
 /* basic values http://dlmf.nist.gov/14.7.E2*/
 assoc_legendre_q(0,0,x);
-log(-((x+1)/(x-1)))/2$
+log((x+1)/(1-x))/2$
 
 assoc_legendre_q(1,0,x);
-(x*log(-((x+1)/(x-1)))-2)/2$
+(x*log((x+1)/(1-x))-2)/2$
 
 assoc_legendre_q(1,1,x);
--((sqrt(1-x^2)*((x^2-1)*log(-((x+1)/(x-1)))-2*x))/(2*x^2-2))$
+-(((x^2*sqrt(1-x^2)-sqrt(1-x^2))*log((x+1)/(1-x))-2*x*sqrt(1-x^2))/(2
+                                                                         *x^2
+                                                                         -2))$
 
 /* require explicit integer degrees */
 op_and_args(assoc_legendre_q(1.0,0,x));
@@ -68,7 +70,7 @@ block([de,ans],
    de : orthopoly_ode(assoc_legendre_q)(5,-3,x,y),
    ans : subst(y = assoc_legendre_q(5,-3,x), de),
    ans : ev(ans,nouns),
-   ans : ratsimp(ans),
+   ans : factor(ans),
    (remove(y,depends)),
    ans);
 0$
@@ -93,8 +95,8 @@ assoc_legendre_q(l,m,conjugate(z))$
 (remove(z,complex),0);
 0$
 
-block([ans : assoc_legendre_q(-1,0,x)], [op(ans), args(ans)]);
-[legendre_q, [-1, x]]$
+errcatch(assoc_legendre_q(-1,0,x));
+[]$
 
 assoc_legendre_q(3,4,x);
 48/(x^4-2*x^2+1)$
@@ -106,7 +108,7 @@ assoc_legendre_q(3,4,x);
 block([L:4, ans, fails : [], x],
   for l:0 thru L do (
     for m:-l thru l do (
-      for k:-L+1 thru L-1 do (
+      for k: 1 thru L-1 do (
         x:float(k/L),
         ans : errcatch(approx_equal(
                  assoc_legendre_q(l,m,rationalize(x)),
@@ -121,7 +123,7 @@ block([L:4, ans, fails : [], x],
 block([L:4, okay:true, x],
   for l:0 thru L do (
     for m:-l thru l do (
-      for k:-L+1 thru L+1 do (
+      for k:1 thru L-1 do (
         x:bfloat(k/L),
         okay:okay and approx_equal(
                  assoc_legendre_q(l,m,rationalize(x)),

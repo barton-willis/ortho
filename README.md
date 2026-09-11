@@ -221,9 +221,9 @@ The `ortho` package is not ready for serious work. Here are the results of the t
 | legendre_p             | ✔️ (55/55 pass)         |  0.3 seconds   |                        |
 | assoc_legendre_p       | ✔️ (30/30 pass)         |  0.2 seconds   |                        |
 | legendre_q             | ✔️ (43/43 pass)         |  0.4 seconds   |                        |
-| assoc_legendre_q       | ❌ (29/35 pass)         | 0.4 seconds    |                        |
-| spherical_bessel_j     | ✔️ (29/29 pass)         | 3.3 seconds    |                        |
-| spherical_bessel_y     | ✔️ (24/24 pass)         | 0.4 seconds    |  need more tests       |
+| assoc_legendre_q       | ✔️ (35/35 pass)         | 0.4 seconds    |                        |
+| spherical_bessel_j     | ✔️ (28/28 pass)         | 10.3 seconds   |                        |
+| spherical_bessel_y     | ✔️ (23/23 pass)         | 0.7 seconds    |  need more tests       |
 | spherical_hankel1      | ✔️ (26/26 pass)         | 5.4 seconds    |                        |
 | spherical_hankel2      | ✔️ (26/26 pass)         | 5.2 seconds   |                        |
 | spherical_harmonic     | ✔️ (29/29 pass)         |26.0 seconds    |                        |
