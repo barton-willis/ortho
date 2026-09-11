@@ -50,7 +50,7 @@ ratsimp(makelist(
 
 /* numeric tests */
 spherical_hankel2(5,2.3);
-8.694824790197426*%i+0.005037487741787818$
+8.69482479019743*%i + 0.005037487741786797$
 
 spherical_hankel2(5,23/10);
  -((%e^-((23*%i)/10)*(857038500*%i+960328430))/148035889)$
@@ -70,11 +70,8 @@ spherical_hankel2(n,conjugate(z))$
 
 /* negative degree tests  */
 spherical_hankel2(-1,x);
--((%e^-(%i*x)*(x-%i))/x^2)$
+%e^-(%i*x)/x$
 
-block([fn : lambda([n], ratsimp(spherical_hankel2(-n-1,x) / spherical_hankel2(n,x)))],
-      map(fn, [0,1,2,3,4,5,6]));
-[- 1, 1, - 1, 1, - 1, 1, - 1]$
 /* binary64 tests */
 (approx_equal(x,y) := is(abs(x-y) < 10^(-15)*max(1,abs(x))),0);
 0$

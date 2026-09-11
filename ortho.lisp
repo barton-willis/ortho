@@ -854,8 +854,14 @@ Our measure of sufficiently small is
            (let* (($besselexpand t)
                   ($exponentialize t)
                   (ht (ftake '%hankel_2 (add n (div 1 2)) x))
-                  (cnst (ftake 'mexpt (div '$%pi (mul 2 x)) (div 1 2))))
-              (sratsimp (mul cnst ht))))
+                  (cnst (ftake 'mexpt (div '$%pi (mul 2 x)) (div 1 2)))
+                  (ans (mul cnst ht)))
+
+            (cond ((complex-number-p x #'floatp)
+                    ($float ($expand ans 1 0)))
+                  ((complex-number-p ht #'$bfloatp)
+                    ($bfloat ($expand ans 1 0)))      
+                  (t (orthopoly-polynomial-simp ans x)))))
         (t (give-up))))
 
 ;; see http://dlmf.nist.gov/10.4.E2
