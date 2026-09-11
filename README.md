@@ -151,7 +151,7 @@ Symbolic and numerical evaluation of the Jacobi polynomials:
 (%i9)
 ```
 
-For rational input, Maxima returns values in rectangular form:
+For rational input, including complex rationals, Maxima returns values in rectangular form
 
 ```maxima
 (%i1) hermite(5,2/3);
@@ -208,7 +208,7 @@ Another example: Again, Maxima does pretty well:
 ```
 ### Status
 
-The `ortho` package is not ready for serious work. Here are the results of the tests: 
+The `ortho` package is almost ready for serious work. Here are the results of the tests: 
 
 ❌ (some failures) ✔️ (no failures) ⏳ (not yet done)
  
@@ -226,10 +226,12 @@ The `ortho` package is not ready for serious work. Here are the results of the t
 | spherical_bessel_j     | ✔️ (28/28 pass)         | 10.3 seconds   |                        |
 | spherical_bessel_y     | ✔️ (23/23 pass)         | 0.7 seconds    |  need more tests       |
 | spherical_hankel1      | ✔️ (26/26 pass)         | 5.4 seconds    |                        |
-| spherical_hankel2      | ✔️ (26/26 pass)         | 5.2 seconds   |                        |
+| spherical_hankel2      | ✔️ (26/26 pass)         | 5.2 seconds   |                         |
 | spherical_harmonic     | ✔️ (29/29 pass)         |26.0 seconds    |                        |
 | ultraspherical         | ✔️ (45/45 pass)         | 4.0 seconds    |                        |
 | pochhammer             | ✔️ (35/35) pass         | 0.1 second     |                        |
+
+All the functions need more tests.
 
 ### Controlling subtractive cancellation
 
