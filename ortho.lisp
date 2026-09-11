@@ -873,108 +873,33 @@ Our measure of sufficiently small is
 
 (def-simplifier spherical_bessel_y (n x)
   (cond
-     ;; spherical_bessel_y(n,0) is not real.
+    ;; y_n(0) is singular
     ((zerop1 x)
      (merror "spherical_bessel_y: encountered spherical_bessel_y(n,0)"))
 
-    ;; spherical_bessel_y(n,x) = (-1)^n spherical_bessel_y(-n-1,x)
-    ((great (neg n) n)
-     (mul
-       (ftake 'mexpt -1 n)
-       (ftake '%spherical_bessel_y (add (neg n) -1) x)))
-
-    ;; numeric evaluation path
-    ((and (integerp n)
-          (complex-number-p x #'$numberp)
-          (not (complex-number-p x #'$ratnump)))
-     (let* ((digits (get-digits x))
-            (one (multiplicative-identity x)))
-       (if one
-           (orthopoly-number-coerce
-             (spherical_bessel_y-numeric n x digits)
-             one)
-           (give-up))))
-
-    ;; symbolic polynomial-like form
+    ;; main conversion for integer n:
+    ;; y_n(x) = sqrt(pi/(2 x)) * bessel_y(n+1/2, x)
     ((integerp n)
-     (orthopoly-polynomial-simp  (spherical_bessel_y-symbolic n x) x))
+     (let* (($besselexpand t)
+            (by   (ftake '%bessel_y (add n (div 1 2)) x))
+            (cnst (ftake 'mexpt (div '$%pi (mul 2 x)) (div 1 2)))
+            (ans  (mul cnst by)))
+       (cond
+         ((complex-number-p x #'floatp)
+          ($float ($expand ans 1 0)))
+         ((complex-number-p by #'$bfloatp)
+          ($bfloat ($expand ans 1 0)))
+         (t
+          (orthopoly-polynomial-simp ans x)))))
 
-    ;; spherical_bessel_y(n,x) = (-1)^n spherical_bessel_y(n,-x)
+    ;; reflection: y_n(-x) = (-1)^{n+1} y_n(x)
     ((great (neg x) x)
-     (mul
-       (ftake 'mexpt -1 n)
-       (ftake '%spherical_bessel_y n x)))
+     (mul (ftake 'mexpt -1 (add n 1))
+          (ftake '%spherical_bessel_y n x)))
 
     (t (give-up))))
 
-;; The spherical_bessel_y simplifier traps the case x = 0.
-(defun spherical_bessel_y-numeric (n x digits)
-  (let* ((bf-x (bigfloat::to x))
-         (eps  (bigfloat::to (ftake 'mexpt 10 (- digits))))
-         ;; y_0(x) = -cos(x)/x
-         (f0 (bigfloat::/ (bigfloat::- (bigfloat::cos bf-x)) bf-x))
-         ;; y_1(x) = -cos(x)/x^2 - sin(x)/x
-         (f1 (bigfloat::- (bigfloat::/ (bigfloat::- (bigfloat::cos bf-x))
-                     (bigfloat::* bf-x bf-x))
-            (bigfloat::/ (bigfloat::sin bf-x) bf-x)))
-        ;; p(k) = (2k+1)/x
-        (p #'(lambda (k) (bigfloat::/ (bigfloat::to (+ (* 2 k) 1)) bf-x)))
-        ;; q(k) = -1
-        (q #'(lambda (k) (declare (ignore k)))))
-     (multiple-value-bind (value err)
-            (bigfloat::generic-two-term-recursion-running-error  p q f0 f1 n)
-          (if (bigfloat::modified-relative-error-p value err eps)
-              (maxima::to value)
-              ;; restart with doubled precision
-              (bind-fpprec (mul 2 $fpprec)
-                (spherical_bessel_y-numeric n ($bfloat x) digits))))))
 
-(defun spherical_bessel_y-numeric (n x digits)
-  (cond
-    ;; Reflect x < 0 using j_n(-x) = (-1)^n j_n(x)
-    ((eq t (mgrp 0 ($realpart x)))
-     (mul (ftake 'mexpt -1 n) (spherical_bessel_y-numeric n (neg x) digits)))
-
-    (t
-     (let* ((xx (bigfloat::to
-                 (if (> digits *binary64-digits*)
-                     ($bfloat x)
-                     x)))
-            ;; c = sqrt(pi / (2 x))
-            (c  (maxima::to
-                 (bigfloat::expt
-                  (bigfloat::/
-                   (bigfloat::to (maxima::fppi1))
-                   (bigfloat::* 2 xx))
-                  (bigfloat::/ 1 2)))))
-
-       ($expand (mul c (ftake '%bessel_y (add n (div 1 2)) x)) 1 0)))))
-
-(defun spherical_bessel_y-symbolic (n x)
-  "Symbolic spherical Bessel y_n(x) using the recurrence:
-   y_0(x) = -cos(x)/x
-   y_1(x) = -cos(x)/x^2 - sin(x)/x
-   y_{n+1}(x) = ((2n+1)/x) * y_n(x) - y_{n-1}(x)."
-  (let* ((f0 (div (sub 0 (ftake '%cos x)) x))
-
-         (f1  (sub (div (neg (ftake '%cos x)) (ftake 'mexpt x 2))  (div (ftake '%sin x) x)))
-
-         ;; p(k) = ((2k+1)/x)
-         (p #'(lambda (k) (div (+ (* 2 k) 1) x)))
-
-         ;; q(k) = -1
-         (q #'(lambda (k) (declare (ignore k))  -1)))
-    (generic-two-term-recursion-symbolic p q f0 f1 n)))
- 
-#|
- ((and (integerp n) (>= n 0) (complex-number-p x #'$numberp)) ;evaluate numerically
-           (let* ((digits (get-digits x))
-		        (one (multiplicative-identity x)))
-			(if one 
-			    (orthopoly-number-coerce (hermite-numeric n x digits) one)
-				(give-up))))
-
- |#
 (def-simplifier spherical_harmonic (l m theta phi)
   (cond ((or (eq t (mgrp 0 l)) ; l < 0
              (eq t (mgrp (ftake 'mabs m) l))) ; |m| > l

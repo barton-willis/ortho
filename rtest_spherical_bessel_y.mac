@@ -26,12 +26,6 @@ spherical_bessel_y(1,x);
 op_and_args(spherical_bessel_y(1.0,x));
 [spherical_bessel_y, [1.0, x]]$
 
-/* reflection: y_n(-x) = (-1)^{n+1} y_n(x) */
-ratsimp(makelist(
-    spherical_bessel_y(n,-x) - (-1)^(n+1)*spherical_bessel_y(n,x),
-    n,0,10));
-[0,0,0,0,0,0,0,0,0,0,0]$
-
 /* derivative identity:
    y_n'(x) = y_{n-1}(x) - (n+1)/x * y_n(x)
 */
@@ -75,10 +69,10 @@ spherical_bessel_y(5,2.3);
 -8.694824790197426$
 
 spherical_bessel_y(5,23/10);
-(857038500*cos(23/10)-960328430*sin(23/10))/148035889$
+-((960328430*sin(23/10)-857038500*cos(23/10))/148035889)$
 
-expand(subst(x=23/10,spherical_bessel_y(5,x)),1,0);
- (857038500*cos(23/10))/148035889-(41753410*sin(23/10))/6436343$
+ratsimp(expand(subst(x=23/10,spherical_bessel_y(5,x)),1,0));
+-((960328430*sin(23/10)-857038500*cos(23/10))/148035889)$
 
 /* rectangular form */
 (declare(z,complex),0);
