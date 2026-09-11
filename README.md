@@ -8,7 +8,7 @@ This is a new version of Maxima's package for orthogonal polynomials. New featur
 - Each function has basic simplifications built in, a gradient property, an antiderivative property, and a 
   conjugate property.
 
--Numerical evaluation for the spherical Bessel functions is based on Maxima's core Bessel code; and 
+- Numerical evaluation for the spherical Bessel functions is based on Maxima's core Bessel code; and 
 numerical evaluation for all other fuctions is based on the recursion relations, not the hypergeometric series. 
 
 - The package no longer returns intervals for numerical evaluation.
