@@ -842,76 +842,35 @@ Our measure of sufficiently small is
         (t (give-up))))
 
 (def-simplifier spherical_bessel_j (n x)
-    (cond 
-       ;; spherical_bessel_j(n,x) = (-1)^n spherical_bessel_j(-n-1,x)
-       ((great (neg n) n)
-        (mul  
-           (ftake 'mexpt -1 n) 
-           (ftake '%spherical_bessel_j (add (neg n) -1) x)))
-
-      ;; spherical_bessel_j(n,0) = kron_delta(n,-1) + kron_delta(n,1)
-      ((zerop1 x)
-        (add (ftake '%kron_delta n -1) (ftake '%kron_delta n 1)))
-    
-       ((and (integerp n) (complex-number-p x #'$numberp) (not (complex-number-p x #'$ratnump)))
-             (let* ((digits (get-digits x))
-		                (one (multiplicative-identity x)))
-			   (if one 
-			      (orthopoly-number-coerce (spherical_bessel_j-numeric n x digits) one)
-			  	(give-up))))
-
-		  ((integerp n)	
-		    (orthopoly-polynomial-simp (spherical_bessel_j-symbolic n x) x))
-
-      ;; spherical_bessel_j(n,x) = (-1)^n spherical_bessel_j(n,-x)
-		  ((great (neg x) x)
-		  	(mul (ftake 'mexpt -1 n) (ftake '%spherical_bessel_j n x)))
-
-		  (t (give-up))))
-		    
-;; Especially for x near zero, the upward recursion for the spherical bessel functions are ill-conditioned. 
-;; So we'll evaluate these functoins using spherical_bessel_j(n,x) = sqrt(%pi/(2 x)) bessel(n+1/2,x).  
-;; When the real part of x is negative, use the reflection rule spherical_bessel_j(n,x) = (-1)^n spherical_bessel_j(n,-x)
-;; and trust the numerical evalution of bessel_j. The reflection rule works around spurous imaginary parts.
-
-(defun spherical_bessel_j-numeric (n x digits)
   (cond
-    ;; Reflect x < 0 using j_n(-x) = (-1)^n j_n(x)
-    ((eq t (mgrp 0 ($realpart x)))
-     (mul (ftake 'mexpt -1 n) (spherical_bessel_j-numeric n (neg x) digits)))
+    ;; j_n(0) = kron_delta(n,-1) + kron_delta(n,1)
+    ((zerop1 x)
+     (add (ftake '%kron_delta n -1)
+          (ftake '%kron_delta n 1)))
 
-    (t
-     (let* ((xx (bigfloat::to
-                 (if (> digits *binary64-digits*)
-                     ($bfloat x)
-                     x)))
-            ;; c = sqrt(pi / (2 x))
-            (c  (maxima::to
-                 (bigfloat::expt
-                  (bigfloat::/
-                   (bigfloat::to (maxima::fppi1))
-                   (bigfloat::* 2 xx))
-                  (bigfloat::/ 1 2)))))
+    ;; main conversion for integer n:
+    ;; j_n(x) = sqrt(pi/(2 x)) * bessel_j(n+1/2, x)
+    ((integerp n)
+     (let* (($besselexpand t)
+            ;;;($exponentialize t)
+            (bj   (ftake '%bessel_j (add n (div 1 2)) x))
+            (cnst (ftake 'mexpt (div '$%pi (mul 2 x)) (div 1 2)))
+            (ans  (mul cnst bj)))
+       (cond
+         ((complex-number-p x #'floatp)
+          ($float ($expand ans 1 0)))
+         ((complex-number-p bj #'$bfloatp)
+          ($bfloat ($expand ans 1 0)))
+         (t
+          (orthopoly-polynomial-simp ans x)))))
 
-       ($expand (mul c (ftake '%bessel_j (add n (div 1 2)) x)) 1 0)))))
-  
-(defun spherical_bessel_j-symbolic (n x)
-  "Symbolic spherical Bessel j_n(x) using the recurrence:
-   j_0(x) = sin(x)/x
-   j_1(x) = sin(x)/x^2 - cos(x)/x
-   j_{n+1}(x) = ((2n+1)/x) * j_n(x) - j_{n-1}(x)."
-  (let* ((f0 (if (zerop1 x) 
-               1
-               (div (ftake '%sin x) x)))
-         (f1 (if (zerop1 x) 
-                  0
-                  (sub (div (ftake '%sin x) (ftake 'mexpt x 2)) (div (ftake '%cos x) x))))
-         ;; p(k) = ((2k+1)/x)
-         (p #'(lambda (k) (div (+ (* 2 k) 1) x)))
-         ;; q(k) = -1
-         (q #'(lambda (k) (declare (ignore k)) -1)))
-    (generic-two-term-recursion-symbolic p q f0 f1 n)))
-	    
+    ;; reflection: j_n(-x) = (-1)^n j_n(x)
+    ((great (neg x) x)
+     (mul (ftake 'mexpt -1 n)
+          (ftake '%spherical_bessel_j n x)))
+
+    (t (give-up))))
+
 (def-simplifier spherical_bessel_y (n x)
   (cond
      ;; spherical_bessel_y(n,0) is not real.
