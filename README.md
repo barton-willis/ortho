@@ -1,21 +1,15 @@
 
 ## A new orthogonal polynomial package for Maxima
 
-This is a new version of Maxima's package for orthogonal polynomials. New features:
+This release provides a redesigned and expanded implementation of orthogonal polynomial families in Maxima. Key improvements include:
 
-- The orthogonal polynomials are now simplifying functions.
+- The orthogonal polynomials are now simplifying functions, including built‑in simplifications, derivative and antiderivative rules, and correct handling of complex conjugation.
 
-- Each function has basic simplifications built in, a gradient property, an antiderivative property, and a 
-  conjugate property.
-
-- Numerical evaluation for the spherical Bessel functions is based on Maxima's core Bessel code; and 
-numerical evaluation for all other fuctions is based on the recursion relations, not the hypergeometric series. 
-
-- The package no longer returns intervals for numerical evaluation.
+- Numerical evaluation no longer returns interval objects, providing direct floating‑point values instead.
 
 - New user-level functions for the Rodrigues formula, recursion relation, normalizations, differential equation, and hypergeometric representation for the orthogonal polynomials.
 
-- Comprehensive test suite, one file per family, verifying every property and every special value.
+- Comprehensive test suite, one file per family, covering symbolic identities, recurrence relations, differential equations, and special values.
 
 ## Current status
 
@@ -66,7 +60,6 @@ ____                                   - i - 1
 i = 0
 
 ```
-This appears in the testsuite twice.
 
 ## Installation Guide
 
