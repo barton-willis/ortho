@@ -224,14 +224,14 @@ The `ortho` package is almost ready for serious work. Here are the results of th
 | ultraspherical         | ✔️ (45/45 pass)         | 4.0 seconds    |                        |
 | pochhammer             | ✔️ (35/35) pass         | 0.1 second     |                        |
 
-All the functions need more tests.
+All the functions need more tests, not just `spherical_bessel_y`.
 
 ### Controlling subtractive cancellation
 
-Computing the orthogonal polynomials using the recursion relation is algorithmically simple. But 
-to avoid subtractive cancellation, we must be vigilant. Here is an example: Let's compute the 
-Laguerre polynomials using recursion and binary64 numbers.  In Maxima, a simple way to do this
-is to use a memoizing function; for example
+Computing the orthogonal polynomials through their three‑term recurrence is straightforward, but 
+to avoid loss of accuracy due to subtractive cancellation, requires additional logic. 
+
+To illustrate this loss of accuracy, let's compute the Laguerre polynomials using recursion and binary64 numbers.  In Maxima, a simple way to do this is to use a memoizing function; for example
 
 ```maxima
 (%i1)	a : -200.0$
