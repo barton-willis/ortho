@@ -228,10 +228,9 @@ All the functions need more tests, not just `spherical_bessel_y`.
 
 ### Controlling subtractive cancellation
 
-Computing the orthogonal polynomials through their three‑term recurrence is straightforward, but 
-to avoid loss of accuracy due to subtractive cancellation, requires additional logic. 
+Computing orthogonal polynomials through their three‑term recurrence is straightforward, but avoiding loss of accuracy from subtractive cancellation requires additional logic. The `ortho` package addresses this by maintaining a running error estimate that tracks the accumulated rounding error. When the estimated error becomes too large, the computation is automatically retried at higher precision. A source‑code comment describes the mechanism in detail.
 
-To illustrate this loss of accuracy, let's compute the Laguerre polynomials using recursion and binary64 numbers.  In Maxima, a simple way to do this is to use a memoizing function; for example
+To illustrate how loss of accuracy arises, consider computing the Laguerre polynomials using forward recursion in binary64 arithmetic. In Maxima, one simple way to experiment with this behavior is to implement the recurrence as a memoizing function; for example
 
 ```maxima
 (%i1)	a : -200.0$
