@@ -5,7 +5,7 @@ This release provides a redesigned and expanded implementation of orthogonal pol
 
 - The orthogonal polynomials are now simplifying functions, including built‑in simplifications, derivative and antiderivative rules, and correct handling of complex conjugation.
 
-- Numerical evaluation no longer returns interval objects, providing direct floating‑point values instead.
+- Numerical evaluation no longer returns interval objects, providing accurate floating‑point values instead.
 
 - New user-level functions for the Rodrigues formula, recursion relation, normalizations, differential equation, and hypergeometric representation for the orthogonal polynomials.
 
