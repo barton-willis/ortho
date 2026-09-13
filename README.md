@@ -177,6 +177,40 @@ The same for binary64 and bigfloat evaluation:
 
 ```
 
+###
+
+Antiderivatives:
+```maxima
+(%i1) integrate(gen_laguerre(n,a,x),x);
+(%o1)                   - gen_laguerre(n - 1, a + 1, x)
+
+(%i2) integrate(hermite(n,x),x);
+                               hermite(n + 1, x)
+(%o2)                          ─────────────────
+                                   2 (n + 1)
+                                   
+(%i3) integrate(legendre_p(n,x),x);
+                  legendre_p(n + 1, x) - legendre_p(n - 1, x)
+(%o3)             ───────────────────────────────────────────
+                                    2 n + 1
+```                                 
+### Negative degree
+
+Some, but not all the functions in this package naturally extended to negative degrees. For example,
+the Hermite polynomials don't, but the spherical Bessel functions do.  For those functions that do not 
+naturally extend, Maxima returns a nounform; for example
+```maxima 
+(%i4) hermite(-1,x);
+(%o4)                           hermite(- 1, x)
+```
+But for those that do, we get a proper result:
+
+```Maxima
+(%i5) spherical_bessel_j(-1,x);
+                                    cos(x)
+(%o5)                               ──────
+                                      x
+```                                      
 
 ### Status
 
