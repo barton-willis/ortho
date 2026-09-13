@@ -265,6 +265,46 @@ To illustrate how loss of accuracy arises, consider computing the Laguerre polyn
 The value of the 50-th degree polynomial is okay, but value of the 150-th degree case is off by a factor of 10^22.
 The huge discrepancy is due to subtractive cancellation.
 
+## Related Software
 
+The following packages may be of interest for comparison, experimentation, or further study:
+
+- **orthopolynom (R package)**  
+  A comprehensive collection of classical orthogonal polynomials, including recurrence relations, derivatives, integrals, values, and roots.  
+  https://cran.r-project.org/package=orthopolynom
+
+- **ClassicalOrthogonalPolynomials.jl (Julia)**  
+  A Julia package providing classical orthogonal polynomials using operator-based abstractions and three-term recurrences.  
+  https://github.com/JuliaApproximation/ClassicalOrthogonalPolynomials.jl
+
+- **MATLAB Symbolic Math Toolbox**  
+  Provides classical orthogonal polynomials such as Legendre, Jacobi, Chebyshev, Laguerre, Hermite, and Gegenbauer.  
+  https://www.mathworks.com/help/symbolic/polynomials.html
+
+- **SymPy / mpmath (Python)**  
+  Provides orthogonal polynomials through mpmath, including Legendre, Chebyshev, Laguerre, Hermite, and others.  
+  https://omz-software.com/pythonista/sympy/modules/mpmath/functions/orthogonal.html
+
+- **SciPy (Python)**  
+  Provides orthogonal polynomials in `scipy.special`, including Legendre, Chebyshev, Laguerre, Hermite, Gegenbauer, and Jacobi families.  
+  https://docs.scipy.org/doc/scipy/reference/special.html
+
+- **Maple**  
+  Provides symbolic and numeric orthogonal polynomials through functions such as `orthopoly`, `LegendreP`, `ChebyshevT`, `LaguerreL`, and others.  
+  https://www.maplesoft.com/support/help/Maple/view.aspx?path=orthopoly
+
+- **Mathematica / Wolfram Language**  
+  Provides extensive support for orthogonal polynomials, including Legendre, Jacobi, Chebyshev, Laguerre, Hermite, Gegenbauer, and many others.  
+  https://reference.wolfram.com/language/guide/SpecialFunctions.html
+
+- **Chebfun (MATLAB/Python)**  
+  Provides numerical computing with functions, including orthogonal polynomial expansions and Chebyshev-based spectral methods.  
+  https://www.chebfun.org/
+
+- **A Toolbox for Real Orthogonal Polynomials (SoftwareX, 2026)**  
+  A published software toolbox covering real orthogonal polynomials.  
+  https://www.sciencedirect.com/science/article/pii/S2352711026000397
+
+If you know of other such packages, let me know and I will append them to this list.
 
 
