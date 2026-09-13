@@ -9,7 +9,7 @@ This release provides a redesigned and expanded implementation of orthogonal pol
 
 - New user-level functions for the Rodrigues formula, recursion relation, normalizations, differential equation, and hypergeometric representation for the orthogonal polynomials.
 
-- Comprehensive test suite, one file per family, covering symbolic identities, recurrence relations, differential equations, and special values.
+- Comprehensive test suite, one file per family, covering , floating point accuracy, symbolic identities, recurrence relations, differential equations, complex conjugation, and special values.
 
 ## Current status
 
@@ -82,8 +82,6 @@ This guide explains how to install the new **ortho** package without modifying M
 
 3. **Remove the autoload property for the old package.** To do this place the following in your file `maxima-init.lisp` file
 
-
-
   ```lisp
    (dolist (f
          '($assoc_legendre_p
@@ -121,8 +119,9 @@ This guide explains how to install the new **ortho** package without modifying M
 
 ($load "<full path to ortho.lisp>")
 ```
+The last line will load the package.
 
-The last line will load the package. 
+Possibly, only the `load` statement is needed to install the new package, but to be sure that old package is never loaded, it's safer to remove the old autoload data as shown above.
 
 
 ## Basic usage
@@ -288,6 +287,11 @@ The following packages may be of interest for comparison, experimentation, or fu
 - **SciPy (Python)**  
   Provides orthogonal polynomials in `scipy.special`, including Legendre, Chebyshev, Laguerre, Hermite, Gegenbauer, and Jacobi families.  
   https://docs.scipy.org/doc/scipy/reference/special.html
+
+- **orthopoly (Python)**  
+  A Python package providing classical orthogonal polynomials with a focus on clear implementations of recurrence relations and related identities.  
+  https://github.com/markmbaum/orthopoly
+
 
 - **Maple**  
   Provides symbolic and numeric orthogonal polynomials through functions such as `orthopoly`, `LegendreP`, `ChebyshevT`, `LaguerreL`, and others.  
