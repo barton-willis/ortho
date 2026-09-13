@@ -188,7 +188,7 @@ Antiderivatives:
                                hermite(n + 1, x)
 (%o2)                          ─────────────────
                                    2 (n + 1)
-                                   
+
 (%i3) integrate(legendre_p(n,x),x);
                   legendre_p(n + 1, x) - legendre_p(n - 1, x)
 (%o3)             ───────────────────────────────────────────
@@ -297,6 +297,66 @@ To illustrate how loss of accuracy arises, consider computing the Laguerre polyn
 
 The value of the 50-th degree polynomial is okay, but value of the 150-th degree case is off by a factor of 10^22.
 The huge discrepancy is due to subtractive cancellation.
+
+## Running error details
+
+Most functions use the two term recursion in the upward direction to evaluate these polynomials for both
+symbolic and numeric arguments. The recursion has the form
+
+    f(k+1) = p(k) f(k) + q(k) f(k-1).
+
+(Some might call this a three term recursion, but I will call it a two term recursion).
+
+For floating point (either binary64 or big float numbers) evaluation, the code uses a dynamic running error to 
+estimate the rounding error. Specifically it works like this: let f(k) be the true value and let 
+f̂(k) be the approximate value computed with floating point numbers. Then
+
+    f(k+1) = p(k) f(k) + q(k) f(k-1)
+    f̂(k+1) = p(k) ⊗ f̂(k) ⊕ q(k) ⊗ f̂(k-1),
+
+where ⊕ is floating point addition and ⊗ is floating point multiplication. This code assumes
+that ⊗ = *, so that all the rounding error is from addition and none from multiplication. This is an approximation.
+     
+Using the rules of ⊕, there is ε(k), whose magnitude is bounded by the machine epsilon ε, such that
+
+    f̂(k+1) = (p(k) f̂(k) + q(k) f̂(k-1)) (1 + ε(k)).
+
+Now define E(k) = f̂(k) - f(k). We have
+
+    E(k+1) =  p(k) E(k) + q(k) E(k-1) + ε(k) (p(k) f̂(k) + q(k) f̂(k-1)),
+           =  p(k) E(k) + q(k) E(k-1) + ε(k) f̂(k+1) + O(ε^2).
+
+Applying the triangle inequality gives
+
+    |E(k+1)| ≤ |p(k) E(k)| + |q(k) E(k-1)| + ε |f̂(k+1)| + O(ε^2).
+
+Rescaling the error bound as |E(k)| = ε 𝓔(k), we have
+
+    𝓔(k+1) ≤ |p(k)| 𝓔(k) + |q(k)| 𝓔(k-1) + |f̂(k+1)| + O(ε).
+
+Dropping the O(ε), this is the rule we use to update 𝓔.
+
+The function `generic-two-term-recursion-running-error` returns the two values f̂(n) and ε 𝓔(n). When 
+the value of 𝓔(n) is sufficiently small, the process is done and we accept f̂(n) as the value; if not 
+the process is repeated with a smaller value for the machine epsilon. 
+
+This is called a running error method. Think of it as a "poor man's" interval arithmetic. A proper
+interval arithmetic would track the rounding errors in all computations, not just the additions. 
+Of course, including the rounding errors with ⊗ is possible.
+
+Also, this code assumes that for the recursion f(k+1) = p(k) f(k) + q(k) f(k-1) that the coefficients
+p(k) and q(k) are computed without any rounding error. Again, a proper interval method would also 
+track these errors too.
+
+Our measure of sufficiently small is 
+
+    |𝓔(n)| < ε max(ε, |f̂(n)|).
+
+This is a modified relative error bound. Notes:
+
+  (a) The model I used for ⊕ is incorrect for subnormal numbers.
+
+  (b) We ignore the rounding error for multiplication. This could be fixed.
 
 ## Related Software
 
