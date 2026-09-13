@@ -177,9 +177,7 @@ The same for binary64 and bigfloat evaluation:
 
 ```
 
-###
-
-Antiderivatives:
+## Antiderivatives:
 ```maxima
 (%i1) integrate(gen_laguerre(n,a,x),x);
 (%o1)                   - gen_laguerre(n - 1, a + 1, x)
@@ -194,7 +192,7 @@ Antiderivatives:
 (%o3)             ───────────────────────────────────────────
                                     2 n + 1
 ```                                 
-### Negative degree
+## Negative degree
 
 Some, but not all the functions in this package naturally extended to negative degrees. For example,
 the Hermite polynomials don't, but the spherical Bessel functions do.  For those functions that do not 
@@ -212,7 +210,7 @@ But for those that do, we get a proper result:
                                       x
 ```                                      
 
-### Status
+## Status
 
 The `ortho` package is almost ready for serious work. Here are the results of the tests: 
 
@@ -239,7 +237,7 @@ The `ortho` package is almost ready for serious work. Here are the results of th
 
 All the functions need more tests, not just `spherical_bessel_y`.
 
-### Controlling subtractive cancellation
+## Controlling subtractive cancellation
 
 Computing orthogonal polynomials through their three‑term recurrence is straightforward, but avoiding the loss of accuracy caused by subtractive cancellation requires a safeguard.  In the `ortho` package, the safeguard is a running error estimate that approximately bounds the rounding error. When the estimated error becomes too large, the computation is automatically retried at higher precision. Specifically, for a machine epsilon of $\epsilon$, we require that the running error bound satisfy the modified relative error condition
 
