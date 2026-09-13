@@ -186,21 +186,21 @@ The `ortho` package is almost ready for serious work. Here are the results of th
  
 | Function               | Test Results            | Runtime        | Comment(s)            |
 |------------------------|-------------------------|----------------|------------------------|
-| chebyshev_t            | ✔️ (51/51 pass)         | 2.5 seconds    |                        |
-| chebyshev_u            | ✔️ (52/52 pass)         | 6.4 seconds    |                        |
-| hermite                | ✔️ (67/67 pass)         | 9.1 seconds    |                        |
+| chebyshev_t            | ✔️ (53/53 pass)         | 7.0  seconds    |                        |
+| chebyshev_u            | ✔️ (52/52 pass)         | 5.8 seconds    |                        |
+| hermite                | ✔️ (74/74 pass)         | 22.5 seconds    |                        |
 | jacobi_p               | ✔️ (40/40 pass)         | 2.0 seconds    |                        |
-| laguerre               | ✔️ (41/41 pass)         | 13.6 seconds   |                        |
-| legendre_p             | ✔️ (55/55 pass)         |  0.3 seconds   |                        |
+| laguerre               | ✔️ (41/41 pass)         | 16.0 seconds   |                        |
+| legendre_p             | ✔️ (55/55 pass)         |  0.6 seconds   |                        |
 | assoc_legendre_p       | ✔️ (30/30 pass)         |  0.2 seconds   |                        |
-| legendre_q             | ✔️ (43/43 pass)         |  0.4 seconds   |                        |
+| legendre_q             | ✔️ (43/43 pass)         |  0.9 seconds   |                        |
 | assoc_legendre_q       | ✔️ (35/35 pass)         | 0.4 seconds    |                        |
-| spherical_bessel_j     | ✔️ (28/28 pass)         | 10.3 seconds   |                        |
-| spherical_bessel_y     | ✔️ (23/23 pass)         | 0.7 seconds    |  need more tests       |
-| spherical_hankel1      | ✔️ (26/26 pass)         | 5.4 seconds    |                        |
-| spherical_hankel2      | ✔️ (26/26 pass)         | 5.2 seconds   |                         |
-| spherical_harmonic     | ✔️ (29/29 pass)         |26.0 seconds    |                        |
-| ultraspherical         | ✔️ (45/45 pass)         | 4.0 seconds    |                        |
+| spherical_bessel_j     | ✔️ (28/28 pass)         | 8.6 seconds   |                        |
+| spherical_bessel_y     | ✔️ (23/23 pass)         | 0.6 seconds    |  need more tests       |
+| spherical_hankel1      | ✔️ (26/26 pass)         | 4.7 seconds    |                        |
+| spherical_hankel2      | ✔️ (26/26 pass)         | 3.3 seconds   |                         |
+| spherical_harmonic     | ✔️ (29/29 pass)         |19.3 seconds    |                        |
+| ultraspherical         | ✔️ (45/45 pass)         | 8.8 seconds    |                        |
 | pochhammer             | ✔️ (35/35) pass         | 0.1 second     |                        |
 
 All the functions need more tests, not just `spherical_bessel_y`.
