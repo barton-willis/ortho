@@ -288,16 +288,11 @@ The huge discrepancy is due to subtractive cancellation.
 
 ## Running error details
 
-Most functions use the two term recursion in the upward direction to evaluate these polynomials for both
-symbolic and numeric arguments. The recursion has the form
+Most functions use the degree recursion in the upward direction to evaluate these polynomials for both symbolic and numeric arguments. The recursion has the form
 
     f(k+1) = p(k) f(k) + q(k) f(k-1).
 
-(Some might call this a three term recursion, but I will call it a two term recursion).
-
-For floating point (either binary64 or big float numbers) evaluation, the code uses a dynamic running error to 
-estimate the rounding error. Specifically it works like this: let f(k) be the true value and let 
-f̂(k) be the approximate value computed with floating point numbers. Then
+For floating point (either binary64 or big float numbers) evaluation, the code uses a dynamic running error to estimate the rounding error. Specifically it works like this: let f(k) be the true value and let f̂(k) be the approximate value computed with floating point numbers. Then
 
     f(k+1) = p(k) f(k) + q(k) f(k-1)
     f̂(k+1) = p(k) ⊗ f̂(k) ⊕ q(k) ⊗ f̂(k-1),
@@ -324,17 +319,13 @@ Rescaling the error bound as |E(k)| = ε 𝓔(k), we have
 
 Dropping the O(ε), this is the rule we use to update 𝓔.
 
-The function `generic-two-term-recursion-running-error` returns the two values f̂(n) and ε 𝓔(n). When 
-the value of 𝓔(n) is sufficiently small, the process is done and we accept f̂(n) as the value; if not 
-the process is repeated with a smaller value for the machine epsilon. 
+The function `generic-two-term-recursion-running-error` returns the two values f̂(n) and ε 𝓔(n). When the value of 𝓔(n) is sufficiently small, the process is done and we accept f̂(n) as the value; if not the process is repeated with a smaller value for the machine epsilon. 
 
 This is called a running error method. Think of it as a "poor man's" interval arithmetic. A proper
 interval arithmetic would track the rounding errors in all computations, not just the additions. 
 Of course, including the rounding errors with ⊗ is possible.
 
-Also, this code assumes that for the recursion f(k+1) = p(k) f(k) + q(k) f(k-1) that the coefficients
-p(k) and q(k) are computed without any rounding error. Again, a proper interval method would also 
-track these errors too.
+Also, this code assumes that for the recursion f(k+1) = p(k) f(k) + q(k) f(k-1) that the coefficients p(k) and q(k) are computed without any rounding error. Again, a proper interval method would also track these errors too.
 
 Our measure of sufficiently small is 
 
