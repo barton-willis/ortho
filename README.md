@@ -257,16 +257,6 @@ numerical evaluation near this zero isn't possible, but the modified relative er
 (%o2)                       - 1.917927837463344e43
 ```
 
-Another example: Again, Maxima does pretty well:
-
-```maxima
-
-(%i4) hermite(5, 2.0201828704560856);
-(%o4)                      - 4.5687075073857527e-14
-
-(%i5) float(hermite(5,rationalize(2.0201828704560856)));
-(%o5)                      - 4.5687075073857527e-14
-```
 
 To illustrate how loss of accuracy arises, consider computing the Laguerre polynomials using forward recursion in binary64 arithmetic. In Maxima, one simple way to experiment with this behavior is to implement the recurrence as a memoizing function; for example
 
