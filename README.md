@@ -70,7 +70,7 @@ This guide explains how to install the new **ortho** package without modifying M
    Actually, any readable directory is fine.
 
 2. **Add the package directory to Maxima’s search path**  
-   If your package is in `C:/LarryB/maxima/ortho`, for example, append the following lines to your `maxima-init.mac` file:
+   If the `ortho` package is in `C:/LarryB/maxima/ortho`, for example, append the following lines to your `maxima-init.mac` file:
 
    ```maxima
    push("C:/LarryB/maxima/ortho/*.lisp", file_search_lisp);
