@@ -242,7 +242,7 @@ All the functions need more tests, not just `spherical_bessel_y`.
 Computing orthogonal polynomials through their three‑term recurrence is straightforward, but avoiding the loss of accuracy caused by subtractive cancellation requires a safeguard.  In the `ortho` package, the safeguard is a running error estimate that approximately bounds the rounding error. When the estimated error becomes too large, the computation is automatically retried at higher precision. Specifically, for a machine epsilon of $\epsilon$, we require that the running error bound satisfy the modified relative error condition
 
 ```math
-|\text{error bound}| < \epsilon \max(\epsilon, |x|)
+|\text{error bound}| < \epsilon \max(\epsilon, |x|).
 ```
 A comment in the source code describes the mechanism in detail.
 
