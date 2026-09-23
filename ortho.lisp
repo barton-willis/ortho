@@ -1040,6 +1040,7 @@ Our measure of sufficiently small is
                      f1 f2
                      e0 e1
                      e1 e2)))))))
+                     
 
 (in-package :maxima)
 
