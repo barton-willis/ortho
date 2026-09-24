@@ -1,0 +1,245 @@
+(load("ortho"), load("ortho_display"),0);
+0$
+
+/* ============================================================
+   Display-format tests for all ortho package functions
+   Following the hermite(n,x) pattern exactly
+   ============================================================ */
+
+/* ------------------ chebyshev_t ------------------ */
+tex1(chebyshev_t(n,x));
+"T_{n}\\left(x\\right)"$
+
+with_default_2d_display(printf(false,"~m",chebyshev_t(n,x)));
+"T (x)
+ n
+"$
+
+with_default_2d_display(printf(false,"~m",define(f(),chebyshev_t(n,x))));
+"f() := T (x)
+        n
+"$
+
+/* ------------------ chebyshev_u ------------------ */
+tex1(chebyshev_u(n,x));
+"U_{n}\\left(x\\right)"$
+
+with_default_2d_display(printf(false,"~m",chebyshev_u(n,x)));
+"U (x)
+ n
+"$
+
+with_default_2d_display(printf(false,"~m",define(f(),chebyshev_u(n,x))));
+"f() := U (x)
+        n
+"$
+
+/* ------------------ hermite ------------------ */
+tex1(hermite(n,x));
+"H_{n}\\left(x\\right)"$
+
+with_default_2d_display(printf(false,"~m",hermite(n,x)));
+"H (x)
+ n
+"$
+
+with_default_2d_display(printf(false,"~m",define(f(),hermite(n,x))));
+"f() := H (x)
+        n
+"$
+
+/* ------------------ jacobi ------------------ */
+tex1(jacobi_p(n,a,b,x));
+"P_{n}^{\\left(a,b\\right)}\\left(x\\right)"$
+
+with_default_2d_display(printf(false,"~m",jacobi_p(n,a,b,x)));
+" (a, b)
+P      (x)
+ n
+"$
+
+with_default_2d_display(printf(false,"~m",define(f(),jacobi_p(n,a,b,x))));
+"        (a, b)
+f() := P      (x)
+        n
+"$
+
+/* ------------------ laguerre ------------------ */
+tex1(laguerre(n,x));
+"L_{n}\\left(x\\right)"$
+
+with_default_2d_display(printf(false,"~m",laguerre(n,x)));
+"L (x)
+ n
+"$
+
+with_default_2d_display(printf(false,"~m",define(f(),laguerre(n,x))));
+"f() := L (x)
+        n
+"$
+
+/* ------------------ legendre_p ------------------ */
+tex1(legendre_p(n,x));
+"P_{n}\\left(x\\right)"$
+
+with_default_2d_display(printf(false,"~m",legendre_p(n,x)));
+"P (x)
+ n
+"$
+
+with_default_2d_display(printf(false,"~m",define(f(),legendre_p(n,x))));
+"f() := P (x)
+        n
+"$
+
+/* ------------------ assoc_legendre_p ------------------ */
+tex1(assoc_legendre_p(n,m,x));
+"P_{n}^{m}\\left(x\\right)"$
+
+with_default_2d_display(printf(false,"~m",assoc_legendre_p(n,m,x)));
+ " m
+P (x)
+ n
+"$
+
+with_default_2d_display(printf(false,"~m",define(f(),assoc_legendre_p(n,m,x))));
+"        m
+f() := P (x)
+        n
+"$
+
+/* ------------------ legendre_q ------------------ */
+tex1(legendre_q(n,x));
+"Q_{n}\\left(x\\right)"$
+
+with_default_2d_display(printf(false,"~m",legendre_q(n,x)));
+"Q (x)
+ n
+"$
+
+with_default_2d_display(printf(false,"~m",define(f(),legendre_q(n,x))));
+"f() := Q (x)
+        n
+"$
+
+/* ------------------ assoc_legendre_q ------------------ */
+tex1(assoc_legendre_q(n,m,x));
+"Q_{n}^{m}\\left(x\\right)"$
+
+with_default_2d_display(printf(false,"~m",assoc_legendre_q(n,m,x)));
+ " m
+Q (x)
+ n
+"$
+
+with_default_2d_display(printf(false,"~m",define(f(),assoc_legendre_q(n,m,x))));
+"        m
+f() := Q (x)
+        n
+"$
+
+/* ------------------ spherical_bessel_j ------------------ */
+tex1(spherical_bessel_j(n,x));
+"j_{n}\\left(x\\right)"$
+
+with_default_2d_display(printf(false,"~m",spherical_bessel_j(n,x)));
+"j (x)
+ n
+"$
+
+with_default_2d_display(printf(false,"~m",define(f(),spherical_bessel_j(n,x))));
+"f() := j (x)
+        n
+"$
+
+/* ------------------ spherical_bessel_y ------------------ */
+tex1(spherical_bessel_y(n,x));
+"y_{n}\\left(x\\right)"$
+
+with_default_2d_display(printf(false,"~m",spherical_bessel_y(n,x)));
+"y (x)
+ n
+"$
+
+with_default_2d_display(printf(false,"~m",define(f(),spherical_bessel_y(n,x))));
+"f() := y (x)
+        n
+"$
+
+/* ------------------ spherical_hankel1 ------------------ */
+tex1(spherical_hankel1(n,x));
+"h^{(1)}_{n}\\left(x\\right)"$
+
+with_default_2d_display(printf(false,"~m",spherical_hankel1(n,x)));
+" (1)
+h   (x)
+ n
+"$
+
+with_default_2d_display(printf(false,"~m",define(f(),spherical_hankel1(n,x))));
+"        (1)
+f() := h   (x)
+        n
+"$
+
+/* ------------------ spherical_hankel2 ------------------ */
+tex1(spherical_hankel2(n,x));
+"h^{(2)}_{n}\\left(x\\right)"$
+
+with_default_2d_display(printf(false,"~m",spherical_hankel2(n,x)));
+" (2)
+h   (x)
+ n
+"$
+
+with_default_2d_display(printf(false,"~m",define(f(),spherical_hankel2(n,x))));
+"        (2)
+f() := h   (x)
+        n
+"$
+
+/* ------------------ spherical_harmonic ------------------ */
+tex1(spherical_harmonic(n,m,theta,phi));
+"Y_{n}^{m}\\left(\\vartheta,\\varphi\\right)"$
+
+with_default_2d_display(printf(false,"~m",spherical_harmonic(n,m,theta,phi)));
+" m
+Y (theta, phi)
+ n
+"$
+
+with_default_2d_display(printf(false,"~m",define(f(),spherical_harmonic(n,m,theta,phi))));
+"        m
+f() := Y (theta, phi)
+        n
+"$
+
+/* ------------------ ultraspherical ------------------ */
+tex1(ultraspherical(n,lambda,x));
+"C_{n}^{\\left(\\lambda\\right)}\\left(x\\right)"$
+
+with_default_2d_display(printf(false,"~m",ultraspherical(n,lambda,x)));
+" (lambda)
+C        (x)
+ n
+"$
+
+with_default_2d_display(printf(false,"~m",define(f(),ultraspherical(n,lambda,x))));
+"        (lambda)
+f() := C        (x)
+        n
+"$
+
+/* ------------------ pochhammer ------------------ */
+tex1(pochhammer(a,n));
+"\\left(a\\right)_{n}"$
+
+with_default_2d_display(printf(false,"~m",pochhammer(a,n)));
+"(a)
+   n
+"$
+
+with_default_2d_display(printf(false,"~m",define(f(),pochhammer(a,n))));
+"f() := (a)
+          n
+"$

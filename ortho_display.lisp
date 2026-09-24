@@ -125,14 +125,14 @@
 (defun tex-legendre-q (x l r)
   (tex-sub-and-super-scripted-function "Q" `(0) nil nil nil 1 x l r))
 
-(setf (get '$legendre_q 'dimension) 'dimension-legendre-q)
+(setf (get '%legendre_q 'dimension) 'dimension-legendre-q)
 
 (defun dimension-legendre-q (form result)
  (dimension-function
    (dimension-sub-and-super-scripted-function '|$q| `(1) nil nil 2 form)
    result))
 
-(defprop $assoc_legendre_q tex-assoc-legendre-q tex)
+(defprop %assoc_legendre_q tex-assoc-legendre-q tex)
 
 (defun tex-assoc-legendre-q (x l r)
   (tex-sub-and-super-scripted-function "Q" `(0) nil `(1) nil 2 x l r))
@@ -188,7 +188,7 @@
 (setf (get '%spherical_hankel1 'dimension) 'dimension-spherical-hankel-1)
 
 (defun dimension-spherical-hankel-1 (form result)
-  (let ((form1 `((mexpt) (($\h simp array) ,(nth 1 form)) 
+  (let ((form1 `((mexpt) ((h simp array) ,(nth 1 form)) 
 		 (1))))
     (dimension-function `((,form1 simp) ,(nth 2 form)) result)))
 
@@ -200,29 +200,29 @@
 (setf (get '%spherical_hankel2 'dimension) 'dimension-spherical-hankel-2)
 
 (defun dimension-spherical-hankel-2 (form result)
-  (let ((form1 `((mexpt) (($\h simp array) ,(nth 1 form))  (2))))
+  (let ((form1 `((mexpt) ((h simp array) ,(nth 1 form))  (2))))
     (dimension-function `((,form1 simp) ,(nth 2 form)) result)))
   
 (defprop %spherical_bessel_j tex-spherical-bessel-j tex)
 
 (defun tex-spherical-bessel-j (x l r)
-  (tex-sub-and-super-scripted-function "j^{(2)}" `(0) nil nil nil 1 x l r))
+  (tex-sub-and-super-scripted-function "j" `(0) nil nil nil 1 x l r))
 
 (setf (get '%spherical_bessel_j 'dimension) 'dimension-spherical-bessel-j)
 
 (defun dimension-spherical-bessel-j (form result)
-  (let ((form1 `(($\j simp array) ,(nth 1 form)))) 
+  (let ((form1 `((j simp array) ,(nth 1 form)))) 
     (dimension-function `((,form1 simp) ,(nth 2 form)) result)))
 
 (defprop %spherical_bessel_y tex-spherical-bessel-y tex)
 
 (defun tex-spherical-bessel-y (x l r)
-  (tex-sub-and-super-scripted-function "y^{(2)}" `(0) nil nil nil 1 x l r))
+  (tex-sub-and-super-scripted-function "y" `(0) nil nil nil 1 x l r))
 
  (setf (get '%spherical_bessel_y 'dimension) 'dimension-spherical-bessel-y)
 
 (defun dimension-spherical-bessel-y (form result)
-  (let ((form1 `(($\y simp array) ,(nth 1 form)))) 
+  (let ((form1 `((y simp array) ,(nth 1 form)))) 
     (dimension-function `((,form1 simp) ,(nth 2 form)) result)))
 
 (defprop %spherical_harmonic tex-spherical-harmonic tex)
