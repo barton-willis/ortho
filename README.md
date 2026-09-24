@@ -9,6 +9,8 @@ This release provides a redesigned and expanded implementation of orthogonal pol
 
 - New user-level functions for the Rodrigues formula, recursion relation, normalizations, differential equation, and hypergeometric representation for the orthogonal polynomials.
 
+- Separated the display code into a new file. This allows users to choose between a traditional two-dimensional display and a one-dimensional display.
+
 - Comprehensive test suite, one file per family, covering , floating point accuracy, symbolic identities, recurrence relations, differential equations, complex conjugation, and special values.
 
 ## Current status
