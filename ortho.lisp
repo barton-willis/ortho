@@ -1243,9 +1243,9 @@ Our measure of sufficiently small is
 (setf (get '$pochhammer 'operators) 'simp-pochhammer)
  
 (defgrad $pochhammer ($x $n)
-  ;; ∂/∂x
+  ;; d/dx
   #$$ pochhammer(x,n)*(psi[0](x+n) - psi[0](x))$
-  ;; ∂/∂n
+  ;; d/dn
   #$$ pochhammer(x,n)*psi[0](x+n)$)
   
 
@@ -1604,8 +1604,7 @@ Our measure of sufficiently small is
 
 (defgrad %legendre_q ($n $x)
   nil
-  #$$ (n*(legendre_q(n-1,x) - x*legendre_q(n,x)))
-      /(1-x^2) $)
+  #$$ (n*(legendre_q(n-1,x) - x*legendre_q(n,x)))/(1-x^2) $)
 
 (defgrad %assoc_legendre_p ($n $m $x)
   nil 
@@ -1633,13 +1632,11 @@ Our measure of sufficiently small is
 
 (defgrad %spherical_bessel_j ($n $x)
   nil
-  #$$ spherical_bessel_j(n-1,x)
-      - (n+1)/x * spherical_bessel_j(n,x) $)
+  #$$ spherical_bessel_j(n-1,x) - (n+1)/x * spherical_bessel_j(n,x) $)
 
 (defgrad %spherical_bessel_y ($n $x)
   nil
-  #$$ spherical_bessel_y(n-1,x)
-      - (n+1)/x * spherical_bessel_y(n,x) $)
+  #$$ spherical_bessel_y(n-1,x) - (n+1)/x * spherical_bessel_y(n,x) $)
 
 (defgrad %spherical_hankel1 ($n $x)
   nil
@@ -1686,11 +1683,10 @@ Our measure of sufficiently small is
   nil
   #$$ chebyshev_u(n+1,x)/(2*(n+1)) $)
 
-(def-integral %ultraspherical (n lambda x)
+(def-integral %ultraspherical (n lam x)
   nil 
   nil
-  #$$ ultraspherical(n+1,lambda,x)/(2*(n+lambda+1))
-      - ultraspherical(n-1,lambda,x)/(2*(n+lambda-1)) $)
+  #$$ ultraspherical(n+1,lam,x)/(2*(n+lam+1)) - ultraspherical(n-1,lam,x)/(2*(n+lam-1)) $)
 
 (def-integral %laguerre (n a x)
   nil 
@@ -1783,11 +1779,8 @@ Our measure of sufficiently small is
 (defparameter *orthopoly-ode-operator-table*
   (make-hash-table :test #'eq :size 32))
 
-(defparameter *orthopoly-ode-eigenvalue-table*
-  (make-hash-table :test #'eq :size 32))
-
 (defmacro def-ode (name operator-lambda)
-  "Register Sturm–Liouville operator lambdas in hash table."
+  "Register Sturm-Liouville operator lambdas in hash table."
   `(progn
      (setf (gethash ',name *orthopoly-ode-operator-table*)
            ,operator-lambda)
