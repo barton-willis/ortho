@@ -290,7 +290,8 @@ The huge discrepancy is due to subtractive cancellation.
 
 ## Running error details
 
-Most functions use the degree recursion in the upward direction to evaluate these polynomials for both symbolic and numeric arguments. The recursion has the form
+Except for the spherical Bessel functions, functions in this package use upward degree recursion
+for symbolic and numeric evaluation. Each recursion has the form
 
     f(k+1) = p(k) f(k) + q(k) f(k-1).
 
