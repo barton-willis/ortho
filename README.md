@@ -304,7 +304,7 @@ Using the rules of ⊕, there is ε(k), whose magnitude is bounded by the machin
 
     f̂(k+1) = (p(k) f̂(k) + q(k) f̂(k-1)) (1 + ε(k)).
 
-Now define E(k) = f̂(k) - f(k). We have
+Now define E(k) = f̂(k) - f(k). Subtracting f(k) from f̂(k+1) gives 
 
     E(k+1) =  p(k) E(k) + q(k) E(k-1) + ε(k) (p(k) f̂(k) + q(k) f̂(k-1)),
            =  p(k) E(k) + q(k) E(k-1) + ε(k) f̂(k+1) + O(ε^2).
@@ -317,7 +317,7 @@ Rescaling the error bound as |E(k)| = ε 𝓔(k), we have
 
     𝓔(k+1) ≤ |p(k)| 𝓔(k) + |q(k)| 𝓔(k-1) + |f̂(k+1)| + O(ε).
 
-Dropping the O(ε), this is the rule we use to update 𝓔.
+Dropping the O(ε) yields the rule we use to update 𝓔.
 
 The function `generic-two-term-recursion-running-error` returns the two values f̂(n) and ε 𝓔(n). When the value of 𝓔(n) is sufficiently small, the process is done and we accept f̂(n) as the value; if not the process is repeated with a smaller value for the machine epsilon. 
 
