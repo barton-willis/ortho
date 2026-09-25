@@ -220,6 +220,15 @@ Our measure of sufficiently small is
          (orthopoly-polynomial-simp (jacobi_p-symbolic n a b x) x)
          (give-up)))
 
+    ;; See DLMF table 18.6.E1 http://dlmf.nist.gov/18.6.E1
+    ((and ($featurep n '$integer) (alike1 a b) (zerop1 x))
+      (cond (($featurep n '$even)
+             (let ((n2 (div n 2)))
+                 (div (mul (ftake 'mexpt (div -1 4) n2)
+                           (ftake '$pochhammer (add n2 a 1) n))
+                      (ftake 'mfactorial n2))))
+              (t (give-up))))
+
     ;; reflection: jacobi_p(n,a,b,x) = (-1)^n * jacobi_p(n,b,a,-x); 
     ;; see DLMF http://dlmf.nist.gov/18.6.E1
     ((great (neg x) x)
@@ -383,7 +392,15 @@ Our measure of sufficiently small is
         ((eql x 1)
 	      (div (ftake '$pochhammer (mul 2 a) n) (ftake 'mfactorial n)))
 
-        ;; see http://dlmf.nist.gov/18.7.E2 & http://dlmf.nist.gov/18.7.E3
+    ;; See DLMF http://dlmf.nist.gov/18.6.E1 
+    ((and ($featurep n '$integer) ($featurep n '$even) (zerop1 x))
+      (let ((n2 (div n 2)))
+      (div
+         (mul (ftake 'mexpt -1 n2)
+              (ftake '$pochhammer a n2))
+         (ftake 'mfactorial n2))))
+
+    ;; see http://dlmf.nist.gov/18.7.E2 & http://dlmf.nist.gov/18.7.E3
 		((and (eql a 0) ($featurep n '$integer) (eq t (mgqp n 0)))
 			(mul
 			    (div
@@ -465,7 +482,7 @@ Our measure of sufficiently small is
 
       ;; See DLMF Table Table 18.6.1 for the following three simplifications:
 		  ((eql x 1)  1)
-		  ((and (eql x 0) ($featurep n '$even)) (ftake 'mexpt 1 (div n 2)))
+		  ((and (eql x 0) ($featurep n '$even)) (ftake 'mexpt -1 (div n 2)))
 		  ;; chebyshev_t(n,-x) = (-1)^n chebyshev_t(n,-x)
       ((great (neg x) x)
 		    (mul (ftake 'mexpt -1 n) (ftake '%chebyshev_t n (neg x))))
@@ -520,7 +537,7 @@ Our measure of sufficiently small is
 		  ((eql x 1) (add n 1))
 		  
 		  ((and (eql x 0) ($featurep n '$even)) 
-		     (ftake 'mexpt 1 (div n 2)))
+		     (ftake 'mexpt -1 (div n 2)))
 
 		  ;; chebyshev_t(n,-x) = (-1)^n chebyshev_t(n,-x)
       ((great (neg x) x)

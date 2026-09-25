@@ -297,7 +297,56 @@ true$
 (remfunction(op_and_args), remfunction(approx_equal),0);
 0$
 
+/* Let's check the values in the DLMF table 18.6.1: Classical OP’s: symmetry and special values.
+Here I have the tests for all applicable the rows of this table, not just the Hermite polynomial row.*/
+(declare(n,integer), assume(n >= 0),0);
+0$
+
+[jacobi_p(n,a,b,-x), jacobi_p(n,a,b,1)];
+[(-1)^n*jacobi_p(n,b,a,x),pochhammer(a+1,n)/n!]$
+
+[jacobi_p(n,a,a,-x), jacobi_p(n,a,a,1), jacobi_p(2*n,a,a,0),at(diff(jacobi_p(2*n+1,a,a,x),x),x=0)];
+[(-1)^n*jacobi_p(n,a,a,x),pochhammer(a+1,n)/n!,
+       ((-1)^n*pochhammer(n+a+1,2*n))/(4^n*n!),
+       (2*(-1)^n*(2*n+a+1)^2*pochhammer(n+a+1,2*n))/(4^n*(2*(2*n+1)+2*a)*n!)]$
+
+[ultraspherical(n,lam,-x),
+        ultraspherical(n,lam,1), 
+        ultraspherical(2*n,lam,0),
+        at(diff(ultraspherical(2*n+1,lam,x),x),x=0)];
+[(-1)^n*ultraspherical(n,lam,x),pochhammer(2*lam,n)/n!,
+ ((-1)^n*pochhammer(lam,n))/n!,(2*(-1)^n*lam*pochhammer(lam+1,n))/n!]$
+
+[chebyshev_t(n,-x),
+        chebyshev_t(n,1),
+        chebyshev_t(2*n,0),
+        at(diff(chebyshev_t(2*n+1,x),x),x=0)];
+[(-1)^n*chebyshev_t(n,x),1,(-1)^n,(-1)^n*(2*n+1)]$
+
+[chebyshev_u(n,-x),
+        chebyshev_u(n,1),
+        chebyshev_u(2*n,0),
+        at(diff(chebyshev_u(2*n+1,x),x),x=0)];
+[(-1)^n*chebyshev_u(n,x),n+1,(-1)^n,(-1)^n*(2*n+2)]$
+
+[legendre_p(n,-x),
+        legendre_p(n,1),
+        legendre_p(2*n,0),
+         at(diff(legendre_p(2*n+1,x),x),x=0)];
+[(-1)^n*legendre_p(n,x),1,((-1)^n*pochhammer(1/2,n))/n!,
+        ((-1)^n*pochhammer(1/2,n)*(2*n+1))/n!]$
+
+[hermite(n,-x),
+        hermite(n,1),
+        hermite(2*n,0),
+        at(diff(hermite(2*n+1,x),x),x=0)];
+[(-1)^n*hermite(n,x),hermite(n,1),(2^(2*n)*sqrt(%pi))/gamma((1-2*n)/2),
+        (2^(2*n+1)*sqrt(%pi)*(2*n+1))/gamma((1-2*n)/2)]$
+
 /* Let's keep our environment tidy. */
+(forget(n>=0), remove(n,integer),0);
+0$
+
 values;
 []$
 

@@ -222,7 +222,7 @@ The `ortho` package is almost ready for serious work. Here are the results of th
 |------------------------|-------------------------|----------------|------------------------|
 | chebyshev_t            | ✔️ (53/53 pass)         | 7.0  seconds    |                        |
 | chebyshev_u            | ✔️ (52/52 pass)         | 5.8 seconds    |                        |
-| hermite                | ✔️ (74/74 pass)         | 22.5 seconds    |                        |
+| hermite                | ✔️ (83/83 pass)         | 10.4 seconds    |                        |
 | jacobi                 | ✔️ (40/40 pass)         | 2.0 seconds    |                        |
 | laguerre               | ✔️ (41/41 pass)         | 16.0 seconds   |                        |
 | legendre_p             | ✔️ (55/55 pass)         |  0.6 seconds   |                        |
