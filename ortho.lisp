@@ -1858,6 +1858,9 @@ Our measure of sufficiently small is
             'hypergeometric))
 
 (defmfun $orthopoly_hypergeometric (name)
+    (when (not (symbolp name))
+      (merror "Argument to orthopoly_hypergeometric must be a symbol, found ~M ~%" name))
+      
     (or (get name 'hypergeometric)
         (merror "No hypergeometric form registered for ~M" name)))
 
@@ -1894,6 +1897,65 @@ Our measure of sufficiently small is
 
 (def-hypergeom %chebyshev_u
   #$$ lambda([n,x], (n+1) * hypergeometric([ -n, n+2 ], [ 3/2 ], (1-x)/2)) $)
+
+(def-hypergeom %assoc_legendre_p
+  #$$ lambda([n,m,x],
+       1/gamma(1-m)
+         * ((1+x)/(1-x))^(m/2)
+         * hypergeometric([-n, n+1],
+                          [1-m],
+                          (1-x)/2)) $)
+
+(def-hypergeom %legendre_q
+  #$$ lambda([n,x],
+       sqrt(%pi)*gamma(n+1)/(2^(n+1)*gamma(n+3/2))
+         * (1-x^2)^(-n/2)
+         * hypergeometric([ (n+1)/2, (n+2)/2 ],
+                          [ n+3/2 ],
+                          x^2)
+       + 1/2 * legendre_p(n,x) * log((1+x)/(1-x))) $)
+
+(def-hypergeom %assoc_legendre_q
+  #$$ lambda([n,m,x],
+       1/2 * exp(%i*%pi*m)
+         * assoc_legendre_p(n,m,x)
+         * log((1+x)/(1-x))
+       + exp(%i*%pi*m)
+         * gamma(n+m+1)/(2^(n+1)*gamma(n+3/2))
+         * (1-x^2)^(m/2)
+         * hypergeometric([ (n+m+1)/2, (n+m+2)/2 ],
+                          [ n+3/2 ],
+                          x^2)) $)
+
+(def-hypergeom %spherical_bessel_j
+  #$$ lambda([n,x],
+       (x/2)^n / gamma(n+3/2)
+         * hypergeometric([ ],
+                          [ n+3/2 ],
+                          -x^2/4)) $)
+
+(def-hypergeom %spherical_bessel_y
+  #$$ lambda([n,x],
+       -(x/2)^(-n-1) / gamma(-n+1/2)
+         * hypergeometric([ ],
+                          [ -n+1/2 ],
+                          -x^2/4)) $)
+
+(def-hypergeom %spherical_hankel1
+  #$$ lambda([n,x],
+       spherical_bessel_j(n,x)
+       + %i*spherical_bessel_y(n,x)) $)
+
+(def-hypergeom %spherical_hankel2
+  #$$ lambda([n,x],
+       spherical_bessel_j(n,x)
+       - %i*spherical_bessel_y(n,x)) $)
+
+(def-hypergeom %spherical_harmonic
+  #$$ lambda([l,m,theta,phi],
+       sqrt((2*l+1)/(4*%pi) * factorial(l-m)/factorial(l+m))
+         * exp(%i*m*phi)
+         * ((1+cos(theta))/(1-cos(theta)))))
 
 ;; Hermite to hypergeometric is not supported. For n ≥ 0, Hermite polynomials can be written using 1F1, but
 ;; this representation doesn't extend off the nonnegative integers. To do that, we need the  parabolic cylinder function,
