@@ -225,7 +225,7 @@ The `ortho` package is almost ready for serious work. Here are the results of th
 | hermite                | ✔️ (83/83 pass)         | 10.4 seconds    |                        |
 | jacobi                 | ✔️ (40/40 pass)         | 2.0 seconds    |                        |
 | laguerre               | ✔️ (41/41 pass)         | 16.0 seconds   |                        |
-| legendre_p             | ✔️ (55/55 pass)         |  0.6 seconds   |                        |
+| legendre_p             | ✔️ (56/56 pass)         |  0.25 seconds   |                        |
 | assoc_legendre_p       | ✔️ (30/30 pass)         |  0.2 seconds   |                        |
 | legendre_q             | ✔️ (43/43 pass)         |  0.9 seconds   |                        |
 | assoc_legendre_q       | ✔️ (35/35 pass)         | 0.4 seconds    |                        |

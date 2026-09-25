@@ -1860,7 +1860,7 @@ Our measure of sufficiently small is
 (defmfun $orthopoly_hypergeometric (name)
     (when (not (symbolp name))
       (merror "Argument to orthopoly_hypergeometric must be a symbol, found ~M ~%" name))
-      
+
     (or (get name 'hypergeometric)
         (merror "No hypergeometric form registered for ~M" name)))
 
@@ -1955,7 +1955,7 @@ Our measure of sufficiently small is
   #$$ lambda([l,m,theta,phi],
        sqrt((2*l+1)/(4*%pi) * factorial(l-m)/factorial(l+m))
          * exp(%i*m*phi)
-         * ((1+cos(theta))/(1-cos(theta)))))
+         * ((1+cos(theta))/(1-cos(theta)))) $)
 
 ;; Hermite to hypergeometric is not supported. For n ≥ 0, Hermite polynomials can be written using 1F1, but
 ;; this representation doesn't extend off the nonnegative integers. To do that, we need the  parabolic cylinder function,
