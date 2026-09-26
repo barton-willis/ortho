@@ -109,6 +109,10 @@ block([L:4, okay:true, x],
   okay);
 true$
 
+block([fn : orthopoly_hypergeometric('assoc_legendre_p),  expand_hypergeometric : true],
+ makelist(makelist(expand(fn(n,m,x) - assoc_legendre_p(n,m,x)),m,0,n),n,0,5));
+[[0],[0,0],[0,0,0],[0,0,0,0],[0,0,0,0,0],[0,0,0,0,0,0]]$
+
 (reset(fpprec),0);
 0$
 

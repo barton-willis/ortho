@@ -160,6 +160,9 @@ true$
  legendre_q(0,2/3);
  log(5)/2$
 
+ block([fn : orthopoly_hypergeometric('legendre_q),  expand_hypergeometric : true],
+ makelist(fn(n,x) - (legendre_q(n,x)),n,0,6));
+
 /* tidy environment */
 values;
 []$
