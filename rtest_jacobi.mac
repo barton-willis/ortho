@@ -165,6 +165,10 @@ block([N:4, fails : [], maxD:12, x,y],
   fails);
 []$
 
+block([expand_hypergeometric : true, fn : orthopoly_hypergeometric('jacobi_p)],
+  factor(makelist(fn(n,a,b,x) - jacobi_p(n,a,b,x),n,0,9)));
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
+
 (reset(fpprec),0);
 0$
 

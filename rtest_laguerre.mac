@@ -164,6 +164,13 @@ block([N:4, okay:true, maxD:12, x,y],
   okay);
 true$
 
+block([expand_hypergeometric : true, fn : orthopoly_hypergeometric('laguerre)],
+  factor(makelist(fn(n,x) - laguerre(n,x),n,0,9)));
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
+
+block([expand_hypergeometric : true, fn : orthopoly_hypergeometric('gen_laguerre)],
+  factor(makelist(fn(n,a, x) - gen_laguerre(n,a,x),n,0,9)));
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]$
 (reset(fpprec),0);
 0$
 

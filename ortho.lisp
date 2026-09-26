@@ -530,7 +530,7 @@ Our measure of sufficiently small is
 
 		  ((integerp n)
         (if (< n 0)
-           (orthopoly-polynomial-simp (chebyshev_u-symbolic (sub (- n) 2) x) x)
+           (orthopoly-polynomial-simp (mul -1 (chebyshev_u-symbolic (sub (- n) 2) x)) x)
 		       (orthopoly-polynomial-simp (chebyshev_u-symbolic n x) x)))
 
 		  ;; See DLMF Table Table 18.6.1 for the following three simplifications:
@@ -1875,9 +1875,9 @@ Our measure of sufficiently small is
                           (1-x)/2)) $)
 
 (def-hypergeom %laguerre
-  #$$ lambda([n,a,x],
-       pochhammer(a+1,n)/factorial(n)
-         * hypergeometric([ -n ], [ a+1 ], x)) $)
+  #$$ lambda([n,x],
+       pochhammer(1,n)/factorial(n)
+         * hypergeometric([-n], [1], x)) $)
 
 (def-hypergeom %gen_laguerre
   #$$ lambda([n,a,x],

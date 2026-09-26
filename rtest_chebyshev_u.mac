@@ -209,6 +209,11 @@ true$
 (remfunction(op_and_args), remfunction(approx_equal),0);
 0$
 
+/* hypergeometric representation */
+block([fn : orthopoly_hypergeometric('chebyshev_u),  expand_hypergeometric : true],
+ makelist(expand(fn(n,x) -chebyshev_u(n,x)),n,0,5));
+[0, 0, 0, 0, 0, 0]$
+
 /* tidy environment */
 values;
 []$
