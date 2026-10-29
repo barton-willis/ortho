@@ -1,31 +1,78 @@
 (in-package :maxima)
 
+(defun multiplicative-identity (&rest a)
+  "Return the appropriate multiplicative identity (1 for rational numbers, 1.0do for binary64, and 1.0b0 for bigfloats)
+  for the numbers in the list a."
+  (flet ((local-one (s) 
+           (cond ((complex-number-p s #'$ratnump) 1.0d0)
+                 ((complex-number-p s #'(lambda (q) (or ($ratnump q) (floatp q)))) 1.0d0)
+                 ((complex-number-p s #'(lambda (q) (or ($ratnump q) (floatp q) ($bfloatp q)))) *bigfloatone*)
+                 (t nil)))) ;not a complex number, return nil
+    (let ((ones (mapcar #'local-one a)))
+      (unless (member nil ones) ; If any element failed the check, abort numeric calculation
+        (fapply 'mtimes ones)))))
+
+(defun orthopoly-number-coerce (x one)
+  (cond
+    (($ratnump one)
+     ($rationalize x))
+
+    ((floatp one)
+     ;; Try float conversion, but fall back to bigfloat on overflow
+     (let ((f (errcatch ($float x))))
+      (if f
+          (car f)
+          ($bfloat x))))
+
+    (t
+     ($bfloat x))))
+
 (defmfun $gauss_hg (a b c x)
+    (let ((one (multiplicative-identity  a b c x)))
+      (setq a (orthopoly-number-coerce a one)
+            b  (orthopoly-number-coerce b one)
+            c  (orthopoly-number-coerce c one)
+            x  (orthopoly-number-coerce x one))
+
+     (mtell "a = ~M ; b = ~M ; c = ~M ; x = ~M ~%" a b c x)
+
     (multiple-value-bind (f e1 e2)
       (bigfloat::f21-numeric (bigfloat::to a) (bigfloat::to b) (bigfloat::to c) (bigfloat::to x))
-      (maxima::to f)))
+      (mtell "e1 = ~M ; e2 = ~M ~%" e1 e2)
+      (maxima::to f))))
 
 (in-package #:bigfloat)
 
 (defun choose-z (x)
-  (flet ((rate (z) (if (zerop (- z 1))
-                        1
-                       (abs (/ z (- z 1))))))
-  (let* ((xb (conjugate x))
-         (mag (abs (- x 1)))
-         (im (- x xb))
-         (z1 (if (zerop im) 
-               (/ x -2) 
-               (/ (* x (+ xb mag -1)) im)))
-         (r1 (rate z1))
+  (flet ((rate (z)
+           (if (zerop (- z 1))
+               1
+               (abs (/ z (- z 1))))))
 
-         (z2 (if (zerop im)
-              (/ x -2)
-              (/ (* x (- xb (+ mag) 1) im))))
-         (r2 (rate z2)))
-    (if (< r1 r2)
-        (values z1 r1)
-        (values z2 r2)))))
+    (cond ((realp x)
+           (values (/ x 2) (rate (/ x 2))))
+          (t 
+    (let* ((z (sqrt (/ (- x 1) (- (conjugate x) 1))))
+           (z1 (if (zerop (- 1 z))
+                   nil
+                   (/ x (- 1 z))))
+           (r1 (if z1
+                   (rate z1)
+                   nil))
+           (z2 (if (zerop (+ 1 z))
+                   nil
+                   (/ x (+ 1 z))))
+           (r2 (if z2
+                   (rate z2)
+                   1)))
+      (cond ((and z1 z2)
+             (if (< r1 r2)
+                 (values z1 r1)
+                 (values z2 r2)))
+            (z1
+             (values z1 r1))
+            (t
+             (values z2 r2))))))))
 
 #|
 Here z is any complex number that allows convergence:
@@ -43,27 +90,12 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
  |#
 
 (defun f21-numeric (a b c x)
-
   (multiple-value-bind (z1 r1)
       (choose-z (bigfloat::to x))
-      (multiple-value-bind (z2 r2)
-         (choose-z (bigfloat::to (/ x (- x 1))))
-
-  (maxima::mtell "r1 = ~M ; r2 = ~M ~%" r1 r2)
-  
-  (cond ((< r1 r2) ; no pfaff transformation
-         ;(when (< (realpart b) (realpart a))
-          ; (rotatef a b))
-           (maxima::mtell "z1 = ~M ~%" z1)
-           (f21-numeric-helper a b c x z1))
-        (t ;;pfaff transform
-           (let* ((aa a)
-                  (bb (- c b))
-                  (cc c)
-                  (xx (/ x (- x 1))))
-            ;(when (< (realpart bb) (realpart aa))
-             ;   (rotatef aa bb))    
-           (* (expt (- 1 x) (- aa)) (f21-numeric-helper aa bb cc xx z2))))))))
+         (when (< (realpart b) (realpart a))
+           (rotatef a b))
+           (maxima::mtell "rate = ~M ~%" r1)
+           (f21-numeric-helper a b c x z1)))
           
 (defun map-abs-onto-complex (x)
   (complex (abs (realpart x)) (abs (imagpart x))))
@@ -80,19 +112,14 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
          (macheps (epsilon x))
          (zm1 (- z 1))
          (ap1 (+ a 1))
-         (alpha (/ (- (* 2 z) x) zm1))
-         (beta (/ (- (* (+ c 2) z)
-                      (* (+ b 1) x))
-                  zm1))
-         (gamma (/ (* z (- z x))
-                   (* zm1 zm1)))
+         (cp1 (+ c 1))
 
+         (w1 (/ (* z  (- z x)) (* zm1 zm1)))
+         (w3 (/ (+ (* c z) (* 2 z) (* -1 b x) (- x)) zm1))
+         (w4 (/ (- (* 2 z) x) zm1))
          term-val y-val t-val hs ssave)
 
-    (flet ((next-h (k h0 h1)
-             (/ (- (* h1 (+ (* k alpha) beta))
-                   (* h0 gamma (+ k 1)))
-                (+ k c 1)))
+    (flet ((next-h (k h0 h1) (/ (- (* (+ w3 (* k w4)) h1)  (* w1 (+ k 1) h0)) (+ k cp1)))
            (next-cf (k p0) (/ (* (+ ap1 k) p0) (+ k 2))))
 
       ;; --- Main loop ---
@@ -103,20 +130,11 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
         (setf hs h1)
         (setf h1 (next-h k h0 h1))
         (setf h0 hs)
-
-        ;; p1 <-- (a+k+1)/(k+2) * p1
         (setf p1 (next-cf k p1))
-
         (setf ssave s)
-
         (setf term-val (* p1 h1))
-
-        ;; accumulate the sum of the absolute values
-        ;; of the real & imaginary parts
-        (setf sum-abs
-              (+ sum-abs
-                 (map-abs-onto-complex term-val)))
-
+        ;; accumulate the sum of the absolute values of the real & imaginary parts
+        (setf sum-abs (+ sum-abs (map-abs-onto-complex term-val)))
         ;; Kahan accumulation
         (setf y-val (- term-val c-comp))
         (setf t-val (+ s y-val))
