@@ -79,6 +79,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
          (sum-abs 0)
          (macheps (epsilon x))
          (zm1 (- z 1))
+         (ap1 (+ a 1))
          (alpha (/ (- (* 2 z) x) zm1))
          (beta (/ (- (* (+ c 2) z)
                       (* (+ b 1) x))
@@ -91,7 +92,8 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
     (flet ((next-h (k h0 h1)
              (/ (- (* h1 (+ (* k alpha) beta))
                    (* h0 gamma (+ k 1)))
-                (+ k c 1))))
+                (+ k c 1)))
+           (next-cf (k p0) (/ (* (+ ap1 k) p0) (+ k 2))))
 
       ;; --- Main loop ---
       (do ((k 0 (1+ k)))
@@ -103,8 +105,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
         (setf h0 hs)
 
         ;; p1 <-- (a+k+1)/(k+2) * p1
-        (setf p1 (/ (* (+ a k 1) p1)
-                    (+ k 2)))
+        (setf p1 (next-cf k p1))
 
         (setf ssave s)
 
@@ -144,4 +145,3 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
         (values (* cnst s)
                 error-bound-real
                 error-bound-imag)))))
-             
