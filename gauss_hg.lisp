@@ -27,6 +27,11 @@
     (t
      ($bfloat x))))
 
+(defmfun $rate (x)
+  (multiple-value-bind (z r) (bigfloat::choose-z (bigfloat::to x))
+     (declare (ignore z))
+    (maxima::to r)))
+
 (defmfun $gauss_hg (a b c x)
     (let ((one (multiplicative-identity  a b c x)))
       (setq a (orthopoly-number-coerce a one)
@@ -34,11 +39,11 @@
             c  (orthopoly-number-coerce c one)
             x  (orthopoly-number-coerce x one))
 
-     (mtell "a = ~M ; b = ~M ; c = ~M ; x = ~M ~%" a b c x)
+     ;(mtell "a = ~M ; b = ~M ; c = ~M ; x = ~M ~%" a b c x)
 
     (multiple-value-bind (f e1 e2)
       (bigfloat::f21-numeric (bigfloat::to a) (bigfloat::to b) (bigfloat::to c) (bigfloat::to x))
-      (mtell "e1 = ~M ; e2 = ~M ~%" e1 e2)
+      ;(mtell "e1 = ~M ; e2 = ~M ~%" e1 e2)
       (maxima::to f))))
 
 (in-package #:bigfloat)
@@ -100,7 +105,11 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 (defun map-abs-onto-complex (x)
   (complex (abs (realpart x)) (abs (imagpart x))))
 
+(defun approx-equal (a b eps)
+  (< (abs (- a b)) (* eps (max eps (abs a) (abs b)))))
+
 (defun f21-numeric-helper (a b c x z)
+  ;(maxima::mtell "a = ~M ; b = ~M ; c = ~M ; x  = ~M ; z = ~M " a b c x z)
   (let* ((h0 1)
          (h1 (/ (* (- 1 (/ (* b x) (* c z))) z) (- z 1))) ; (1 - bx/(c z)) z /(z-1)
          (p1 a)
@@ -142,8 +151,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
         (setf s t-val)
 
         ;; Convergence check
-        (if (or (= s ssave)
-                (< (abs (- s ssave)) tol))
+        (if (approx-equal s ssave macheps)
             (incf repeat-count)
             (setf repeat-count 0)))
 
@@ -163,3 +171,4 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
         (values (* cnst s)
                 error-bound-real
                 error-bound-imag)))))
+
