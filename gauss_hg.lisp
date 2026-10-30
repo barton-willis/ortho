@@ -1,6 +1,6 @@
 (in-package :maxima)
 
-;; See https://link.springer.com/article/10.100 
+;; For many other possibilities, see  https://link.springer.com/article/10.1007/s11075-026-02436-2 
 
 (defun multiplicative-identity (&rest a)
   "Return the appropriate multiplicative identity (1 for rational numbers, 1.0do for binary64, and 1.0b0 for bigfloats)
@@ -108,10 +108,9 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
   (complex (abs (realpart x)) (abs (imagpart x))))
 
 (defun approx-equal (a b eps)
-  (< (abs (- a b)) (* eps (max eps (abs a) (abs b)))))
+  (< (abs (- a b)) (* eps (max 1 (abs a) (abs b)))))
 
 (defun f21-numeric-helper (a b c x z)
-  ;(maxima::mtell "a = ~M ; b = ~M ; c = ~M ; x  = ~M ; z = ~M " a b c x z)
   (let* ((h0 1)
          (h1 (/ (* (- 1 (/ (* b x) (* c z))) z) (- z 1))) ; (1 - bx/(c z)) z /(z-1)
          (p1 a)
@@ -128,6 +127,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
          (w1 (/ (* z  (- z x)) (* zm1 zm1)))
          (w3 (/ (+ (* c z) (* 2 z) (* -1 b x) (- x)) zm1))
          (w4 (/ (- (* 2 z) x) zm1))
+         (kk 0)
          term-val y-val t-val hs ssave)
 
     (flet ((next-h (k h0 h1) (/ (- (* (+ w3 (* k w4)) h1)  (* w1 (+ k 1) h0)) (+ k cp1)))
@@ -136,12 +136,16 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
       ;; --- Main loop ---
       (do ((k 0 (1+ k)))
           ((>= repeat-count 5))
+        (setq kk k)
 
         ;; Save previous h_k
         (setf hs h1)
         (setf h1 (next-h k h0 h1))
         (setf h0 hs)
         (setf p1 (next-cf k p1))
+        ;;;;;;;;;;;;;;
+        ;;;  (maxima::mtell "rate = ~M ~%" (abs (/ h1 h0)))
+        ;;;;;;;;;;;;;;
         (setf ssave s)
         (setf term-val (* p1 h1))
         ;; accumulate the sum of the absolute values of the real & imaginary parts
@@ -170,6 +174,11 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
                        (abs (imagpart s)))))
              (cnst (expt (- 1 z) (- a))))
 
+        ;;
+        (maxima::mtell "k = ~M ~%" kk)
+        (maxima::mtell "error real = ~M ~%" error-bound-real)
+        (maxima::mtell "error imag = ~M ~%" error-bound-imag)
+        ;;ahh, I haven't blended in cnst with the error bounds
         (values (* cnst s)
                 error-bound-real
                 error-bound-imag)))))
