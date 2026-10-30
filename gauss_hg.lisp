@@ -1,5 +1,7 @@
 (in-package :maxima)
 
+;; See https://link.springer.com/article/10.100 
+
 (defun multiplicative-identity (&rest a)
   "Return the appropriate multiplicative identity (1 for rational numbers, 1.0do for binary64, and 1.0b0 for bigfloats)
   for the numbers in the list a."
