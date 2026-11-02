@@ -97,12 +97,38 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
  |#
 
 (defun f21-numeric (a b c x)
-  (multiple-value-bind (z1 r1)
+  (multiple-value-bind (z initial-rate)
       (choose-z (bigfloat::to x))
-         (when (< (realpart b) (realpart a))
-           (rotatef a b))
-           (maxima::mtell "rate = ~M ~%" r1)
-           (f21-numeric-helper a b c x z1)))
+
+    (maxima::mtell "rate = ~M ~%" initial-rate)
+
+    (flet ((score (a b c)
+             (max (realpart (+ b (- c) a -1)) (realpart (+ a -1 (- b))))))
+
+      (let* ((candidates
+               (list
+                 (list a b c x z)                   ; as is
+                 (list b a c x z)                   ; swab a & b
+                 (list (- c a) b c (/ x (- x 1)) z) ; Pfaff transform
+                 (list (- c b) a c (/ x (- x 1)) z) ; swapped Pfaff transform
+                 (list (- c b) (- c a) c x z)       ; Euler transform
+                 (list (- c a) (- c b) c x z)))     ; swapped Euler transform
+
+             (best
+               (reduce
+                 (lambda (best candidate)
+                   (if (> (score (first candidate)
+                                 (second candidate)
+                                 (third candidate))
+                          (score (first best)
+                                 (second best)
+                                 (third best)))
+                       candidate
+                       best))
+                 (rest candidates)
+                 :initial-value (first candidates))))
+
+        (apply #'f21-numeric-helper best)))))
           
 (defun map-abs-onto-complex (x)
   (complex (abs (realpart x)) (abs (imagpart x))))
@@ -126,6 +152,8 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 
          (w1 (/ (* z  (- z x)) (* zm1 zm1)))
          (w3 (/ (+ (* c z) (* 2 z) (* -1 b x) (- x)) zm1))
+         ;; for the real case w4 is zero. Presumably for this case, w4 will be zero, not a smidgen away 
+         ;; from zero? Surely for binary floats this is true.
          (w4 (/ (- (* 2 z) x) zm1))
          (kk 0)
          term-val y-val t-val hs ssave)
