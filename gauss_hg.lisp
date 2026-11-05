@@ -3,7 +3,7 @@
 ;; For many other possibilities, see  https://link.springer.com/article/10.1007/s11075-026-02436-2 
 
 (defun multiplicative-identity (&rest a)
-  "Return the appropriate multiplicative identity (1 for rational numbers, 1.0do for binary64, and 1.0b0 for bigfloats)
+  "Return the appropriate multiplicative identity (1 for rational numbers, 1.0d0 for binary64, and 1.0b0 for bigfloats)
   for the numbers in the list a."
   (flet ((local-one (s) 
            (cond ((complex-number-p s #'$ratnump) 1.0d0)
@@ -25,7 +25,6 @@
       (if f
           (car f)
           ($bfloat x))))
-
     (t
      ($bfloat x))))
 
@@ -34,6 +33,8 @@
      (declare (ignore z))
     (maxima::to r)))
 
+;; (b) needs protection against c a negative integer.
+;; (b) should detect some special cases and dispatch specialized code
 (defmfun $gauss_hg (a b c x)
     (let ((one (multiplicative-identity  a b c x)))
       (setq a (orthopoly-number-coerce a one)
@@ -57,7 +58,8 @@
                (abs (/ z (- z 1))))))
 
     (cond ((realp x)
-           (values (/ x 2) (rate (/ x 2))))
+           (values (/ x 2) (rate (/ x 2)) t))
+
           (t 
     (let* ((z (sqrt (/ (- x 1) (- (conjugate x) 1))))
            (z1 (if (zerop (- 1 z))
@@ -74,12 +76,12 @@
                    1)))
       (cond ((and z1 z2)
              (if (< r1 r2)
-                 (values z1 r1)
-                 (values z2 r2)))
+                 (values z1 r1 nil)
+                 (values z2 r2 nil)
             (z1
-             (values z1 r1))
+             (values z1 r1 nil)
             (t
-             (values z2 r2))))))))
+             (values z2 r2 nil)))))))))))
 
 #|
 Here z is any complex number that allows convergence:
@@ -97,38 +99,73 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
  |#
 
 (defun f21-numeric (a b c x)
-  (multiple-value-bind (z initial-rate)
-      (choose-z (bigfloat::to x))
+  (let* ((x-pfaff (/ x (- x 1))))
 
-    (maxima::mtell "rate = ~M ~%" initial-rate)
+    (multiple-value-bind (z expo-rate real-case)
+        (choose-z (bigfloat::to x))
 
-    (flet ((score (a b c)
-             (max (realpart (+ b (- c) a -1)) (realpart (+ a -1 (- b))))))
+      (let ((z-pfaff (choose-z (bigfloat::to x-pfaff))))
 
-      (let* ((candidates
-               (list
-                 (list a b c x z)                   ; as is
-                 (list b a c x z)                   ; swab a & b
-                 (list (- c a) b c (/ x (- x 1)) z) ; Pfaff transform
-                 (list (- c b) a c (/ x (- x 1)) z) ; swapped Pfaff transform
-                 (list (- c b) (- c a) c x z)       ; Euler transform
-                 (list (- c a) (- c b) c x z)))     ; swapped Euler transform
+        (flet ((score (a b c)
+                 (max (realpart (+ b (- c) a -1))
+                      (realpart (+ a -1 (- b))))))
 
-             (best
-               (reduce
-                 (lambda (best candidate)
-                   (if (> (score (first candidate)
-                                 (second candidate)
-                                 (third candidate))
-                          (score (first best)
-                                 (second best)
-                                 (third best)))
-                       candidate
-                       best))
-                 (rest candidates)
-                 :initial-value (first candidates))))
+          (let* ((candidates
+                   (list
+                     ;; plain
+                     (list a b c x z real-case :plain)
 
-        (apply #'f21-numeric-helper best)))))
+                     ;; swap
+                     (list b a c x z real-case :plain)
+
+                     ;; Pfaff
+                     (list (- c a) b c x-pfaff z-pfaff real-case :pfaff-b)
+
+                     ;; swapped Pfaff
+                     (list a (- c b) c x-pfaff z-pfaff real-case :pfaff-a)
+
+                     ;; Euler
+                     (list (- c a) (- c b) c x z real-case :euler)
+
+                     ;; swapped Euler
+                     (list (- c b) (- c a) c x z real-case :euler)))
+
+                 (best
+                   (reduce
+                     (lambda (best candidate)
+                       (if (> (score (first candidate)
+                                     (second candidate)
+                                     (third candidate))
+                              (score (first best)
+                                     (second best)
+                                     (third best)))
+                           candidate
+                           best))
+                     (rest candidates)
+                     :initial-value (first candidates))))
+
+            (destructuring-bind
+                (aa bb cc xx zz rr transform)
+                best
+
+              (let ((qqq
+                      (case transform
+                        (:plain 1)
+
+                        (:pfaff-a (expt (- 1 x) (- a)))
+
+                        (:pfaff-b (expt (- 1 x) (- b)))
+
+                        (:euler (expt (- 1 x) (- c (+ a b))))
+
+                        (otherwise (error "Unknown transform ~A" transform)))))
+
+                (multiple-value-bind (val er ei)
+                    (f21-numeric-helper aa bb cc xx zz rr)
+
+                  (values (* qqq val)
+                          (* (abs qqq) er)
+                          (* (abs qqq) ei)))))))))))
           
 (defun map-abs-onto-complex (x)
   (complex (abs (realpart x)) (abs (imagpart x))))
@@ -136,10 +173,23 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 (defun approx-equal (a b eps)
   (< (abs (- a b)) (* eps (max 1 (abs a) (abs b)))))
 
-(defun f21-numeric-helper (a b c x z)
-  (let* ((h0 1)
-         (h1 (/ (* (- 1 (/ (* b x) (* c z))) z) (- z 1))) ; (1 - bx/(c z)) z /(z-1)
-         (p1 a)
+;; Special casing the real case (that is z = x/2) isn't necessary, but doing so reduces
+;; the number of arithmetic operations and possibly keeps the rounding error smaller. The
+;; special casing increases the testing burden. So be careful to check both cases.
+(defun f21-numeric-helper (a b c x z real-case)
+  (maxima::mtell "a = ~M ; b = ~M ; c = ~M ; x = ~M z = ~M ; real =  ~%" a b c x real-case)
+
+  (let* ((sigma (- 1 (epsilon x))); number just a bit less than one
+         (phi (* (max 1 (abs (/ z (- z x)))) sigma))
+         (h0 1)
+         (h1 (if real-case  
+              (* (- 1 (/ (* 2 b) c)) phi) ; (1-2b/c) phi
+              (* (- 1 (/ (*  b x) (* c z))) phi))) ; (1 - bx/(cz)) phi
+         
+         (p1 (if real-case
+              (/ (* a x) (- x 2))
+              (/ (* a z) (- z 1))))
+
          (s (+ h0 (* p1 h1)))
          (c-comp 0)
          (repeat-count 0)
@@ -150,16 +200,23 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
          (ap1 (+ a 1))
          (cp1 (+ c 1))
 
-         (w1 (/ (* z  (- z x)) (* zm1 zm1)))
-         (w3 (/ (+ (* c z) (* 2 z) (* -1 b x) (- x)) zm1))
-         ;; for the real case w4 is zero. Presumably for this case, w4 will be zero, not a smidgen away 
-         ;; from zero? Surely for binary floats this is true.
-         (w4 (/ (- (* 2 z) x) zm1))
+         (w1 (if real-case
+              (* phi phi)                 ; phi^2
+              (/ (* (- z x) phi phi) z))) ; (z-x) phi^2 / z
+
+         ;; no w2 because w2 = w1.
+         (w3 (if real-case
+             (* (- c (* 2 b)) phi)                                  ; (c - 2b) phi
+             (/ (* (+ (* c z) (* 2 z) (* (- b) x) (- x)) phi) z)))  ; ( c z + 2 z - bx - x) phi
+       
+         (w4 (if real-case
+             0                               ; 0
+             (/ (* (- (* 2 z) x) phi) z)))   ;(2 z -x) phi/z
+         
          (kk 0)
          term-val y-val t-val hs ssave)
-
-    (flet ((next-h (k h0 h1) (/ (- (* (+ w3 (* k w4)) h1)  (* w1 (+ k 1) h0)) (+ k cp1)))
-           (next-cf (k p0) (/ (* (+ ap1 k) p0) (+ k 2))))
+    (flet ((next-h (k h0 h1) (/ (+ (* (+ k 1) w1 h0) (* (+ w3 (* k w4)) h1)) (+ k cp1)))
+           (next-cf (k q) (/ (* z (+ ap1 k) q) (* zm1 phi (+ k 2)))))
 
       ;; --- Main loop ---
       (do ((k 0 (1+ k)))
@@ -171,9 +228,6 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
         (setf h1 (next-h k h0 h1))
         (setf h0 hs)
         (setf p1 (next-cf k p1))
-        ;;;;;;;;;;;;;;
-        ;;;  (maxima::mtell "rate = ~M ~%" (abs (/ h1 h0)))
-        ;;;;;;;;;;;;;;
         (setf ssave s)
         (setf term-val (* p1 h1))
         ;; accumulate the sum of the absolute values of the real & imaginary parts
@@ -203,9 +257,9 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
              (cnst (expt (- 1 z) (- a))))
 
         ;;
-        (maxima::mtell "k = ~M ~%" kk)
-        (maxima::mtell "error real = ~M ~%" error-bound-real)
-        (maxima::mtell "error imag = ~M ~%" error-bound-imag)
+        ;(maxima::mtell "k = ~M ~%" kk)
+        ;(maxima::mtell "error real = ~M ~%" error-bound-real)
+        ;(maxima::mtell "error imag = ~M ~%" error-bound-imag)
         ;;ahh, I haven't blended in cnst with the error bounds
         (values (* cnst s)
                 error-bound-real
