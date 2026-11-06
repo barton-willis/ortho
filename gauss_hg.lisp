@@ -1,117 +1,30 @@
 #|
-Bugs:
+Formerly bugs:
 
-To enable the Lisp debugger set *debugger-hook* to nil.
 (%i57) x1 : gauss_hg(5, 2, 8, 100.1+%i*300);
-
-Maxima encountered a Lisp error:
-
- arithmetic error FLOATING-POINT-OVERFLOW signalled
-Operation was (+ 1.6690773232185854e308 1.07237848571282e308).
-
-Another example:
-
 (%i60) x1 : gauss_hg(5, 2, 8, 10.1 *%i);
 
-Maxima encountered a Lisp error:
+Bugs
 
- arithmetic error FLOATING-POINT-OVERFLOW signalled
-Operation was (+ 1.733359062034563e308 6.881829313606321e307).
+Super fast but not accurate:
 
-Also, I notice that  hypergeometric([5, 2], [400], 1.1 *%i) is terribly slow.
+(%i161) gauss_hg(5, 2, 400, 1.1 *%i);
+terms summed = 656
+error real = 21.300983803696976
+error imag = 13.177664094457308
+(%o161)       - 3.5633407489482256e97 %i - 1.3915927000179146e96
+(%i162) time(%);
+(%o162)                              [0.0]
 
--------------------
+(%i163) hypergeometric([5, 2], [400], 1.1 *%i);
+(%o163)          0.027482674787230012 %i + 0.9993215451548428
+(%i164) time(%);
+(%o164)                           [97.421875]
+
 
 This problem seems to be plagued with ill-conditioning.  The error bounds, determined only from the 
 rounding error from the accumulated sum are too low. 
 
-
-(%i2) fpprec : 16$
-
-(%i3) x16 : gauss_hg(5, 2, 200, 1.1b0 *%i);
-terms summed = 594
-error real = +3.964391636638096b1
-error imag = +5.312288254652886b1
-(%o3)           4.032341784251565b33 %i - 1.045616972502348b34
-(%i4) fpprec : 32$
-
-(%i5) x32 : gauss_hg(5, 2, 200, 1.1b0 *%i);
-terms summed = 828
-error real = +6.5402944902941044264667118802256b1
-error imag = +7.6296680660155295964748721884006b0
-(%o5) 3.2703079633940393576064191971749b18 %i
-                                         + 4.0701663393033246057998071736287b18
-(%i6) fpprec : 16$
-
-(%i7) x16 : float(gauss_hg(5, 2, 200, 1.1b0 *%i));
-terms summed = 594
-error real = +3.964391636638096b1
-error imag = +5.312288254652886b1
-(%o7)           4.032341784251565e33 %i - 1.0456169725023476e34
-(%i8) fpprec : 32$
-
-(%i9) x32 : float(gauss_hg(5, 2, 200, 1.1b0 *%i));
-terms summed = 828
-error real = +6.5402944902941044264667118802256b1
-error imag = +7.6296680660155295964748721884006b0
-(%o9)          3.2703079633940393e18 %i + 4.0701663393033247e18
-(%i10) fpprec : 64$
-
-(%i11) x64 : float(gauss_hg(5, 2, 200, 1.1b0 *%i));
-terms summed = 1132
-error real =
-        +1.636614337823691036448489113237187224569684257966264544478455207b-16
-error imag =
-        +4.030680430582487471372204432375245898011500395967579183879851287b-16
-(%o11)            1875.9977507270698 %i - 2607.4902414326107
-(%i12) fpprec : 128$
-
-(%i13) x128 : float(gauss_hg(5, 2, 200, 1.1b0 *%i));
-terms summed = 1550
-error real = +1.24324658547893373088564084699391615124239097144670068498622428\
-11290083950305609927557321397122280255771235870791940346613358634b-80
-error imag = +3.06188792720834245851115513538429116676912076352760661469296845\
-83725950715725925504995457939311043682446483974316974395722485281b-80
-(%o13)             1875.9977507270698 %i - 2607.490241432611
-
-Standard Maxima is slow and gets a far different answer
-
-(%i14) hypergeometric([5,2],[200],1.1*%i);
-(%o14)            0.05486274978439613 %i + 0.9972984783558563
-(%i15) time(%);
-(%o15)                             [10.5625]
-
-mma gives
-
-N[Hypergeometric2F1[5, 2, 200, 1.1 I], 30] 
-0.997298 + 0.0548627 I
-
------
-I suspect that I've messed up the recursion coefficients for the nonreal case:
-
-(%i95) xe : hypergeometric([2,5],[20], -8.0 + %i*1.0e-8);
-(%o95)          2.004953631830538e-10 %i + 0.13526398783340826
-(%i96) x1 : gauss_hg(2,5,20,-8.0+%i * 1.0e-8);
-terms summed = 292
-error real = 7.933410941903656e-8
-error imag = 2.2841420516612794e-7
-(%o96)         2.0373312686368585e-13 %i + 3.311512399789028e-5
-(%i97) x1-xe;
-(%o97)         - 2.002916300561901e-10 %i - 0.13523087270941037
-(%i98)
-
-I think this has been repaired (sign errors)
-
-(%i102) x1 : gauss_hg(2,5,20,-8.0+%i);
-terms summed = 391
-error real = 1.0036208410074297e-7
-error imag = 1.508782267245387e-7
-(%o102)          0.019810773711150982 %i + 0.13298570780108468
-(%i103) xe : hypergeometric([2,5],[20], -8.0 + %i);
-(%o103)          0.019810775353817225 %i + 0.1329857085454371
-(%i104) x1-xe;
-(%o104)        - 1.642666242612778e-9 %i - 7.443524130401613e-10
-(%i105)
  |#
 
 (in-package :maxima)
@@ -323,6 +236,19 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 
 ;; Notice: real-case only depends on if x is real--it does not depend on the other
 ;; arguments a,b, and c being real.
+
+;; Notes about arithmeatic ordering:
+;;  (a) Let's compute (x-z) phi^2/z as is (no expanding). When z/2 < x < 2 z, the subtraction x-z is done
+;;      with no rounding (I think Sterbenz's Lemma)
+
+;;  (b) Similarly we'll keep (2z -x) phi/z factored
+
+;;  (c) Let's compute  ( (c z + 2 z) - (b x + x)) phi / z as it is, not as ( (c + 2) z - (b+1) x) phi /z or ...
+;;      I should think about this more.
+;;  
+;;  (d) Evaluate ((k+1) w1 h0 + (w3 + k w4) h1)/(k+cp)as is. Some would partially factor the
+;;      numerator with respect to k.
+
 (defun f21-numeric-helper (a b c x z real-case)
   (let* ((sigma (- 1 (epsilon x))); number just a bit less than one
          (phi (* (max 1 (abs (/ z (- z x)))) sigma))
@@ -353,7 +279,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
          ;; no w2 because w2 = w1.
          (w3 (if real-case
              (* (- c (* 2 b)) phi)                                  ; (c - 2b) phi
-             (/ (* (+ (* c z) (* 2 z) (* (- b) x) (- x)) phi) z)))  ; ( c z + 2 z - bx - x) phi
+            (/ (* (- (+ (* c z) (* 2 z)) (+ (* b x) x)) phi) z)))  ; ( c z + 2 z - bx - x) phi / z
        
          (w4 (if real-case
              0                               ; 0
@@ -366,7 +292,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 
       ;; --- Main loop ---
       (do ((k 0 (1+ k)))
-          ((>= repeat-count 5))
+          ((>= repeat-count 3))
         (setq kk k)
 
         ;; Save previous h_k
@@ -376,9 +302,6 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
         (setf p1 (next-cf k p1))
         (setf ssave s)
         (setf term-val (* p1 h1))
-
-        ;(maxima::mtell "k = ~M ; h1 = ~M ~%" k h1)
-        ;(maxima::mtell "p1 = ~M ~%" p1)
         ;; accumulate the sum of the absolute values of the real & imaginary parts
         (setf sum-abs (+ sum-abs (map-abs-onto-complex term-val)))
         ;; Kahan accumulation
