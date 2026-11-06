@@ -25,6 +25,16 @@ error imag = 13.177664094457308
 This problem seems to be plagued with ill-conditioning.  The error bounds, determined only from the 
 rounding error from the accumulated sum are too low. 
 
+(%i43) gauss_hg(5, 2, 4000, 0.9);
+sigma = 0.9999999999999991
+Maxima encountered a Lisp error:
+
+ arithmetic error FLOATING-POINT-OVERFLOW signalled
+Operation was (* 1.0201699566444049e305 -18787.500000000004).
+
+Automatically continuing.
+
+
  |#
 
 (in-package :maxima)
@@ -250,7 +260,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 ;;      numerator with respect to k.
 
 (defun f21-numeric-helper (a b c x z real-case)
-  (let* ((sigma (- 1 (epsilon x))); number just a bit less than one
+  (let* ((sigma (- 1 (* 8 (epsilon x)))); number just a bit less than one
          (phi (* (max 1 (abs (/ z (- z x)))) sigma))
         
          (h0 1)
@@ -290,6 +300,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
     (flet ((next-h (k h0 h1) (/ (+ (* (+ k 1) w1 h0) (* (+ w3 (* k w4)) h1)) (+ k cp1)))
            (next-cf (k q) (/ (* z (+ ap1 k) q) (* zm1 phi (+ k 2)))))
 
+     (maxima::mtell "sigma = ~M ~%" sigma)
       ;; --- Main loop ---
       (do ((k 0 (1+ k)))
           ((>= repeat-count 3))
@@ -302,6 +313,8 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
         (setf p1 (next-cf k p1))
         (setf ssave s)
         (setf term-val (* p1 h1))
+
+       ;;; (maxima::mtell "h1 = ~M ~%" h1)
         ;; accumulate the sum of the absolute values of the real & imaginary parts
         (setf sum-abs (+ sum-abs (map-abs-onto-complex term-val)))
         ;; Kahan accumulation
@@ -316,23 +329,23 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
             (setf repeat-count 0)))
 
       ;; --- Compute error bounds ---
-      (let* ((error-bound-real
-               (/ (* 2 macheps
+      (let* ((cnst (expt (- 1 z) (- a)))
+            (error-bound-real
+               (/ (* 2 macheps (abs (realpart cnst))
                      (realpart sum-abs))
                   (max macheps
                        (abs (realpart s)))))
              (error-bound-imag
-               (/ (* 2 macheps
+               (/ (* 2 macheps (abs (imagpart cnst))
                      (imagpart sum-abs))
                   (max macheps
-                       (abs (imagpart s)))))
-             (cnst (expt (- 1 z) (- a))))
+                       (abs (imagpart s))))))
+            
 
         ;;
         (maxima::mtell "terms summed = ~M ~%" kk)
         (maxima::mtell "error real = ~M ~%" error-bound-real)
         (maxima::mtell "error imag = ~M ~%" error-bound-imag)
-        ;;ahh, I haven't blended in cnst with the error bounds
         (values (* cnst s)
                 error-bound-real
                 error-bound-imag)))))
