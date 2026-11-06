@@ -35,21 +35,47 @@
 
 ;; (b) needs protection against c a negative integer.
 ;; (b) should detect some special cases and dispatch specialized code
+
+(defun terminating-before-pole-p (u c)
+  (and (integerp u)
+       (<= u 0)
+       (< (- u) (- 1 c))))
+
+(defun hg-denominator-pole-p (a b c)
+  (and (integerp c)
+       (<= c 0)
+       (not (or (terminating-before-pole-p a c)
+                (terminating-before-pole-p b c)))))
+
 (defmfun $gauss_hg (a b c x)
-    (let ((one (multiplicative-identity  a b c x)))
-      (setq a (orthopoly-number-coerce a one)
-            b  (orthopoly-number-coerce b one)
-            c  (orthopoly-number-coerce c one)
-            x  (orthopoly-number-coerce x one))
+   ;; Check for an undefined case--not a polynomial case and a negative integer value for c.
+   (when (hg-denominator-pole-p a b c)
+     (maxima::merror
+          (intl:gettext
+            "gauss_hg(~M,~M,~M,~M) is undefined because ~M is a nonpositive integer.") a b c x c))
 
-     ;(mtell "a = ~M ; b = ~M ; c = ~M ; x = ~M ~%" a b c x)
+    (let* ((one (multiplicative-identity a b c x))
+           (aa (bigfloat::to (orthopoly-number-coerce a one)))
+           (bb (bigfloat::to (orthopoly-number-coerce b one)))
+           (cc (bigfloat::to (orthopoly-number-coerce c one)))
+           (xx (bigfloat::to (orthopoly-number-coerce x one)))
+           (hg-elem (bigfloat::gauss-hg-elementary-case aa bb cc xx)))
 
-    (multiple-value-bind (f e1 e2)
-      (bigfloat::f21-numeric (bigfloat::to a) (bigfloat::to b) (bigfloat::to c) (bigfloat::to x))
-      ;(mtell "e1 = ~M ; e2 = ~M ~%" e1 e2)
-      (maxima::to f))))
+      (if hg-elem
+          (maxima::to hg-elem)
+      (multiple-value-bind (f e1 e2)
+          (bigfloat::f21-numeric aa bb cc xx)
+        (declare (ignore e1 e2))
+        (maxima::to f)))))
 
 (in-package #:bigfloat)
+
+;; check for special cases
+(defun gauss-hg-elementary-case (a b c x)
+  (cond
+    ((equal a c) (expt (- 1 x) (- b)))
+    ((equal b c) (expt (- 1 x) (- a)))
+    (t nil)))
 
 (defun choose-z (x)
   (flet ((rate (z)
@@ -176,9 +202,10 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 ;; Special casing the real case (that is z = x/2) isn't necessary, but doing so reduces
 ;; the number of arithmetic operations and possibly keeps the rounding error smaller. The
 ;; special casing increases the testing burden. So be careful to check both cases.
-(defun f21-numeric-helper (a b c x z real-case)
-  (maxima::mtell "a = ~M ; b = ~M ; c = ~M ; x = ~M z = ~M ; real =  ~%" a b c x real-case)
 
+;; Notice: real-case only depends on if x is real--it does not depend on the other
+;; arguments a,b, and c being real.
+(defun f21-numeric-helper (a b c x z real-case)
   (let* ((sigma (- 1 (epsilon x))); number just a bit less than one
          (phi (* (max 1 (abs (/ z (- z x)))) sigma))
          (h0 1)
