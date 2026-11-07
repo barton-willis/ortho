@@ -32,6 +32,9 @@ Maxima encountered a Lisp error:
  arithmetic error FLOATING-POINT-OVERFLOW signalled
 Operation was (* 1.0201699566444049e305 -18787.500000000004).
 
+Plus hypergeometric([5, 2], [4000], 0.9) is slow.  Ahh, I thought that large 'c' gives good 
+converence.  Do I have something backwards?
+
 Automatically continuing.
 
 
@@ -227,19 +230,20 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 
                         (otherwise (error "Unknown transform ~A" transform)))))
 
-                (multiple-value-bind (val er ei)
+                (multiple-value-bind (val success-p)
                     (f21-numeric-helper aa bb cc xx zz rr)
 
-                  (values (* qqq val)
-                          (* (abs qqq) er)
-                          (* (abs qqq) ei)))))))))))
-          
+                  (values (* qqq val) success-p))))))))))
+
 (defun map-abs-onto-complex (x)
   (complex (abs (realpart x)) (abs (imagpart x))))
 
 (defun approx-equal (a b eps)
-  (< (abs (- a b)) (* eps (max 1 (abs a) (abs b)))))
-
+  (flet ((modified-relative-difference (a b)
+          (< (abs (- a b)) (* eps (max 1 (abs a) (abs b))))))
+    (and 
+      (modified-relative-difference (realpart a) (realpart b))
+      (modified-relative-difference (imagpart a) (imagpart b)))))
 ;; Special casing the real case (that is z = x/2) isn't necessary, but doing so reduces
 ;; the number of arithmetic operations and possibly keeps the rounding error smaller. The
 ;; special casing increases the testing burden. So be careful to check both cases.
@@ -275,7 +279,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
          (s (+ h0 (* p1 h1)))
          (c-comp 0)
          (repeat-count 0)
-         ;;(tol (epsilon x)) need to hook into this
+         (tol (* 128 (epsilon x))) ;; 128 is a "magic number"
          (sum-abs 0)
          (macheps (epsilon x))
          (zm1 (- z 1))
@@ -323,30 +327,27 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
         (setf c-comp (- (- t-val s) y-val))
         (setf s t-val)
 
-        ;; Convergence check
+        ;; Convergence check--maybe this should be more closely tied to the asymptotics?
         (if (approx-equal s ssave macheps)
             (incf repeat-count)
             (setf repeat-count 0)))
 
-      ;; --- Compute error bounds ---
+      ;; --- Compute error bounds --- This isn't correct for the complex case.
       (let* ((cnst (expt (- 1 z) (- a)))
             (error-bound-real
-               (/ (* 2 macheps (abs (realpart cnst))
-                     (realpart sum-abs))
-                  (max macheps
-                       (abs (realpart s)))))
-             (error-bound-imag
-               (/ (* 2 macheps (abs (imagpart cnst))
-                     (imagpart sum-abs))
-                  (max macheps
-                       (abs (imagpart s))))))
-            
+               (/ (* 2 macheps  (realpart sum-abs))
+                  (max macheps (abs (realpart s)))))
 
-        ;;
+             (error-bound-imag
+               (/ (* 2 macheps (imagpart sum-abs))
+                  (max macheps (abs (imagpart s)))))
+                
+             (success-p 
+                (and (<= error-bound-real tol)
+                     (<= error-bound-imag tol))))
+
         (maxima::mtell "terms summed = ~M ~%" kk)
         (maxima::mtell "error real = ~M ~%" error-bound-real)
         (maxima::mtell "error imag = ~M ~%" error-bound-imag)
-        (values (* cnst s)
-                error-bound-real
-                error-bound-imag)))))
+        (values (* cnst s) success-p)))))
 
