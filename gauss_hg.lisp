@@ -102,9 +102,9 @@ Automatically continuing.
            (cc (bigfloat::to (orthopoly-number-coerce c one)))
            (xx (bigfloat::to (orthopoly-number-coerce x one)))
            (hg-elem (bigfloat::gauss-hg-elementary-case aa bb cc xx))
-           (requested-bits (if ($bfloatp xx)
+           (requested-bits (if ($bfloatp (maxima::to (bigfloat::realpart xx)))
                                fpprec
-                               (float-digits (realpart xx)))))
+                               (float-digits (maxima::to (bigfloat::realpart xx))))))
 
       (if hg-elem
           (maxima::to hg-elem)
@@ -174,8 +174,6 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 
     (multiple-value-bind (z expo-rate real-case)
         (choose-z (bigfloat::to x))
-
-    (print `(z = ,z))
 
     (when (> expo-rate 0.9999)
       (maxima::merror (intl:gettext "Exponential rate = ~M ; series converges too slowly") expo-rate))
@@ -256,21 +254,69 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 ;; Notice: real-case only depends on if x is real--it does not depend on the other
 ;; arguments a,b, and c being real.
 
-;; Notes about arithmeatic ordering:
+;; Notes about arithmetic ordering:
+
 ;;  (a) Let's compute (x-z) phi^2/z as is (no expanding). When z/2 < x < 2 z, the subtraction x-z is done
 ;;      with no rounding (I think Sterbenz's Lemma)
 
 ;;  (b) Similarly we'll keep (2z -x) phi/z factored
 
-;;  (c) Let's compute  ( (c z + 2 z) - (b x + x)) phi / z as it is, not as ( (c + 2) z - (b+1) x) phi /z or ...
-;;      I should think about this more.
+;;  (c) Let's compute  ( (c + 2) z - (b + 1) x)) phi / z as it is, but maybe factoring out a z would be better?
 ;;  
-;;  (d) Evaluate ((k+1) w1 h0 + (w3 + k w4) h1)/(k+cp)as is. Some would partially factor the
+;;  (d) Evaluate ((k+1) w1 h0 + (w3 + k w4) h1)/(k+cp) as is. Some would partially factor the
 ;;      numerator with respect to k.
 
+;; Notes about phi
+
+;;  A fundamental solution set (FSS) for the asymptotic solutions to the recreance for k -> 2f1(-k,b,c,x/z) is
+;;
+;;    {k -> ((z-x)/z)^k k^(b-c), k -> k^(-b)}.
+;;
+;; For convergence, we need |(z-x)/z| < 1, so the first member of the FSS decreases exponentially. For stability,
+;; we need the second member to also decrease. This requires that Re(br) > 0. When Re(br) < 0, we need to
+;; use a trick. For this case, we recursively compute k -> phi 2F1(-k,b,c,x/z), where phi is a nonzero 
+;; complex number. Now a FSS is
+;;
+;;    {k -> phi^k ((z-x)/z)^k k^(b-c), k -> phi^k k^(-b)}.
+;;
+;; For convergence we already have |(z-x)/z|< 1, so we only need to choose |phi| < 1.  Of course, to 
+;; compensate for phi in the hypergeometric term, the term pochhammer(a,k) * (z/(z-1))^k / k! needs
+;; a factor of 1/phi.  The value of phi does not affect convergence, just the stability of the recursion
+;; for the hypergeometric term.
+
+;; Conjecture: Making |phi| << 1 could possibly make the term k -> phi 2f1(-k,b,c,x/z) decrease very
+;; fast and the other factor k -> pochhammer(a,k) (z/(z-1))^k / (phi^k k!) grow very fast. This could
+;; cause problems with overflow or underflow. We'll take |phi| to be very close to one.
+
+;; One last tiny refinement: Including phi, for the real case (including all arguments real)
+;; the recursion for the hypergeometric term is
+;; 
+;;  hh(k+2)=((k+1)*hh(k)*phi^2+(c-2*b)*hh(k+1)*phi)/(k+c+1)
+;;
+;; To avoid subtractive cancellation in the numerator, its best to require that
+;;  
+;;   sign((k+1) phi^2) = (sign((c-2b) phi)
+;;
+;; So we would like sign(phi) = sign(c-2b). We'll include this tiny refinement. But I don't
+;; have an example where all this matters.
+
+;; The refinement in the value of phi is done according to asymptotics, but the bulk of the 
+;; ill conditioning happens long before the asymptotic solution settles in.  So no, altering phi 
+;; is fun, but it doesn't fix this problem.
+
+;; Last observation:  When c = 2 b, z = x/2, the recursion is simply
+;;
+;;    hh(k+2)=((k+1)*hh(k)*phi^2)/(k+2*b+1)
+;; 
 (defun f21-numeric-helper (a b c x z real-case)
-  (let* ((sigma (- 1 (* 8 (epsilon x)))); number just a bit less than one
-         (phi (* (max 1 (abs (/ z (- z x)))) sigma))
+  (let* ((phi (* 
+               (if (> (realpart b) 0)
+                  1
+                  (- 1 (* 8 (epsilon x)))) ; the "8" is a magic number
+
+              (if (and real-case (realp c) (realp b) (< (realpart (- c (* 2 b))) 0))
+                  -1
+                  1)))
         
          (h0 1)
          (h1 (if real-case  
@@ -297,9 +343,8 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 
          ;; no w2 because w2 = w1.
          (w3 (if real-case
-             (* (- c (* 2 b)) phi)                                  ; (c - 2b) phi
-            (/ (* (- (+ (* c z) (* 2 z)) (+ (* b x) x)) phi) z)))  ; ( c z + 2 z - bx - x) phi / z
-       
+             (* (- c (* 2 b)) phi)                          ; (c - 2b) phi
+            (/ (* (- (* (+ c 2) z) (+ (* b x) x)) phi) z))) ; ( c z + 2 z - bx - x) phi / z
          (w4 (if real-case
              0                               ; 0
              (/ (* (- (* 2 z) x) phi) z)))   ;(2 z -x) phi/z
@@ -308,7 +353,6 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
          term-val y-val t-val hs ssave)
     (flet ((next-h (k h0 h1) (/ (+ (* (+ k 1) w1 h0) (* (+ w3 (* k w4)) h1)) (+ k cp1)))
            (next-cf (k q) (/ (* z (+ ap1 k) q) (* zm1 phi (+ k 2)))))
-   ;;;  (maxima::mtell "sigma = ~M ~%" sigma)
       ;; --- Main loop ---
       (do ((k 0 (1+ k)))
           ((>= repeat-count 3))
@@ -322,7 +366,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
         (setf ssave s)
         (setf term-val (* p1 h1))
 
-       ;;; (maxima::mtell "h1 = ~M ~%" h1)
+        (maxima::mtell "h1/h0 = ~M ; expected = ~M ~%" (/ h1 h0) (* phi (/ (- z x) z)))
         ;; accumulate the sum of the absolute values of the real & imaginary parts
         (setf sum-abs (+ sum-abs (map-abs-onto-complex term-val)))
         ;; Kahan accumulation
@@ -332,7 +376,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
         (setf s t-val)
 
         ;; Convergence check--maybe this should be more closely tied to the asymptotics?
-        (if (approx-equal s ssave macheps)
+        (if (approx-equal s ssave tol)
             (incf repeat-count)
             (setf repeat-count 0)))
 
