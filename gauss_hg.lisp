@@ -101,13 +101,16 @@ Automatically continuing.
            (bb (bigfloat::to (orthopoly-number-coerce b one)))
            (cc (bigfloat::to (orthopoly-number-coerce c one)))
            (xx (bigfloat::to (orthopoly-number-coerce x one)))
-           (hg-elem (bigfloat::gauss-hg-elementary-case aa bb cc xx)))
+           (hg-elem (bigfloat::gauss-hg-elementary-case aa bb cc xx))
+           (requested-bits (if ($bfloatp xx)
+                               fpprec
+                               (float-digits (realpart xx)))))
 
       (if hg-elem
           (maxima::to hg-elem)
-      (multiple-value-bind (f e1 e2)
+      (multiple-value-bind (f bits)
           (bigfloat::f21-numeric aa bb cc xx)
-        (declare (ignore e1 e2))
+        (declare (ignore bits))
         (maxima::to f)))))
 
 (in-package #:bigfloat)
@@ -172,6 +175,8 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
     (multiple-value-bind (z expo-rate real-case)
         (choose-z (bigfloat::to x))
 
+    (print `(z = ,z))
+
     (when (> expo-rate 0.9999)
       (maxima::merror (intl:gettext "Exponential rate = ~M ; series converges too slowly") expo-rate))
 
@@ -217,7 +222,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
             (destructuring-bind
                 (aa bb cc xx zz rr transform)
                 best
-               ;(maxima::mtell "transform = ~M ~%" transform)
+               (maxima::mtell "transform = ~M ~%" transform)
               (let ((qqq
                       (case transform
                         (:plain 1)
@@ -230,10 +235,10 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 
                         (otherwise (error "Unknown transform ~A" transform)))))
 
-                (multiple-value-bind (val success-p)
+                (multiple-value-bind (val bits)
                     (f21-numeric-helper aa bb cc xx zz rr)
 
-                  (values (* qqq val) success-p))))))))))
+                  (values (* qqq val) bits))))))))))
 
 (defun map-abs-onto-complex (x)
   (complex (abs (realpart x)) (abs (imagpart x))))
@@ -303,8 +308,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
          term-val y-val t-val hs ssave)
     (flet ((next-h (k h0 h1) (/ (+ (* (+ k 1) w1 h0) (* (+ w3 (* k w4)) h1)) (+ k cp1)))
            (next-cf (k q) (/ (* z (+ ap1 k) q) (* zm1 phi (+ k 2)))))
-
-     (maxima::mtell "sigma = ~M ~%" sigma)
+   ;;;  (maxima::mtell "sigma = ~M ~%" sigma)
       ;; --- Main loop ---
       (do ((k 0 (1+ k)))
           ((>= repeat-count 3))
@@ -332,22 +336,24 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
             (incf repeat-count)
             (setf repeat-count 0)))
 
-      ;; --- Compute error bounds --- This isn't correct for the complex case.
+      ;; --- Compute success or failure using the Kahan summation error bound.
+      (flet ((correct-bits (err f)
+               (if (<= err tol)
+                     (- (log tol 2))
+                     (max 0 (- (log (abs (/ err f)) 2))))))
+
       (let* ((cnst (expt (- 1 z) (- a)))
-            (error-bound-real
-               (/ (* 2 macheps  (realpart sum-abs))
-                  (max macheps (abs (realpart s)))))
+             (error-bound-real (* 2 macheps  (realpart sum-abs))) ; absolute error, not relative error
+             (error-bound-imag (* 2 macheps (imagpart sum-abs)))
+             (bits (min 
+                     (correct-bits error-bound-real (realpart s))
+                      (correct-bits error-bound-imag (imagpart s)))))
 
-             (error-bound-imag
-               (/ (* 2 macheps (imagpart sum-abs))
-                  (max macheps (abs (imagpart s)))))
-                
-             (success-p 
-                (and (<= error-bound-real tol)
-                     (<= error-bound-imag tol))))
-
+        (maxima::mtell "s = ~M ~%" (maxima::$float (maxima::to s)))
+        (maxima::mtell "sum-abs = ~M ~%" (maxima::$float (maxima::to sum-abs)))
         (maxima::mtell "terms summed = ~M ~%" kk)
-        (maxima::mtell "error real = ~M ~%" error-bound-real)
-        (maxima::mtell "error imag = ~M ~%" error-bound-imag)
-        (values (* cnst s) success-p)))))
+       
+        (let ((bbits (maxima::$round (maxima::to bits))))
+            (maxima::mtell "bits = ~M ~%" bbits)
+            (values (* cnst s) bbits)))))))
 
