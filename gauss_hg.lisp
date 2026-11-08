@@ -308,6 +308,9 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 ;;
 ;;    hh(k+2)=((k+1)*hh(k)*phi^2)/(k+2*b+1)
 ;; 
+;; Kahan summation: This code uses Kahan summation for the main summation loop. This method does not 
+;; convert an ill-conditioned sum into a well conditioned sum. A compiler that doesn't respect associativity 
+;; might simplify the  compensation away.
 (defun f21-numeric-helper (a b c x z real-case)
   (let* ((phi (* 
                (if (> (realpart b) 0)
@@ -366,7 +369,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
         (setf ssave s)
         (setf term-val (* p1 h1))
 
-        (maxima::mtell "h1/h0 = ~M ; expected = ~M ~%" (/ h1 h0) (* phi (/ (- z x) z)))
+        ;;;(maxima::mtell "h1/h0 = ~M ; expected = ~M ~%" (/ h1 h0) (* phi (/ (- z x) z)))
         ;; accumulate the sum of the absolute values of the real & imaginary parts
         (setf sum-abs (+ sum-abs (map-abs-onto-complex term-val)))
         ;; Kahan accumulation
