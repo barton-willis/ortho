@@ -113,6 +113,8 @@ Automatically continuing.
         (declare (ignore bits))
         (maxima::to f)))))
 
+
+
 (in-package #:bigfloat)
 
 ;; check for special cases
@@ -404,3 +406,89 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
             (maxima::mtell "bits = ~M ~%" bbits)
             (values (* cnst s) bbits)))))))
 
+#|
+
+The series sum wins sometimes over gauss_hg
+
+(%i27) (aa : 2, bb : 6, cc : 70, xx : 0.9*%i);
+(%o27)                              0.9 %i
+
+(%i28) xe : hypergeometric([aa,bb],[cc],xx);
+(%o28)            0.1516017654887769 %i + 0.9798362433799584
+
+(%i29) x1 : gauss_hg(aa,bb,cc,xx);
+transform = pfaff-b
+s = 0.053356168931545385 %i - 0.013752611438220073
+sum-abs = 1.5429888247327524e12 %i + 1.542988828337976e12
+terms summed = 166
+bits = 5
+(%o29)            0.15196637842309396 %i + 0.
+
+(%i30) x2 : gauss_series(aa,bb,cc,xx);
+(%o30)            0.1516017654887769 %i + 0.9798362433799583
+(%i31) [x1-xe, x2-xe];
+(%o31) [3.6461293431705455e-4 %i + 5.045130503337214e-4,
+                                                      - 1.1102230246251565e-16]
+
+
+ |#
+
+
+
+(defun hypergeometric-2f1-series (a b c x)
+  (labels ((kahan-add (term sum comp)
+             (let* ((y (- term comp))
+                    (new-sum (+ sum y))
+                    (new-comp (- (- new-sum sum) y)))
+               (values new-sum new-comp))))
+
+    (let ((term 1)
+          (sum 1)
+          (sum-abs 1)
+          (comp 0)
+          (repeat-count 0)
+          (sum-save)
+          (tol (* 128 (epsilon x))) ;; 128 is a "magic number"
+          (macheps (epsilon x))
+          (kk 0))
+
+         (do ((k 0 (1+ k)))
+          ((>= repeat-count 3))
+          (setf term (* term (/ (* (+ a k) (+ b k) x) (* (+ c k) (+ k 1)))))
+          ;; Running absolute sum for error estimation.
+          (setf sum-abs (+ sum-abs (map-abs-onto-complex term)))
+          ;; Kahan summation.
+          (setq sum-save sum)
+          (multiple-value-setq (sum comp)
+            (kahan-add term sum comp))
+        ;; Require several consecutive equal
+        (if (eql sum sum-save)
+            (incf repeat-count)
+            (setf repeat-count 0)))
+
+          (flet ((correct-bits (err f)
+               (if (<= err tol)
+                     (- (log tol 2))
+                     (max 0 (- (log (abs (/ err f)) 2))))))
+
+      (let* ((error-bound-real (* 2 macheps  (realpart sum-abs))) ; absolute error, not relative error
+             (error-bound-imag (* 2 macheps (imagpart sum-abs)))
+             (bits (min 
+                     (correct-bits error-bound-real (realpart sum))
+                      (correct-bits error-bound-imag (imagpart sum)))))
+
+        (let ((bbits (maxima::$round (maxima::to bits))))
+            (values sum bbits)))))))
+
+(in-package :maxima)
+
+(defmfun $gauss_series (a b c x)
+  (multiple-value-bind (f bits)
+      (bigfloat::hypergeometric-2f1-series
+       (bigfloat::to a)
+       (bigfloat::to b)
+       (bigfloat::to c)
+       (bigfloat::to x))
+    (mtell "bits  ~M ~%" bits)
+    (maxima::to f)))
+      
