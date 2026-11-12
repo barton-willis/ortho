@@ -14,7 +14,7 @@ error real = 21.300983803696976
 error imag = 13.177664094457308
 (%o161)       - 3.5633407489482256e97 %i - 1.3915927000179146e96
 (%i162) time(%);
-(%o162)                              [0.0]
+(%o162)                              [0.0]gauss_hg(5, 2, 400, 1.1 *%i);
 
 (%i163) hypergeometric([5, 2], [400], 1.1 *%i);
 (%o163)          0.027482674787230012 %i + 0.9993215451548428
@@ -106,6 +106,8 @@ Automatically continuing.
                                fpprec
                                (float-digits (maxima::to (bigfloat::realpart xx))))))
 
+      (declare (ignore requested-bits))
+
       (if hg-elem
           (maxima::to hg-elem)
       (multiple-value-bind (f bits)
@@ -113,9 +115,14 @@ Automatically continuing.
         (declare (ignore bits))
         (maxima::to f)))))
 
-
-
 (in-package #:bigfloat)
+
+(defparameter *hg-debug* t)
+
+(defmacro hg-debug (fmt &rest args)
+  `(when *hg-debug*
+     (maxima::mtell ,fmt ,@args)))
+
 
 ;; check for special cases
 (defun gauss-hg-elementary-case (a b c x)
@@ -182,37 +189,30 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 
       (let ((z-pfaff (choose-z (bigfloat::to x-pfaff))))
 
-        (flet ((score (a b c)
+        (flet ((algebraic-growth (a b c)
                  (max (realpart (+ b (- c) a -1))
                       (realpart (+ a -1 (- b))))))
 
           (let* ((candidates
                    (list
-                     ;; plain
-                     (list a b c x z real-case :plain)
+                     ;; plain-1 & plain-2
+                     (list a b c x z real-case :plain-1)
+                     (list b a c x z real-case :plain-2)
 
-                     ;; swap
-                     (list b a c x z real-case :plain)
+                     ;; pfaff-1 & pfaff-2
+                     (list b (- c a) c x-pfaff z-pfaff real-case :pfaff-1)
+                     (list (- c a) b c x-pfaff z-pfaff real-case :pfaff-2)
 
-                     ;; Pfaff
-                     (list (- c a) b c x-pfaff z-pfaff real-case :pfaff-b)
-
-                     ;; swapped Pfaff
-                     (list a (- c b) c x-pfaff z-pfaff real-case :pfaff-a)
-
-                     ;; Euler
-                     (list (- c a) (- c b) c x z real-case :euler)
-
-                     ;; swapped Euler
-                     (list (- c b) (- c a) c x z real-case :euler)))
-
+                     ;; euler-1 * euler-2
+                     (list (- c a) (- c b) c x z real-case :euler-1) 
+                     (list (- c b) (- c a) c x z real-case :euler-2)))
                  (best
                    (reduce
                      (lambda (best candidate)
-                       (if (> (score (first candidate)
+                       (if (< (algebraic-growth (first candidate)
                                      (second candidate)
                                      (third candidate))
-                              (score (first best)
+                              (algebraic-growth (first best)
                                      (second best)
                                      (third best)))
                            candidate
@@ -222,17 +222,15 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
             (destructuring-bind
                 (aa bb cc xx zz rr transform)
                 best
-               (maxima::mtell "transform = ~M ~%" transform)
+               (hg-debug "transform = ~M ~%" transform)
               (let ((qqq
                       (case transform
-                        (:plain 1)
-
-                        (:pfaff-a (expt (- 1 x) (- a)))
-
-                        (:pfaff-b (expt (- 1 x) (- b)))
-
-                        (:euler (expt (- 1 x) (- c (+ a b))))
-
+                        (:plain-1 1)
+                        (:plain-2 1)
+                        (:pfaff-1 (expt (- 1 x) (- b)))
+                        (:pfaff-2 (expt (- 1 x) (- b)))
+                        (:euler-1 (expt (- 1 x) (- c (+ a b))))
+                        (:euler-2 (expt (- 1 x ) (- c (+ a b))))
                         (otherwise (error "Unknown transform ~A" transform)))))
 
                 (multiple-value-bind (val bits)
@@ -313,6 +311,13 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 ;; Kahan summation: This code uses Kahan summation for the main summation loop. This method does not 
 ;; convert an ill-conditioned sum into a well conditioned sum. A compiler that doesn't respect associativity 
 ;; might simplify the  compensation away.
+
+(defun kahan-add (sum compensator term)
+  (let* ((y (- term compensator))
+         (new-sum (+ sum y))
+         (new-compensator (- (- new-sum sum) y)))
+    (values new-sum new-compensator)))
+
 (defun f21-numeric-helper (a b c x z real-case)
   (let* ((phi (* 
                (if (> (realpart b) 0)
@@ -371,7 +376,6 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
         (setf ssave s)
         (setf term-val (* p1 h1))
 
-        ;;;(maxima::mtell "h1/h0 = ~M ; expected = ~M ~%" (/ h1 h0) (* phi (/ (- z x) z)))
         ;; accumulate the sum of the absolute values of the real & imaginary parts
         (setf sum-abs (+ sum-abs (map-abs-onto-complex term-val)))
         ;; Kahan accumulation
@@ -398,42 +402,341 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
                      (correct-bits error-bound-real (realpart s))
                       (correct-bits error-bound-imag (imagpart s)))))
 
-        (maxima::mtell "s = ~M ~%" (maxima::$float (maxima::to s)))
-        (maxima::mtell "sum-abs = ~M ~%" (maxima::$float (maxima::to sum-abs)))
-        (maxima::mtell "terms summed = ~M ~%" kk)
+        (hg-debug "s = ~M ~%" (maxima::$float (maxima::to s)))
+        (hg-debug "sum-abs = ~M ~%" (maxima::$float (maxima::to sum-abs)))
+        (hg-debug "terms summed = ~M ~%" kk)
        
         (let ((bbits (maxima::$round (maxima::to bits))))
-            (maxima::mtell "bits = ~M ~%" bbits)
+            (hg-debug "bits = ~M ~%" bbits)
             (values (* cnst s) bbits)))))))
 
+(defun f21-numeric-helper (a b c x z real-case)
+  (let* ((phi (* (if (> (realpart b) 0)
+                     1
+                     (- 1 (* 8 (epsilon x)))) ; the "8" is a magic number
+
+                 (if (and real-case
+                          (realp c)
+                          (realp b)
+                          (< (realpart (- c (* 2 b))) 0))
+                     -1
+                     1)))
+
+         (h0 1)
+
+         (h1 (if real-case
+                 (* (- 1 (/ (* 2 b) c)) phi) ; (1 - 2b/c) phi
+                 (* (- 1 (/ (* b x) (* c z))) phi))) ; (1 - bx/(cz)) phi
+
+         (p1 (if real-case
+                 (/ (* a x) (- x 2))
+                 (/ (* a z) (- z 1))))
+
+         (s (+ h0 (* p1 h1)))
+         (c-comp 0)
+
+         (repeat-count 0)
+         (tol (* 128 (epsilon x))) ; 128 is a "magic number"
+
+         (sum-abs 0)
+         (macheps (epsilon x))
+
+         (zm1 (- z 1))
+         (ap1 (+ a 1))
+         (cp1 (+ c 1))
+
+         (w1 (if real-case
+                 (* phi phi) ; phi^2
+                 (/ (* (- x z) phi phi) z))) ; (x-z) phi^2 / z
+
+         ;; no w2 because w2 = w1.
+         (w3 (if real-case
+                 (* (- c (* 2 b)) phi) ; (c - 2b) phi
+                 (/ (* (- (* (+ c 2) z)
+                          (+ (* b x) x))
+                       phi)
+                    z))) ; ((c+2)z - bx - x) phi / z
+
+         (w4 (if real-case
+                 0
+                 (/ (* (- (* 2 z) x) phi) z))) ; (2z - x) phi / z
+
+         (kk 0)
+         term-val
+         hs
+         ssave)
+
+    (flet ((next-h (k h0 h1)
+             (/ (+ (* (+ k 1) w1 h0)
+                   (* (+ w3 (* k w4)) h1))
+                (+ k cp1)))
+
+           (next-cf (k q)
+             (/ (* z (+ ap1 k) q)
+                (* zm1 phi (+ k 2)))))
+
+      ;; --- Main loop ---
+      (do ((k 0 (1+ k)))
+          ((>= repeat-count 3))
+
+        (setq kk k)
+
+        ;; Save previous h_k
+        (setf hs h1)
+        (setf h1 (next-h k h0 h1))
+        (setf h0 hs)
+
+        (setf p1 (next-cf k p1))
+
+        (setf ssave s)
+
+        (setf term-val (* p1 h1))
+
+        ;; accumulate the sum of the absolute values of the
+        ;; real & imaginary parts
+        (setf sum-abs
+              (+ sum-abs
+                 (map-abs-onto-complex term-val)))
+
+        ;; Kahan accumulation
+        (multiple-value-setq (s c-comp)
+          (kahan-add s c-comp term-val))
+
+        ;; Convergence check--maybe this should be more closely
+        ;; tied to the asymptotics?
+        (if (approx-equal s ssave tol)
+            (incf repeat-count)
+            (setf repeat-count 0)))
+
+      ;; --- Compute success or failure using the Kahan summation error bound.
+      (flet ((correct-bits (err f)
+               (if (<= err tol)
+                   (- (log tol 2))
+                   (max 0
+                        (- (log (abs (/ err f)) 2))))))
+
+        (let* ((cnst (expt (- 1 z) (- a)))
+
+               ;; absolute error, not relative error
+               (error-bound-real
+                 (* 2 macheps (realpart sum-abs)))
+
+               (error-bound-imag
+                 (* 2 macheps (imagpart sum-abs)))
+
+               (bits
+                 (min (correct-bits error-bound-real
+                                    (realpart s))
+                      (correct-bits error-bound-imag
+                                    (imagpart s)))))
+
+          (hg-debug "s = ~M ~%"
+                    (maxima::$float (maxima::to s)))
+
+          (hg-debug "sum-abs = ~M ~%"
+                    (maxima::$float (maxima::to sum-abs)))
+
+          (hg-debug "terms summed = ~M ~%"
+                    kk)
+
+          (let ((bbits (maxima::$round (maxima::to bits))))
+            (hg-debug "bits = ~M ~%" bbits)
+            (values (* cnst s) bbits)))))))
+            
+
+(defun bf-gamma (x)
+  (bigfloat::to
+    (maxima::ftake 'maxima::%gamma
+                   (maxima::to x))))
+
+(defun gamma-quotient (a b c d)
+  "Compute gamma(a) gamma(b)/(gamma(c) gamma(d)) and classify pole situations.
+
+Returns two values:
+
+  value
+    When the quotient can be evaluated return gamma(a) gamma(b)/(gamma(c) gamma(d)) else nil.
+
+  status
+      :finite The quotient was evaluated normally.
+      :zero At least one denominator gamma factor has a pole and each numerator is finite.
+      :exceptional  At least one numerator gamma factor has a pole"
+
+  ;; true iff x isn't in the domain of gamma
+  (flet ((gamma-pole-p (x)
+           (and (integerp x) (<= x 0))))
+
+  (let ((a-pole (gamma-pole-p a))
+        (b-pole (gamma-pole-p b))
+        (c-pole (gamma-pole-p c))
+        (d-pole (gamma-pole-p d)))
+
+    (cond
+
+      ;; denominator pole(s), numerator finite, return 0
+      ((and (or c-pole d-pole)
+            (not a-pole)
+            (not b-pole))
+       (values 0 :zero))
+
+      ;; any numerator pole or mixed pole situation
+      ((or a-pole
+           b-pole)
+       (values nil :exceptional))
+
+      ;; ordinary case
+      (t
+       (values (/ (* (bf-gamma a) (bf-gamma b)) (* (bf-gamma c) (bf-gamma d))) :finite))))))
+
+(defun inner-product-with-error-estimate (a1 a2 x1 x2 bits1 bits2)
+  "Compute a1*x1 + a2*x2."
+  (let* ((term1 (* a1 x1))
+         (term2 (* a2 x2))
+         (value (+ term1 term2))
+
+         (err1 (* (abs term1)
+                  (expt 2 (- bits1))))
+
+         (err2 (* (abs term2)
+                  (expt 2 (- bits2))))
+
+         (abs-error (+ err1 err2))
+
+         (correct-bits
+           (if (<= abs-error 0)
+               107           ; this needs to be fixed
+               (max 0
+                    (floor
+                     (log (/ (abs value)
+                             (max abs-error
+                                  (epsilon value)))
+                          2))))))
+
+    (values value correct-bits)))
+
 #|
-
-The series sum wins sometimes over gauss_hg
-
-(%i27) (aa : 2, bb : 6, cc : 70, xx : 0.9*%i);
-(%o27)                              0.9 %i
-
-(%i28) xe : hypergeometric([aa,bb],[cc],xx);
-(%o28)            0.1516017654887769 %i + 0.9798362433799584
-
-(%i29) x1 : gauss_hg(aa,bb,cc,xx);
-transform = pfaff-b
-s = 0.053356168931545385 %i - 0.013752611438220073
-sum-abs = 1.5429888247327524e12 %i + 1.542988828337976e12
-terms summed = 166
-bits = 5
-(%o29)            0.15196637842309396 %i + 0.
-
-(%i30) x2 : gauss_series(aa,bb,cc,xx);
-(%o30)            0.1516017654887769 %i + 0.9798362433799583
-(%i31) [x1-xe, x2-xe];
-(%o31) [3.6461293431705455e-4 %i + 5.045130503337214e-4,
-                                                      - 1.1102230246251565e-16]
+(%i2)	hg_1_over_x(a,b,c,x) :=
+	block(
+	  [A,B],
+	
+	  A : gamma(c)*gamma(b-a)/(gamma(b)*gamma(c-a)),
+	  B : gamma(c)*gamma(a-b)/(gamma(a)*gamma(c-b)),
+	
+	  print( [hypergeometric([a, a-c+1], [a-b+1], 1/x),  gauss_hg(a, a-c+1, a-b+1, 1/x)]),
+	  A*(-x)^(-a)
+	    * hypergeometric([a, a-c+1], [a-b+1], 1/x)
+	
+	+ B*(-x)^(-b)
+	    * hypergeometric([b, b-c+1], [b-a+1], 1/x)
+	)$
 
 
  |#
+(defun hg-connection-1/x (a b c x)
+  (let* ((z (/ 1 x))
+         (coeff1 0)
+         (coeff2 0)
+         (f1 0)
+         (f2 0)
+         (bits1 0)
+         (bits2 0))
+
+    (multiple-value-bind (A1 A-status)
+        (gamma-quotient c (- b a) b (- c a))
+
+      (multiple-value-bind (B1 B-status)
+          (gamma-quotient c (- a b) a (- c b))
+
+        ;; Logarithmic / exceptional cases.
+        (when (or (eq A-status :exceptional)
+                  (eq B-status :exceptional))
+          (return-from hg-connection-1/x
+            (values nil 0 :exceptional)))
+
+        ;; First contribution.
+        (unless (eq A-status :zero)
+          (setf coeff1 (* A1 (expt (- x) (- a))))
+          (multiple-value-bind (ff bb)
+              (f21-numeric a
+                           (+ a 1 (- c))
+                           (+ a 1 (- b))
+                           z)
+            (setf f1 ff
+                  bits1 bb)))
+
+        ;; Second contribution.
+        (unless (eq B-status :zero)
+          (setf coeff2 (* B1 (expt (- x) (- b))))
+          (multiple-value-bind (ff bb)
+              (f21-numeric b
+                           (+ b 1 (- c))
+                           (+ b 1 (- a))
+                           z)
+            (setf f2 ff
+                  bits2 bb)))
+
+        (inner-product-with-error-estimate
+         coeff1 coeff2
+         f1 f2
+         bits1 bits2)))))
 
 
+#| 
+(defun hg-connection-1/(1-z) (a b c z)
+
+  (let* ((w (/ (- 1 z)))
+
+         (A (/ (* (gamma c)
+                  (gamma (- b a)))
+               (* (gamma b)
+                  (gamma (- c a)))))
+
+         (B (/ (* (gamma c)
+                  (gamma (- a b)))
+               (* (gamma a)
+                  (gamma (- c b))))))
+
+    (multiple-value-bind (f1 bits1)
+        (f21-numeric a
+                     (- c b)
+                     (+ a 1 (- b))
+                     w)
+
+      (multiple-value-bind (f2 bits2)
+          (f21-numeric b
+                       (- c a)
+                       (+ b 1 (- a))
+                       w)
+
+        (let* ((term1 (* A
+                         (expt (- 1 z) (- a))
+                         f1))
+
+               (term2 (* B
+                         (expt (- 1 z) (- b))
+                         f2))
+
+               (result (+ term1 term2))
+
+               (err1 (* (abs term1)
+                        (expt 2 (- bits1))))
+
+               (err2 (* (abs term2)
+                        (expt 2 (- bits2))))
+
+               (relerr (/ (+ err1 err2)
+                          (max *macheps*
+                               (abs result))))
+
+               (bits (max 0
+                          (floor (- (log relerr 2))))))
+
+          (values result bits))))))
+
+|#
+#| 
+
+Power series centered at zero--I hope this isn't needed.
 
 (defun hypergeometric-2f1-series (a b c x)
   (labels ((kahan-add (term sum comp)
@@ -454,6 +757,7 @@ bits = 5
 
          (do ((k 0 (1+ k)))
           ((>= repeat-count 3))
+          (setf kk k)
           (setf term (* term (/ (* (+ a k) (+ b k) x) (* (+ c k) (+ k 1)))))
           ;; Running absolute sum for error estimation.
           (setf sum-abs (+ sum-abs (map-abs-onto-complex term)))
@@ -478,17 +782,16 @@ bits = 5
                       (correct-bits error-bound-imag (imagpart sum)))))
 
         (let ((bbits (maxima::$round (maxima::to bits))))
-            (values sum bbits)))))))
-
+            (values sum bbits kk)))))))
+|#
 (in-package :maxima)
 
-(defmfun $gauss_series (a b c x)
-  (multiple-value-bind (f bits)
-      (bigfloat::hypergeometric-2f1-series
-       (bigfloat::to a)
-       (bigfloat::to b)
-       (bigfloat::to c)
-       (bigfloat::to x))
-    (mtell "bits  ~M ~%" bits)
-    (maxima::to f)))
+(defmfun $gauss_hg_large_x (a b c x)
+   (let* ((one (multiplicative-identity a b c x))
+           (aa (bigfloat::to (orthopoly-number-coerce a one)))
+           (bb (bigfloat::to (orthopoly-number-coerce b one)))
+           (cc (bigfloat::to (orthopoly-number-coerce c one)))
+           (xx (bigfloat::to (orthopoly-number-coerce x one))))
+      (maxima::to (bigfloat::hg-connection-1/x aa bb cc xx))))
+
       
