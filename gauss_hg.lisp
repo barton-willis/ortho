@@ -247,6 +247,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
     (and 
       (modified-relative-difference (realpart a) (realpart b))
       (modified-relative-difference (imagpart a) (imagpart b)))))
+
 ;; Special casing the real case (that is z = x/2) isn't necessary, but doing so reduces
 ;; the number of arithmetic operations and possibly keeps the rounding error smaller. The
 ;; special casing increases the testing burden. So be careful to check both cases.
@@ -318,10 +319,16 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
          (new-compensator (- (- new-sum sum) y)))
     (values new-sum new-compensator)))
 
+(defun complex-max-norm (z)
+"Return max(|real(z)|, |imag(z)|)."
+  (if (complexp z)
+      (max (abs (realpart z)) (abs (imagpart z)))
+      (abs z)))
+      
 (defun f21-numeric-helper (a b c x z real-case)
   (let* ((phi (* 
                (if (> (realpart b) 0)
-                  1
+                  1 
                   (- 1 (* 8 (epsilon x)))) ; the "8" is a magic number
 
               (if (and real-case (realp c) (realp b) (< (realpart (- c (* 2 b))) 0))
@@ -340,7 +347,6 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
          (s (+ h0 (* p1 h1)))
          (c-comp 0)
          (repeat-count 0)
-         (tol (* 128 (epsilon x))) ;; 128 is a "magic number"
          (sum-abs 0)
          (macheps (epsilon x))
          (zm1 (- z 1))
@@ -385,15 +391,16 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
         (setf s t-val)
 
         ;; Convergence check--maybe this should be more closely tied to the asymptotics?
-        (if (approx-equal s ssave tol)
-            (incf repeat-count)
-            (setf repeat-count 0)))
+          (if (< (complex-max-norm y-val) (* macheps (max 1 (complex-max-norm s))))
+             (incf repeat-count)
+             (setf repeat-count 0))))
 
       ;; --- Compute success or failure using the Kahan summation error bound.
       (flet ((correct-bits (err f)
-               (if (<= err tol)
-                     (- (log tol 2))
-                     (max 0 (- (log (abs (/ err f)) 2))))))
+         (let ((denom (max (abs f) macheps)))
+           (if (<= err macheps)
+               (- (log macheps 2))
+               (max 0 (- (log (/ err denom) 2)))))))
 
       (let* ((cnst (expt (- 1 z) (- a)))
              (error-bound-real (* 2 macheps  (realpart sum-abs))) ; absolute error, not relative error
@@ -408,141 +415,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
        
         (let ((bbits (maxima::$round (maxima::to bits))))
             (hg-debug "bits = ~M ~%" bbits)
-            (values (* cnst s) bbits)))))))
-
-(defun f21-numeric-helper (a b c x z real-case)
-  (let* ((phi (* (if (> (realpart b) 0)
-                     1
-                     (- 1 (* 8 (epsilon x)))) ; the "8" is a magic number
-
-                 (if (and real-case
-                          (realp c)
-                          (realp b)
-                          (< (realpart (- c (* 2 b))) 0))
-                     -1
-                     1)))
-
-         (h0 1)
-
-         (h1 (if real-case
-                 (* (- 1 (/ (* 2 b) c)) phi) ; (1 - 2b/c) phi
-                 (* (- 1 (/ (* b x) (* c z))) phi))) ; (1 - bx/(cz)) phi
-
-         (p1 (if real-case
-                 (/ (* a x) (- x 2))
-                 (/ (* a z) (- z 1))))
-
-         (s (+ h0 (* p1 h1)))
-         (c-comp 0)
-
-         (repeat-count 0)
-         (tol (* 128 (epsilon x))) ; 128 is a "magic number"
-
-         (sum-abs 0)
-         (macheps (epsilon x))
-
-         (zm1 (- z 1))
-         (ap1 (+ a 1))
-         (cp1 (+ c 1))
-
-         (w1 (if real-case
-                 (* phi phi) ; phi^2
-                 (/ (* (- x z) phi phi) z))) ; (x-z) phi^2 / z
-
-         ;; no w2 because w2 = w1.
-         (w3 (if real-case
-                 (* (- c (* 2 b)) phi) ; (c - 2b) phi
-                 (/ (* (- (* (+ c 2) z)
-                          (+ (* b x) x))
-                       phi)
-                    z))) ; ((c+2)z - bx - x) phi / z
-
-         (w4 (if real-case
-                 0
-                 (/ (* (- (* 2 z) x) phi) z))) ; (2z - x) phi / z
-
-         (kk 0)
-         term-val
-         hs
-         ssave)
-
-    (flet ((next-h (k h0 h1)
-             (/ (+ (* (+ k 1) w1 h0)
-                   (* (+ w3 (* k w4)) h1))
-                (+ k cp1)))
-
-           (next-cf (k q)
-             (/ (* z (+ ap1 k) q)
-                (* zm1 phi (+ k 2)))))
-
-      ;; --- Main loop ---
-      (do ((k 0 (1+ k)))
-          ((>= repeat-count 3))
-
-        (setq kk k)
-
-        ;; Save previous h_k
-        (setf hs h1)
-        (setf h1 (next-h k h0 h1))
-        (setf h0 hs)
-
-        (setf p1 (next-cf k p1))
-
-        (setf ssave s)
-
-        (setf term-val (* p1 h1))
-
-        ;; accumulate the sum of the absolute values of the
-        ;; real & imaginary parts
-        (setf sum-abs
-              (+ sum-abs
-                 (map-abs-onto-complex term-val)))
-
-        ;; Kahan accumulation
-        (multiple-value-setq (s c-comp)
-          (kahan-add s c-comp term-val))
-
-        ;; Convergence check--maybe this should be more closely
-        ;; tied to the asymptotics?
-        (if (approx-equal s ssave tol)
-            (incf repeat-count)
-            (setf repeat-count 0)))
-
-      ;; --- Compute success or failure using the Kahan summation error bound.
-      (flet ((correct-bits (err f)
-               (if (<= err tol)
-                   (- (log tol 2))
-                   (max 0
-                        (- (log (abs (/ err f)) 2))))))
-
-        (let* ((cnst (expt (- 1 z) (- a)))
-
-               ;; absolute error, not relative error
-               (error-bound-real
-                 (* 2 macheps (realpart sum-abs)))
-
-               (error-bound-imag
-                 (* 2 macheps (imagpart sum-abs)))
-
-               (bits
-                 (min (correct-bits error-bound-real
-                                    (realpart s))
-                      (correct-bits error-bound-imag
-                                    (imagpart s)))))
-
-          (hg-debug "s = ~M ~%"
-                    (maxima::$float (maxima::to s)))
-
-          (hg-debug "sum-abs = ~M ~%"
-                    (maxima::$float (maxima::to sum-abs)))
-
-          (hg-debug "terms summed = ~M ~%"
-                    kk)
-
-          (let ((bbits (maxima::$round (maxima::to bits))))
-            (hg-debug "bits = ~M ~%" bbits)
-            (values (* cnst s) bbits)))))))
-            
+            (values (* cnst s) bbits))))))
 
 (defun bf-gamma (x)
   (bigfloat::to
