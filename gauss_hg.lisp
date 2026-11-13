@@ -326,6 +326,9 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
       (max (abs (realpart z)) (abs (imagpart z)))
       (abs z)))
       
+(defconstant +max-series-iterations+ 1000000
+  "Hard safety ceiling to prevent infinite loops in numerical series.")
+
 (defun f21-numeric-helper (a b c x z real-case)
   (let* ((phi (* 
                (if (> (realpart b) 0)
@@ -372,8 +375,10 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
            (next-cf (k q) (/ (* z (+ ap1 k) q) (* zm1 phi (+ k 2)))))
       ;; --- Main loop ---
       (do ((k 0 (1+ k)))
-          ((>= repeat-count 3))
-        (setq kk k)
+          ((or (>= repeat-count 3)
+               (< k +max-series-iterations+)))
+        (declare (type fixnum k)) ;;possibly risky?
+        (setq kk k) ;; only for debugging...
 
         ;; Save previous h_k
         (setf hs h1)
@@ -408,6 +413,10 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
              (bits (min 
                      (correct-bits error-bound-real (realpart s))
                       (correct-bits error-bound-imag (imagpart s)))))
+
+        ;; Ensure we didn't bail out purely due to hitting the safety ceiling. Should never happen.
+        (when (>= kk +max-series-iterations+)
+         (maxima::merror "Series failed to numerically converge after ~M iterations ~%." +max-series-iterations+))
 
         (hg-debug "s = ~M ~%" (maxima::$float (maxima::to s)))
         (hg-debug "sum-abs = ~M ~%" (maxima::$float (maxima::to sum-abs)))
