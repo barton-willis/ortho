@@ -376,7 +376,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
       ;; --- Main loop ---
       (do ((k 0 (1+ k)))
           ((or (>= repeat-count 3)
-               (< k +max-series-iterations+)))
+               (>= k +max-series-iterations+)))
         (declare (type fixnum k)) ;;possibly risky?
         (setq kk k) ;; only for debugging...
 
