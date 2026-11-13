@@ -102,9 +102,11 @@ Automatically continuing.
            (cc (bigfloat::to (orthopoly-number-coerce c one)))
            (xx (bigfloat::to (orthopoly-number-coerce x one)))
            (hg-elem (bigfloat::gauss-hg-elementary-case aa bb cc xx))
-           (requested-bits (if ($bfloatp (maxima::to (bigfloat::realpart xx)))
-                               fpprec
-                               (float-digits (maxima::to (bigfloat::realpart xx))))))
+           (requested-bits (cond (($bfloatp (maxima::to (bigfloat::realpart xx)))
+                                    fpprec)
+                                 (($ratnump (maxima::to (bigfloat::realpart xx)))
+                                    fpprec)
+                                 (t (float-digits (maxima::to (bigfloat::realpart xx)))))))
 
       (declare (ignore requested-bits))
 
@@ -122,6 +124,12 @@ Automatically continuing.
 (defmacro hg-debug (fmt &rest args)
   `(when *hg-debug*
      (maxima::mtell ,fmt ,@args)))
+
+(defmethod epsilon ((x cl:rational))
+  0)
+
+(defmethod epsilon ((x cl:complex))
+  (epsilon (cl:realpart x)))
 
 
 ;; check for special cases
@@ -514,6 +522,8 @@ Returns two values:
 
 
  |#
+
+(in-package :bigfloat)
 (defun hg-connection-1/x (a b c x)
   (let* ((z (/ 1 x))
          (coeff1 0)
@@ -554,6 +564,150 @@ Returns two values:
                            (+ b 1 (- c))
                            (+ b 1 (- a))
                            z)
+            (setf f2 ff
+                  bits2 bb)))
+
+        (inner-product-with-error-estimate
+         coeff1 coeff2
+         f1 f2
+         bits1 bits2)))))
+
+(defun hg-connection-1-minus-z (a b c z)
+  (let* ((w (- 1 z))
+         (coeff1 0)
+         (coeff2 0)
+         (f1 0)
+         (f2 0)
+         (bits1 0)
+         (bits2 0))
+
+    (multiple-value-bind (A1 A-status)
+        (gamma-quotient c (- c a b) (- c a) (- c b))
+
+      (multiple-value-bind (B1 B-status)
+          (gamma-quotient c (+ a b (- c)) a b)
+
+        ;; Logarithmic / exceptional cases.
+        (when (or (eq A-status :exceptional)
+                  (eq B-status :exceptional))
+          (return-from hg-connection-1-minus-z
+            (values nil 0 :exceptional)))
+
+        ;; First contribution.
+        (unless (eq A-status :zero)
+          (setf coeff1 A1)
+          (multiple-value-bind (ff bb)
+              (f21-numeric a
+                           b
+                           (+ a b (- c) 1)
+                           w)
+            (setf f1 ff
+                  bits1 bb)))
+
+        ;; Second contribution.
+        (unless (eq B-status :zero)
+          (setf coeff2 (* B1 (expt w (+ c (- a) (- b)))))
+          (multiple-value-bind (ff bb)
+              (f21-numeric (- c a)
+                           (- c b)
+                           (+ (- c) a b 1)
+                           w)
+            (setf f2 ff
+                  bits2 bb)))
+
+        (inner-product-with-error-estimate
+         coeff1 coeff2
+         f1 f2
+         bits1 bits2)))))
+
+(defun hg-connection-1-minus-inv-z (a b c z)
+  (let* ((w (- 1 (/ 1 z)))
+         (coeff1 0)
+         (coeff2 0)
+         (f1 0)
+         (f2 0)
+         (bits1 0)
+         (bits2 0))
+
+    (multiple-value-bind (A1 A-status)
+        (gamma-quotient c (- a b) a (- c b))
+
+      (multiple-value-bind (B1 B-status)
+          (gamma-quotient c (- b a) b (- c a))
+
+        ;; Logarithmic / exceptional cases.
+        (when (or (eq A-status :exceptional)
+                  (eq B-status :exceptional))
+          (return-from hg-connection-1-minus-inv-z
+            (values nil 0 :exceptional)))
+
+        ;; First contribution.
+        (unless (eq A-status :zero)
+          (setf coeff1 (* A1 (expt z (- a))))
+          (multiple-value-bind (ff bb)
+              (f21-numeric a
+                           (+ a 1 (- c))
+                           (+ a 1 (- b))
+                           w)
+            (setf f1 ff
+                  bits1 bb)))
+
+        ;; Second contribution.
+        (unless (eq B-status :zero)
+          (setf coeff2 (* B1 (expt z (- b))))
+          (multiple-value-bind (ff bb)
+              (f21-numeric b
+                           (+ b 1 (- c))
+                           (+ b 1 (- a))
+                           w)
+            (setf f2 ff
+                  bits2 bb)))
+
+        (inner-product-with-error-estimate
+         coeff1 coeff2
+         f1 f2
+         bits1 bits2)))))
+
+(defun hg-connection-1/1-z (a b c z)
+  (let* ((w (/ 1 (- 1 z)))
+         (coeff1 0)
+         (coeff2 0)
+         (f1 0)
+         (f2 0)
+         (bits1 0)
+         (bits2 0))
+
+    (multiple-value-bind (A1 A-status)
+        (gamma-quotient c (- b a) b (- c a))
+
+      (multiple-value-bind (B1 B-status)
+          (gamma-quotient c (- a b) a (- c b))
+
+        ;; Logarithmic / exceptional cases.
+        (when (or (eq A-status :exceptional)
+                  (eq B-status :exceptional))
+          (return-from hg-connection-1/1-z
+            (values nil 0 :exceptional)))
+
+        ;; First contribution.
+        (unless (eq A-status :zero)
+          (setf coeff1 (* A1 (expt (- 1 z) (- a))))
+          (multiple-value-bind (ff bb)
+              (f21-numeric a
+                           (+ a 1 (- c))
+                           (+ a 1 (- b))
+                           w)
+            (setf f1 ff
+                  bits1 bb)))
+
+        ;; Second contribution.
+        (unless (eq B-status :zero)
+          (setf coeff2 (* B1 (expt (- 1 z) (- b))))
+          (multiple-value-bind (ff bb)
+              (f21-numeric b
+                           (+ b 1 (- c))
+                           (+ b 1 (- a))
+                           w)
             (setf f2 ff
                   bits2 bb)))
 
@@ -666,14 +820,54 @@ Power series centered at zero--I hope this isn't needed.
         (let ((bbits (maxima::$round (maxima::to bits))))
             (values sum bbits kk)))))))
 |#
+
+(defun exponential-rate (x)
+  (multiple-value-bind (z r) (choose-z x)
+     r))
+
+;; This needs work--each connection formula has a restriction; for example:
+;;   (i) the 1/x formula doesn't allow a-b to be an integer
+;;   (ii) the 1/(1-x) formula doesn't allow a-b to be an integer
+;;   (iii) the 1-x formula doesn't allow c-a-b to be an integer
+;;   (iv) the 1-1/x formulat doesn't allow c-a-b to be an integer.
+
+(defun gauss-hg-large-x (a b c x)
+  (when (< (abs x) 1)
+    (maxima::merror "Don't like this!"))
+
+  (let* ((candidates nil))
+
+     (when (not (integerp (- a b)))
+         (push (list (exponential-rate (/ 1 x)) :inverse) candidates)
+         (push (list (exponential-rate (- 1 x)) :reflect) candidates))
+
+      (when (not (integerp (- c (+ a b))))
+         (push (list (exponential-rate (- 1 (/ 1 x))) :one-minus-inverse) candidates)
+         (push (list (exponential-rate (/ 1 (- 1 x))) :inverse-of-one-minus) candidates))
+
+     (let* ((best (car (stable-sort candidates #'< :key #'car)))
+            (transform (cadr best)))
+
+    (print `(transform = ,transform))
+    (case transform
+      (:inverse             (hg-connection-1/x a b c x))
+      (:reflect             (hg-connection-1-minus-z a b c x))
+      (:one-minus-inverse   (hg-connection-1-minus-inv-z a b c x))
+      (:inverse-of-one-minus (hg-connection-1/1-z a b c x)) ; mapped to the 1/(1-x) helper
+      (otherwise            (error "Unknown transform ~A" transform))))))
+
 (in-package :maxima)
 
 (defmfun $gauss_hg_large_x (a b c x)
-   (let* ((one (multiplicative-identity a b c x))
-           (aa (bigfloat::to (orthopoly-number-coerce a one)))
-           (bb (bigfloat::to (orthopoly-number-coerce b one)))
-           (cc (bigfloat::to (orthopoly-number-coerce c one)))
-           (xx (bigfloat::to (orthopoly-number-coerce x one))))
-      (maxima::to (bigfloat::hg-connection-1/x aa bb cc xx))))
+  (let* ((one (multiplicative-identity a b c x)) 
+         (aa (bigfloat::to (orthopoly-number-coerce a one)))
+         (bb (bigfloat::to (orthopoly-number-coerce b one)))
+         (cc (bigfloat::to (orthopoly-number-coerce c one)))
+         (xx (bigfloat::to (orthopoly-number-coerce x one))))
 
-      
+    (multiple-value-bind (f bits)
+       (bigfloat::gauss-hg-large-x aa bb cc xx)
+       (mtell "bits = ~M ~%" bits)
+       (maxima::to f))))
+
+
