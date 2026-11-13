@@ -321,6 +321,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 
 (defun complex-max-norm (z)
 "Return max(|real(z)|, |imag(z)|)."
+  ;; special case the complex case--possibly it's a bit faster
   (if (complexp z)
       (max (abs (realpart z)) (abs (imagpart z)))
       (abs z)))
