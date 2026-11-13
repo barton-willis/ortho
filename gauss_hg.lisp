@@ -367,7 +367,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
              (/ (* (- (* 2 z) x) phi) z)))   ;(2 z -x) phi/z
          
          (kk 0)
-         term-val y-val t-val hs ssave)
+         term-val y-val t-val hs)
     (flet ((next-h (k h0 h1) (/ (+ (* (+ k 1) w1 h0) (* (+ w3 (* k w4)) h1)) (+ k cp1)))
            (next-cf (k q) (/ (* z (+ ap1 k) q) (* zm1 phi (+ k 2)))))
       ;; --- Main loop ---
@@ -380,7 +380,6 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
         (setf h1 (next-h k h0 h1))
         (setf h0 hs)
         (setf p1 (next-cf k p1))
-        (setf ssave s)
         (setf term-val (* p1 h1))
 
         ;; accumulate the sum of the absolute values of the real & imaginary parts
