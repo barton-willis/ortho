@@ -103,7 +103,7 @@ gamma: gamma(-1.0) is undefined.
    (when (hg-denominator-pole-p a b c)
      (maxima::merror
           (intl:gettext
-            "gauss_hg(~M,~M,~M,~M) is undefined because ~M is a nonpositive integer.") a b c x c))
+            "gauss_hg(~M,~M,~M,~M) is undefined because ~M is a non positive integer.") a b c x c))
 
     (let* ((one (multiplicative-identity a b c x))
            (aa (bigfloat::to (orthopoly-number-coerce a one)))
