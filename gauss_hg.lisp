@@ -33,11 +33,20 @@ Maxima encountered a Lisp error:
 Operation was (* 1.0201699566444049e305 -18787.500000000004).
 
 Plus hypergeometric([5, 2], [4000], 0.9) is slow.  Ahh, I thought that large 'c' gives good 
-converence.  Do I have something backwards?
+convergence.  Do I have something backwards?
 
 Automatically continuing.
 
+--Bug in connection code:
 
+(%i51) (a : 4, b : 5, c:8, x : -1000.0 + %i/100);
+                                 %i
+(%o51)                           ─── - 1000.0
+                                 100
+(%i52) x2 : gauss_hg_large_x(a,b,c,x);
+large transform = inverse-of-one-minus
+gamma: gamma(-1.0) is undefined.
+ -- an error. To debug this try: debugmode(true);
  |#
 
 (in-package :maxima)
@@ -524,7 +533,7 @@ Returns two values:
  |#
 
 (in-package :bigfloat)
-(defun hg-connection-1/x (a b c x)
+(defun hg-connection-inverse (a b c x)
   (let* ((z (/ 1 x))
          (coeff1 0)
          (coeff2 0)
@@ -542,7 +551,7 @@ Returns two values:
         ;; Logarithmic / exceptional cases.
         (when (or (eq A-status :exceptional)
                   (eq B-status :exceptional))
-          (return-from hg-connection-1/x
+          (return-from hg-connection-inverse
             (values nil 0 :exceptional)))
 
         ;; First contribution.
@@ -572,7 +581,7 @@ Returns two values:
          f1 f2
          bits1 bits2)))))
 
-(defun hg-connection-1-minus-z (a b c z)
+(defun hg-connection-reflect (a b c z)
   (let* ((w (- 1 z))
          (coeff1 0)
          (coeff2 0)
@@ -590,7 +599,7 @@ Returns two values:
         ;; Logarithmic / exceptional cases.
         (when (or (eq A-status :exceptional)
                   (eq B-status :exceptional))
-          (return-from hg-connection-1-minus-z
+          (return-from hg-connection-reflect
             (values nil 0 :exceptional)))
 
         ;; First contribution.
@@ -620,7 +629,7 @@ Returns two values:
          f1 f2
          bits1 bits2)))))
 
-(defun hg-connection-1-minus-inv-z (a b c z)
+(defun hg-connection-one-minus-inverse (a b c z)
   (let* ((w (- 1 (/ 1 z)))
          (coeff1 0)
          (coeff2 0)
@@ -638,7 +647,7 @@ Returns two values:
         ;; Logarithmic / exceptional cases.
         (when (or (eq A-status :exceptional)
                   (eq B-status :exceptional))
-          (return-from hg-connection-1-minus-inv-z
+          (return-from hg-connection-one-minus-inverse
             (values nil 0 :exceptional)))
 
         ;; First contribution.
@@ -668,7 +677,7 @@ Returns two values:
          f1 f2
          bits1 bits2)))))
 
-(defun hg-connection-1/1-z (a b c z)
+(defun hg-connection-inverse-of-one-minus (a b c z)
   (let* ((w (/ 1 (- 1 z)))
          (coeff1 0)
          (coeff2 0)
@@ -686,7 +695,7 @@ Returns two values:
         ;; Logarithmic / exceptional cases.
         (when (or (eq A-status :exceptional)
                   (eq B-status :exceptional))
-          (return-from hg-connection-1/1-z
+          (return-from hg-connection-inverse-of-one-minus
             (values nil 0 :exceptional)))
 
         ;; First contribution.
@@ -831,29 +840,34 @@ Power series centered at zero--I hope this isn't needed.
 ;;   (iii) the 1-x formula doesn't allow c-a-b to be an integer
 ;;   (iv) the 1-1/x formulat doesn't allow c-a-b to be an integer.
 
+(defun approx-integer-p (x)
+  (let ((z (maxima::to x)))
+    (maxima::mtell "~M ~M ~%" (maxima::ftake 'maxima::$floor z) (maxima::ftake 'maxima::$ceiling z))
+    (eql (maxima::ftake 'maxima::$floor z) (maxima::ftake 'maxima::$ceiling z))))
+
 (defun gauss-hg-large-x (a b c x)
   (when (< (abs x) 1)
     (maxima::merror "Don't like this!"))
 
   (let* ((candidates nil))
 
-     (when (not (integerp (- a b)))
+     (when (not (approx-integer-p (- a b)))
          (push (list (exponential-rate (/ 1 x)) :inverse) candidates)
-         (push (list (exponential-rate (- 1 x)) :reflect) candidates))
-
-      (when (not (integerp (- c (+ a b))))
-         (push (list (exponential-rate (- 1 (/ 1 x))) :one-minus-inverse) candidates)
          (push (list (exponential-rate (/ 1 (- 1 x))) :inverse-of-one-minus) candidates))
+
+      (when (not (approx-integer-p (- c (+ a b))))
+           (push (list (exponential-rate (- 1 x)) :reflect) candidates)
+           (push (list (exponential-rate (- 1 (/ 1 x))) :one-minus-inverse) candidates))
 
      (let* ((best (car (stable-sort candidates #'< :key #'car)))
             (transform (cadr best)))
 
-    (print `(transform = ,transform))
+    (maxima::mtell "large transform = ~M ~%" transform)
     (case transform
-      (:inverse             (hg-connection-1/x a b c x))
-      (:reflect             (hg-connection-1-minus-z a b c x))
-      (:one-minus-inverse   (hg-connection-1-minus-inv-z a b c x))
-      (:inverse-of-one-minus (hg-connection-1/1-z a b c x)) ; mapped to the 1/(1-x) helper
+      (:inverse             (hg-connection-inverse a b c x))
+      (:reflect             (hg-connection-reflect a b c x))
+      (:one-minus-inverse   (hg-connection-one-minus-inverse a b c x))
+      (:inverse-of-one-minus (hg-connection-inverse-of-one-minus a b c x)) 
       (otherwise            (error "Unknown transform ~A" transform))))))
 
 (in-package :maxima)
