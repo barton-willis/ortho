@@ -158,7 +158,7 @@ gamma: gamma(-1.0) is undefined.
            (values (/ x 2) (rate (/ x 2)) t))
 
           (t 
-    (let* ((z (sqrt (/ (- x 1) (- (conjugate x) 1))))
+    (let* ((z (cis (phase (- x 1)))) ; was  ;((z (sqrt (/ (- x 1) (conjugate (- x 1)))))
            (z1 (if (zerop (- 1 z))
                    nil
                    (/ x (- 1 z))))
