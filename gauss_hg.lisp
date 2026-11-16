@@ -338,8 +338,8 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 (defun f21-numeric-helper (a b c x z real-case)
   ;; Possibly there are cases where phi should be negative. And I'm not entirely sure about this scheme:
   (let* ((phi (if (> (realpart b) 0)
-                  1 
-                  1)) ;; possibly (- 1 (* 8 (epsilon x))))) ; the "8" is a magic number
+                  1
+                  (- 1 (* 2 (epsilon x)))))
         
          (h0 1)
          (h1 (if real-case  
