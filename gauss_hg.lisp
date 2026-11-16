@@ -224,22 +224,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
                      (list (- c a) (- c b) c x z real-case :euler-1) 
                      (list (- c b) (- c a) c x z real-case :euler-2)))
 
-                 ;(best (car (stable-sort candidates #'< :key #'(lambda (w) (algebraic-growth (first w) (second w) (third w)))))))
-                 ;;#| 
-                 (best 
-                   (reduce
-                     (lambda (best candidate)
-                       (if (< (algebraic-growth (first candidate)
-                                     (second candidate)
-                                     (third candidate))
-                              (algebraic-growth (first best)
-                                     (second best)
-                                     (third best)))
-                           candidate
-                           best))
-                     (rest candidates)
-                     :initial-value (first candidates))))
-                     ;|#
+                 (best (car (stable-sort candidates #'< :key #'(lambda (w) (algebraic-growth (first w) (second w) (third w)))))))
             (destructuring-bind
                 (aa bb cc xx zz rr transform)
                 best
