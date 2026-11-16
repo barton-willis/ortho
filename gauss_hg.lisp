@@ -128,7 +128,7 @@ gamma: gamma(-1.0) is undefined.
 
 (in-package #:bigfloat)
 
-(defparameter *hg-debug* t)
+(defparameter *hg-debug* nil)
 
 (defmacro hg-debug (fmt &rest args)
   `(when *hg-debug*
@@ -223,7 +223,10 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
                      ;; euler-1 * euler-2
                      (list (- c a) (- c b) c x z real-case :euler-1) 
                      (list (- c b) (- c a) c x z real-case :euler-2)))
-                 (best
+
+                 ;(best (car (stable-sort candidates #'< :key #'(lambda (w) (algebraic-growth (first w) (second w) (third w)))))))
+                 ;;#| 
+                 (best 
                    (reduce
                      (lambda (best candidate)
                        (if (< (algebraic-growth (first candidate)
@@ -236,6 +239,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
                            best))
                      (rest candidates)
                      :initial-value (first candidates))))
+                     ;|#
             (destructuring-bind
                 (aa bb cc xx zz rr transform)
                 best
@@ -347,14 +351,10 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
   "Hard safety ceiling to prevent infinite loops in numerical series.")
 
 (defun f21-numeric-helper (a b c x z real-case)
-  (let* ((phi (* 
-               (if (> (realpart b) 0)
+  ;; Possibly there are cases where phi should be negative. And I'm not entirely sure about this scheme:
+  (let* ((phi (if (> (realpart b) 0)
                   1 
-                  (- 1 (* 8 (epsilon x)))) ; the "8" is a magic number
-
-              (if (and real-case (realp c) (realp b) (< (realpart (- c (* 2 b))) 0))
-                  -1
-                  1)))
+                  1)) ;; possibly (- 1 (* 8 (epsilon x))))) ; the "8" is a magic number
         
          (h0 1)
          (h1 (if real-case  
@@ -362,8 +362,8 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
               (* (- 1 (/ (*  b x) (* c z))) phi))) ; (1 - bx/(cz)) phi
          
          (p1 (if real-case
-              (/ (* a x) (- x 2))
-              (/ (* a z) (- z 1))))
+              (/ (* a x) (- x 2))   ; a*x/(x - 2)
+              (/ (* a z) (- z 1)))) ; a*z /(z-1)
 
          (s (+ h0 (* p1 h1)))
          (c-comp 0)
@@ -384,7 +384,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
             (/ (* (- (* (+ c 2) z) (+ (* b x) x)) phi) z))) ; ( c z + 2 z - bx - x) phi / z
          (w4 (if real-case
              0                               ; 0
-             (/ (* (- (* 2 z) x) phi) z)))   ;(2 z -x) phi/z
+             (/ (* (- (* 2 z) x) phi) z)))   ;(2 z - x) phi/z
          
          (kk 0)
          term-val y-val t-val hs)
@@ -394,7 +394,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
       (do ((k 0 (1+ k)))
           ((or (>= repeat-count 3)
                (>= k +max-series-iterations+)))
-        (declare (type fixnum k)) ;;possibly risky?
+        (declare (type fixnum k)) 
         (setq kk k) ;; only for debugging...
 
         ;; Save previous h_k
@@ -832,6 +832,7 @@ Power series centered at zero--I hope this isn't needed.
 
 (defun exponential-rate (x)
   (multiple-value-bind (z r) (choose-z x)
+    (declare (ignore z))
      r))
 
 ;; This needs work--each connection formula has a restriction; for example:
