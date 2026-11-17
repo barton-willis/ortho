@@ -51,6 +51,14 @@ gamma: gamma(-1.0) is undefined.
 
 (in-package :maxima)
 
+(defmvar $hg_bits nil
+"Estimated number of correct bits in the result of the most recent gauss_hg computation."
+ :properties ((assign 'neverset)))
+
+(defmvar $hg_method nil
+"Method used in the most recent gauss_hg computation."
+ :properties ((assign 'neverset)))
+
 ;; For many other possibilities, see  https://link.springer.com/article/10.1007/s11075-026-02436-2 
 
 (defun multiplicative-identity (&rest a)
@@ -98,6 +106,27 @@ gamma: gamma(-1.0) is undefined.
        (not (or (terminating-before-pole-p a c)
                 (terminating-before-pole-p b c)))))
 
+(defparameter *gauss-hg-methods*
+  '(bigfloat::gauss-hg-elementary-case
+    bigfloat::f21-numeric
+    bigfloat:: gauss-hg-large-x
+    gauss-hg-failure-method)
+  "Ordered list of methods used to evaluate the Gauss hypergeometric function 2F1(a,b;c;x).
+   Each method is a function of four arguments (a b c x). A method that cannot handle
+   the given arguments must return nil as its primary value. A successful method returns a 
+   bigfloat numeric primary value together with the estimated precision in bits.
+
+  The each of the four arguments to a method must be bigfloat number, and the result must
+  also be a bigfloat number.")
+
+(defun gauss-hg-dispatch (a b c x)
+"Evaluate the Gauss hypergeometric function 2F1(a,b;c;x) by dispatching to the methods listed in *gauss-hg-methods*."
+  (dolist (method *gauss-hg-methods*)
+    (multiple-value-bind (f bits method)
+        (funcall method a b c x)
+      (when f
+        (return (values f bits method))))))
+
 (defmfun $gauss_hg (a b c x)
    ;; Check for an undefined case--not a polynomial case and a negative integer value for c.
    (when (hg-denominator-pole-p a b c)
@@ -110,7 +139,6 @@ gamma: gamma(-1.0) is undefined.
            (bb (bigfloat::to (orthopoly-number-coerce b one)))
            (cc (bigfloat::to (orthopoly-number-coerce c one)))
            (xx (bigfloat::to (orthopoly-number-coerce x one)))
-           (hg-elem (bigfloat::gauss-hg-elementary-case aa bb cc xx))
            (requested-bits (cond (($bfloatp (maxima::to (bigfloat::realpart xx)))
                                     fpprec)
                                  (($ratnump (maxima::to (bigfloat::realpart xx)))
@@ -119,12 +147,18 @@ gamma: gamma(-1.0) is undefined.
 
       (declare (ignore requested-bits))
 
-      (if hg-elem
-          (maxima::to hg-elem)
-      (multiple-value-bind (f bits)
-          (bigfloat::f21-numeric aa bb cc xx)
-        (declare (ignore bits))
-        (maxima::to f)))))
+      (multiple-value-bind (f bits method)
+        (gauss-hg-dispatch aa bb cc xx)
+      (setq $hg_bits (maxima::to bits))
+      (setq $hg_method method)
+      (maxima::to f))))
+
+(defun gauss-hg-failure-method (a b c x)
+  "Signal an error indicating that no gauss_hg evaluation method was able to handle the arguments."
+  (setq $hg_bits 0)
+  (setq $hg_method 'failure)
+  (maxima::merror (intl:gettext  "Internal error: no gauss_hg method could evaluate 2F1(~M,~M;~M;~M).") a b c x))
+
 
 (in-package #:bigfloat)
 
@@ -140,30 +174,37 @@ gamma: gamma(-1.0) is undefined.
 (defmethod epsilon ((x cl:complex))
   (epsilon (cl:realpart x)))
 
-
 ;; check for special cases
 (defun gauss-hg-elementary-case (a b c x)
-  (cond
-    ((equal a c) (expt (- 1 x) (- b)))
+  (let ((bits (if (floatp x)
+                  (float-digits x)
+                  maxima::fpprec))
+        (f
+          (cond
+            ((equal a c) (expt (- 1 x) (- b)))
+            ((equal b c) (expt (- 1 x) (- a)))
 
-    ((equal b c) (expt (- 1 x) (- a)))
+            ;; Gauss theorem
+            ((and (= x 1)
+                  (> (realpart (- c a b)) 0))
+             (gamma-quotient c (- c a b) (- c a) (- c b)))
 
-    ;; Gauss theorem
-    ((and (= x 1) (>= (realpart (- c a b)) 0))
-     (gamma-quotient c (- c a b) (- c a) (- c b)))
+            ;; Kummer theorem
+            ((and (= x -1)
+                  (equal c (+ 1 a (- b))))
+             (gamma-quotient
+              (+ 1 a (- b))
+              (+ 1 (/ a 2))
+              (+ 1 a)
+              (+ 1 (/ a 2) (- b))))
 
-    ;; Kummer theorem
-    ((and (= x -1) (equal c (+ 1 a (- b))))
-     (gamma-quotient
-       (+ 1 a (- b))
-       (+ 1 (/ a 2))
-       (+ 1 a)
-       (+ 1 (/ a 2) (- b))))
+            ((zerop x) 1)
 
-    ((zerop x)
-     1)
+            (t nil))))
+    (values f
+            (if f bits 0)
+            'elementary)))
 
-    (t nil)))
 
 (defun choose-z (x)
   (flet ((rate (z)
@@ -219,7 +260,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
         (choose-z (bigfloat::to x))
 
     (when (> expo-rate 0.9999)
-      (maxima::merror (intl:gettext "Exponential rate = ~M ; series converges too slowly") expo-rate))
+       (return-from f21-numeric (values nil 0)))
 
       (let ((z-pfaff (choose-z (bigfloat::to x-pfaff))))
 
@@ -259,7 +300,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
                 (multiple-value-bind (val bits)
                     (f21-numeric-helper aa bb cc xx zz rr)
 
-                  (values (* qqq val) bits))))))))))
+                  (values (* qqq val) bits 'dlmf-15.15.1))))))))))
 
 (defun map-abs-onto-complex (x)
   (complex (abs (realpart x)) (abs (imagpart x))))
@@ -514,26 +555,7 @@ Returns two values:
                                   (epsilon value)))
                           2))))))
 
-    (values value correct-bits)))
-
-#|
-(%i2)	hg_1_over_x(a,b,c,x) :=
-	block(
-	  [A,B],
-	
-	  A : gamma(c)*gamma(b-a)/(gamma(b)*gamma(c-a)),
-	  B : gamma(c)*gamma(a-b)/(gamma(a)*gamma(c-b)),
-	
-	  print( [hypergeometric([a, a-c+1], [a-b+1], 1/x),  gauss_hg(a, a-c+1, a-b+1, 1/x)]),
-	  A*(-x)^(-a)
-	    * hypergeometric([a, a-c+1], [a-b+1], 1/x)
-	
-	+ B*(-x)^(-b)
-	    * hypergeometric([b, b-c+1], [b-a+1], 1/x)
-	)$
-
-
- |#
+    (values value correct-bits 'large-argument)))
 
 (in-package :bigfloat)
 (defun hg-connection-inverse (a b c x)
@@ -730,59 +752,6 @@ Returns two values:
 
 
 #| 
-(defun hg-connection-1/(1-z) (a b c z)
-
-  (let* ((w (/ (- 1 z)))
-
-         (A (/ (* (gamma c)
-                  (gamma (- b a)))
-               (* (gamma b)
-                  (gamma (- c a)))))
-
-         (B (/ (* (gamma c)
-                  (gamma (- a b)))
-               (* (gamma a)
-                  (gamma (- c b))))))
-
-    (multiple-value-bind (f1 bits1)
-        (f21-numeric a
-                     (- c b)
-                     (+ a 1 (- b))
-                     w)
-
-      (multiple-value-bind (f2 bits2)
-          (f21-numeric b
-                       (- c a)
-                       (+ b 1 (- a))
-                       w)
-
-        (let* ((term1 (* A
-                         (expt (- 1 z) (- a))
-                         f1))
-
-               (term2 (* B
-                         (expt (- 1 z) (- b))
-                         f2))
-
-               (result (+ term1 term2))
-
-               (err1 (* (abs term1)
-                        (expt 2 (- bits1))))
-
-               (err2 (* (abs term2)
-                        (expt 2 (- bits2))))
-
-               (relerr (/ (+ err1 err2)
-                          (max *macheps*
-                               (abs result))))
-
-               (bits (max 0
-                          (floor (- (log relerr 2))))))
-
-          (values result bits))))))
-
-|#
-#| 
 
 Power series centered at zero--I hope this isn't needed.
 
@@ -850,8 +819,11 @@ Power series centered at zero--I hope this isn't needed.
     (eql (maxima::ftake 'maxima::$floor z) (maxima::ftake 'maxima::$ceiling z))))
 
 (defun gauss-hg-large-x (a b c x)
-  (when (< (abs x) 1)
-    (maxima::merror "Don't like this!"))
+   "Evaluate 2F1(a,b;c;x) using a large-|x| connection formula."
+
+  (when (or (< (abs x) 1) (and (integerp a) (integerp b) (integerp c)))
+    (return-from gauss-hg-large-x
+      (values nil 0 'gauss-hg-large-x)))
 
   (let* ((candidates nil))
 
@@ -866,26 +838,13 @@ Power series centered at zero--I hope this isn't needed.
      (let* ((best (car (stable-sort candidates #'< :key #'car)))
             (transform (cadr best)))
 
-    (maxima::mtell "large transform = ~M ~%" transform)
     (case transform
       (:inverse             (hg-connection-inverse a b c x))
       (:reflect             (hg-connection-reflect a b c x))
       (:one-minus-inverse   (hg-connection-one-minus-inverse a b c x))
       (:inverse-of-one-minus (hg-connection-inverse-of-one-minus a b c x)) 
-      (otherwise            (error "Unknown transform ~A" transform))))))
+      ((otherwise (values nil 0 'gauss-hg-large-x)))))))
 
-(in-package :maxima)
 
-(defmfun $gauss_hg_large_x (a b c x)
-  (let* ((one (multiplicative-identity a b c x)) 
-         (aa (bigfloat::to (orthopoly-number-coerce a one)))
-         (bb (bigfloat::to (orthopoly-number-coerce b one)))
-         (cc (bigfloat::to (orthopoly-number-coerce c one)))
-         (xx (bigfloat::to (orthopoly-number-coerce x one))))
-
-    (multiple-value-bind (f bits)
-       (bigfloat::gauss-hg-large-x aa bb cc xx)
-       (mtell "bits = ~M ~%" bits)
-       (maxima::to f))))
 
 
