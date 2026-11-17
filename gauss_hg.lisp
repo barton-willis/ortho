@@ -109,7 +109,8 @@ gamma: gamma(-1.0) is undefined.
 (defparameter *gauss-hg-methods*
   '(bigfloat::gauss-hg-elementary-case
     bigfloat::f21-numeric
-    bigfloat:: gauss-hg-large-x
+    bigfloat::gauss-hg-large-x
+    gauss-hg-by-nfloat
     gauss-hg-failure-method)
   "Ordered list of methods used to evaluate the Gauss hypergeometric function 2F1(a,b;c;x).
    Each method is a function of four arguments (a b c x). A method that cannot handle
@@ -159,6 +160,36 @@ gamma: gamma(-1.0) is undefined.
   (setq $hg_method 'failure)
   (maxima::merror (intl:gettext  "Internal error: no gauss_hg method could evaluate 2F1(~M,~M;~M;~M).") a b c x))
 
+(defun bits-to-digits (bits)
+  "Convert a precision in bits to the corresponding number of decimal digits."
+  (floor (* bits (log 2 10))))
+
+;; Handle recalcitrant cases such as 2F1([integer,integer],[integer], |x| > 1). It also handles polynomial cases.
+;; For arguments outside the unit circle, this code works around cases that require http://dlmf.nist.gov/15.8.E8 
+
+;; This methjod works by dispatching hgfred and nfloat on that result. Possibly, I should have a method that is specialized
+;; for the polynomial cases. For now, let's go with this.
+(defun gauss-hg-by-nfloat (a b c x)
+  (let* ((aa ($rationalize (maxima::to a)))
+         (bb ($rationalize (maxima::to b)))
+         (cc ($rationalize (maxima::to c)))
+         (xx (maxima::to x))
+         (bits (if (floatp x)
+                   (float-digits x)
+                   fpprec))
+         (dig (bits-to-digits bits)))
+
+  ;; When aa or bb is a negative integer, it's a polynomial case.
+  (cond ((or (every #'integerp (list aa bb cc)) (and (integerp aa) (< aa 0)) (and (integerp bb) (< bb 0))) 
+    (let* ((g (gensym))
+           (expr ($hgfred (ftake 'mlist aa bb) (ftake 'mlist cc) g))
+           (f (ftake '$nfloat expr (ftake 'mlist (ftake 'mequal g xx)) dig))
+           (meth 'hgfred-nfloat))
+
+        (if (complex-number-p f #'(lambda (q) (or (float q) ($bfloatp q))))
+            (values f bits meth)
+            (values nil 0  meth))))
+      (t (values nil nil nil)))))
 
 (in-package #:bigfloat)
 
