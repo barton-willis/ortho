@@ -145,7 +145,24 @@ gamma: gamma(-1.0) is undefined.
 (defun gauss-hg-elementary-case (a b c x)
   (cond
     ((equal a c) (expt (- 1 x) (- b)))
+
     ((equal b c) (expt (- 1 x) (- a)))
+
+    ;; Gauss theorem
+    ((and (= x 1) (>= (realpart (- c a b)) 0))
+     (gamma-quotient c (- c a b) (- c a) (- c b)))
+
+    ;; Kummer theorem
+    ((and (= x -1) (equal c (+ 1 a (- b))))
+     (gamma-quotient
+       (+ 1 a (- b))
+       (+ 1 (/ a 2))
+       (+ 1 a)
+       (+ 1 (/ a 2) (- b))))
+
+    ((zerop x)
+     1)
+
     (t nil)))
 
 (defun choose-z (x)
@@ -332,6 +349,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
       (max (abs (realpart z)) (abs (imagpart z)))
       (abs z)))
       
+
 (defconstant +max-series-iterations+ 1000000
   "Hard safety ceiling to prevent infinite loops in numerical series.")
 
@@ -344,7 +362,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
          (h0 1)
          (h1 (if real-case  
               (* (- 1 (/ (* 2 b) c)) phi) ; (1-2b/c) phi
-              (* (- 1 (/ (*  b x) (* c z))) phi))) ; (1 - bx/(cz)) phi
+              (* (- 1 (/ (*  b x) (* c z))) phi))) ; (1 - b*x/(c*z)) * phi
          
          (p1 (if real-case
               (/ a (- 1 (/ 2 x))) ; a x /(x - 2) = a / (1- 2/x)
