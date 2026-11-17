@@ -1,53 +1,18 @@
 #|
-Formerly bugs:
 
-(%i57) x1 : gauss_hg(5, 2, 8, 100.1+%i*300);
-(%i60) x1 : gauss_hg(5, 2, 8, 10.1 *%i);
+Algorithmic overview. The primary method used is summation of the series DLMF 15.15.E1 using a well-chosen value of z0​. 
+When convergence of this series is too slow, the code may instead:
 
-Bugs
+ o apply a connection formula such as DLMF 15.8.E1,
+ o dispatch to a special-case evaluation (for example, 2F1(a,b;a;x)), or
+ o evaluate an exact symbolic expression numerically using nfloat.
 
-Super fast but not accurate:
+In an effort to reduce rounding errors, the series summation uses Kahan summation. It also accumulates the sum of the absolute 
+values of the terms, allowing estimation of the accuracy of the result.
 
-(%i161) gauss_hg(5, 2, 400, 1.1 *%i);
-terms summed = 656
-error real = 21.300983803696976
-error imag = 13.177664094457308
-(%o161)       - 3.5633407489482256e97 %i - 1.3915927000179146e96
-(%i162) time(%);
-(%o162)                              [0.0]gauss_hg(5, 2, 400, 1.1 *%i);
+The last option is used for 2F1(integer,integer,integer,x), where x lies outside the unit circle.
 
-(%i163) hypergeometric([5, 2], [400], 1.1 *%i);
-(%o163)          0.027482674787230012 %i + 0.9993215451548428
-(%i164) time(%);
-(%o164)                           [97.421875]
-
-
-This problem seems to be plagued with ill-conditioning.  The error bounds, determined only from the 
-rounding error from the accumulated sum are too low. 
-
-(%i43) gauss_hg(5, 2, 4000, 0.9);
-sigma = 0.9999999999999991
-Maxima encountered a Lisp error:
-
- arithmetic error FLOATING-POINT-OVERFLOW signalled
-Operation was (* 1.0201699566444049e305 -18787.500000000004).
-
-Plus hypergeometric([5, 2], [4000], 0.9) is slow.  Ahh, I thought that large 'c' gives good 
-convergence.  Do I have something backwards?
-
-Automatically continuing.
-
---Bug in connection code:
-
-(%i51) (a : 4, b : 5, c:8, x : -1000.0 + %i/100);
-                                 %i
-(%o51)                           ─── - 1000.0
-                                 100
-(%i52) x2 : gauss_hg_large_x(a,b,c,x);
-large transform = inverse-of-one-minus
-gamma: gamma(-1.0) is undefined.
- -- an error. To debug this try: debugmode(true);
- |#
+|#
 
 (in-package :maxima)
 
@@ -284,6 +249,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 
  |#
 
+
 (defun f21-numeric (a b c x)
   (let* ((x-pfaff (/ x (- x 1))))
 
@@ -424,6 +390,13 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 
 (defconstant +max-series-iterations+ 1000000
   "Hard safety ceiling to prevent infinite loops in numerical series.")
+
+;(defun pochhammer-over-factorial (a k log-gamma-a)
+;  (exp (- (log-gamma (+ a k))
+ ;         log-gamma-a
+  ;        (log-gamma (1+ k)))))
+
+
 
 (defun f21-numeric-helper (a b c x z real-case)
   ;; Possibly there are cases where phi should be negative. And I'm not entirely sure about this scheme:
