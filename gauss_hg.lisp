@@ -391,12 +391,12 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 (defconstant +max-series-iterations+ 1000000
   "Hard safety ceiling to prevent infinite loops in numerical series.")
 
-;(defun pochhammer-over-factorial (a k log-gamma-a)
-;  (exp (- (log-gamma (+ a k))
- ;         log-gamma-a
-  ;        (log-gamma (1+ k)))))
+(defun bf-log-gamma (x)
+  (bigfloat::to
+    (maxima::ftake 'maxima::%log_gamma (maxima::to x))))
 
-
+(defun pochhammer-over-factorial (a k)
+  (/ (bf-gamma (+ a k)) (* (bf-gamma a) (bf-gamma (+ k 1)))))
 
 (defun f21-numeric-helper (a b c x z real-case)
   ;; Possibly there are cases where phi should be negative. And I'm not entirely sure about this scheme:
@@ -435,9 +435,10 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
              (/ (* (- (* 2 z) x) phi) z)))   ;(2 z - x) phi/z
          
          (kk 0)
+         (ss (/ z (* phi (- z 1)))) ; z * phi /(z-1)
          term-val y-val t-val hs)
     (flet ((next-h (k h0 h1) (/ (+ (* (+ k 1) w1 h0) (* (+ w3 (* k w4)) h1)) (+ k cp1)))
-           (next-cf (k q) (/ (* z (+ ap1 k) q) (* zm1 phi (+ k 2)))))
+           (next-cf (k q) (/ (* ss q (+ ap1 k)) (+ k 2)))) ; q * (z/(z-1)) * (1/phi) * (a+1+k) / (k+2) = ss * q (ap1 + k) /(k + 2)
       ;; --- Main loop ---
       (do ((k 0 (1+ k)))
           ((or (>= repeat-count 3)
@@ -819,7 +820,6 @@ Power series centered at zero--I hope this isn't needed.
 
 (defun approx-integer-p (x)
   (let ((z (maxima::to x)))
-    (maxima::mtell "~M ~M ~%" (maxima::ftake 'maxima::$floor z) (maxima::ftake 'maxima::$ceiling z))
     (eql (maxima::ftake 'maxima::$floor z) (maxima::ftake 'maxima::$ceiling z))))
 
 (defun gauss-hg-large-x (a b c x)
