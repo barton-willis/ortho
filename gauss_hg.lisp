@@ -12,6 +12,15 @@ values of the terms, allowing estimation of the accuracy of the result.
 
 The last option is used for 2F1(integer,integer,integer,x), where x lies outside the unit circle.
 
+
+BUGS:
+
+(%i11) gauss_hg(3,5,10,0.99999);
+Maxima encountered a Lisp error:
+ The value
+   ((BIGFLOAT SIMP 52) 2955044383536227 5)
+ is not of type
+   REAL
 |#
 
 (in-package :maxima)
@@ -360,16 +369,11 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 ;; 
 ;;  hh(k+2)=((k+1)*hh(k)*phi^2+(c-2*b)*hh(k+1)*phi)/(k+c+1)
 ;;
-;; To avoid subtractive cancellation in the numerator, its best to require that
+;; Possibly there is some advantage to require that
 ;;  
 ;;   sign((k+1) phi^2) = (sign((c-2b) phi)
 ;;
-;; So we would like sign(phi) = sign(c-2b). We'll include this tiny refinement. But I don't
-;; have an example where all this matters.
-
-;; The refinement in the value of phi is done according to asymptotics, but the bulk of the 
-;; ill conditioning happens long before the asymptotic solution settles in.  So no, altering phi 
-;; is fun, but it doesn't fix this problem.
+;; So we would like sign(phi) = sign(c-2b). But I'm not sure about this.
 
 ;; Last observation:  When c = 2 b, z = x/2, the recursion is simply
 ;;
