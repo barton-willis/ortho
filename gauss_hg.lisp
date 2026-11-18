@@ -165,7 +165,7 @@ Maxima encountered a Lisp error:
            (f (ftake '$nfloat expr (ftake 'mlist (ftake 'mequal g xx)) dig))
            (meth 'hgfred-nfloat))
 
-        (if (complex-number-p f #'(lambda (q) (or (float q) ($bfloatp q))))
+        (if (or t (complex-number-p f #'(lambda (q) (or (floatp q) ($bfloatp q)))))
             (values f bits meth)
             (values nil 0  meth))))
       (t (values nil nil nil)))))
