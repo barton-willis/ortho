@@ -24,6 +24,10 @@ The last option is used for 2F1(integer,integer,integer,x), where x lies outside
 "Method used in the most recent gauss_hg computation."
  :properties ((assign 'neverset)))
 
+(defmvar $hg_terms nil
+"Number of termss summed in recent gauss_hg computation."
+ :properties ((assign 'neverset)))
+
 ;; For many other possibilities, see  https://link.springer.com/article/10.1007/s11075-026-02436-2 
 
 (defun multiplicative-identity (&rest a)
@@ -88,10 +92,10 @@ The last option is used for 2F1(integer,integer,integer,x), where x lies outside
 (defun gauss-hg-dispatch (a b c x)
 "Evaluate the Gauss hypergeometric function 2F1(a,b;c;x) by dispatching to the methods listed in *gauss-hg-methods*."
   (dolist (method *gauss-hg-methods*)
-    (multiple-value-bind (f bits method)
+    (multiple-value-bind (f bits method N)
         (funcall method a b c x)
       (when f
-        (return (values f bits method))))))
+        (return (values f bits method N))))))
 
 (defmfun $gauss_hg (a b c x)
    ;; Check for an undefined case--not a polynomial case and a negative integer value for c.
@@ -113,10 +117,11 @@ The last option is used for 2F1(integer,integer,integer,x), where x lies outside
 
       (declare (ignore requested-bits))
 
-      (multiple-value-bind (f bits method)
+      (multiple-value-bind (f bits method N)
         (gauss-hg-dispatch aa bb cc xx)
       (setq $hg_bits (maxima::to bits))
       (setq $hg_method method)
+      (setq $hg_terms N)
       (maxima::to f))))
 
 (defun gauss-hg-failure-method (a b c x)
@@ -132,7 +137,7 @@ The last option is used for 2F1(integer,integer,integer,x), where x lies outside
 ;; Handle recalcitrant cases such as 2F1([integer,integer],[integer], |x| > 1). It also handles polynomial cases.
 ;; For arguments outside the unit circle, this code works around cases that require http://dlmf.nist.gov/15.8.E8 
 
-;; This methjod works by dispatching hgfred and nfloat on that result. Possibly, I should have a method that is specialized
+;; This method works by dispatching hgfred and nfloat on that result. Possibly, I should have a method that is specialized
 ;; for the polynomial cases. For now, let's go with this.
 (defun gauss-hg-by-nfloat (a b c x)
   (let* ((aa ($rationalize (maxima::to a)))
@@ -294,10 +299,10 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
                         (:euler-2 (expt (- 1 x ) (- c (+ a b))))
                         (otherwise (error "Unknown transform ~A" transform)))))
 
-                (multiple-value-bind (val bits)
+                (multiple-value-bind (val bits nterms)
                     (f21-numeric-helper aa bb cc xx zz rr)
 
-                  (values (* qqq val) bits 'dlmf-15.15.1))))))))))
+                  (values (* qqq val) bits 'maxima::$dlmf_15_15_1 nterms))))))))))
 
 (defun map-abs-onto-complex (x)
   (complex (abs (realpart x)) (abs (imagpart x))))
@@ -408,17 +413,14 @@ This code fails for negative integer a, it's almost surely slower, and I have no
 
 (defun f21-numeric-helper (a b c x z real-case)
   ;; Possibly there are cases where phi should be negative. And I'm not entirely sure about this scheme:
-  (let* ((phi (if (> (realpart b) 0)
-                  1
-                  (- 1 (* 2 (epsilon x)))))
-        
+  (let* ((phi (- 1 (* 2 (epsilon x)))) ; consider making phi negative for some cases?
          (h0 1)
          (h1 (if real-case  
-              (* (- 1 (/ (* 2 b) c)) phi) ; (1-2b/c) phi
-              (* (- 1 (/ (*  b x) (* c z))) phi))) ; (1 - b*x/(c*z)) * phi
+              (* (- 1 (* 2 (/ b c))) phi) ; (1-2b/c) phi
+              (* (- 1 (/ (* b x) (* c z))) phi))) ; (1 - b*x/(c*z)) * phi
          
          (p1 (if real-case
-              (/ a (- 1 (/ 2 x))) ; a x /(x - 2) = a / (1- 2/x)
+              (/ a (- 1 (/ 2 x))) ; a x /(x - 2) 
               (/ (* a z) (- z 1)))) ; a*z /(z-1)
 
          (s (+ h0 (* p1 h1)))
@@ -496,7 +498,7 @@ This code fails for negative integer a, it's almost surely slower, and I have no
        
         (let ((bbits (maxima::$round (maxima::to bits))))
             (hg-debug "bits = ~M ~%" bbits)
-            (values (* cnst s) bbits))))))
+            (values (* cnst s) bbits kk))))))
 
 (defun bf-gamma (x)
   (bigfloat::to
