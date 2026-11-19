@@ -164,7 +164,7 @@ for the hypergeometic function and dispatches nfloat on the symbolic expression.
 
 (in-package #:bigfloat)
 
-(defparameter *hg-debug* nil)
+(defparameter *hg-debug* t)
 
 (defmacro hg-debug (fmt &rest args)
   `(when *hg-debug*
@@ -564,7 +564,7 @@ Returns two values:
                                   (epsilon value)))
                           2))))))
 
-    (values value correct-bits 'large-argument)))
+    (values value correct-bits '$hg_connection_id)))
 
 (in-package :bigfloat)
 (defun hg-connection-inverse (a b c x)
@@ -737,8 +737,8 @@ Returns two values:
           (setf coeff1 (* A1 (expt (- 1 z) (- a))))
           (multiple-value-bind (ff bb)
               (f21-numeric a
-                           (+ a 1 (- c))
-                           (+ a 1 (- b))
+                           (- c b)
+                           (+ a (- b) 1)
                            w)
             (setf f1 ff
                   bits1 bb)))
@@ -748,8 +748,8 @@ Returns two values:
           (setf coeff2 (* B1 (expt (- 1 z) (- b))))
           (multiple-value-bind (ff bb)
               (f21-numeric b
-                           (+ b 1 (- c))
-                           (+ b 1 (- a))
+                           (- c a)
+                           (+ b (- a) 1)
                            w)
             (setf f2 ff
                   bits2 bb)))
@@ -845,6 +845,8 @@ Power series centered at zero--I hope this isn't needed.
 
      (let* ((best (car (stable-sort candidates #'< :key #'car)))
             (transform (cadr best)))
+          
+    (hg-debug "transform = ~M ~%" transform)
 
     (case transform
       (:inverse             (hg-connection-inverse a b c x))
