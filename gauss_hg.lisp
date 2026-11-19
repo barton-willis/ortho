@@ -10,17 +10,9 @@ When convergence of this series is too slow, the code may instead:
 In an effort to reduce rounding errors, the series summation uses Kahan summation. It also accumulates the sum of the absolute 
 values of the terms, allowing estimation of the accuracy of the result.
 
-The last option is used for 2F1(integer,integer,integer,x), where x lies outside the unit circle.
+For the cases of 2F1(integer,integer,integer,x), where x lies outside the unit circle, the code uses hgfred to find an exact symbolic formula 
+for the hypergeometic function and dispatches nfloat on the symbolic expression.
 
-
-BUGS:
-
-(%i11) gauss_hg(3,5,10,0.99999);
-Maxima encountered a Lisp error:
- The value
-   ((BIGFLOAT SIMP 52) 2955044383536227 5)
- is not of type
-   REAL
 |#
 
 (in-package :maxima)
