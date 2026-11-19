@@ -63,6 +63,9 @@ i = 0
 
 ```
 
+The file `gauss_hg` is a work-in-progress, that is *far from being ready for use work*. It is a re-working of Maxima's code for the 
+numerical evaluation of the Gauss hypergeometric function. Some key parts of the code are undone, so it is easy to find bugs.
+
 ## Installation Guide
 
 This guide explains how to install the new **ortho** package without modifying Maxima’s share library. The key requirement is to prevent Maxima from autoloading the old `orthopoly` package from the share library, since its functions would otherwise override the new ones. The steps below show how to install the new package by adding it to Maxima’s search path and removing the autoload properties associated with the old package.
