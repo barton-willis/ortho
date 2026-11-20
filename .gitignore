@@ -17,3 +17,82 @@
 *.sx32fsl
 *.wx64fsl
 *.wx32fsl
+# LaTeX auxiliary files
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.idx
+*.ilg
+*.ind
+*.lof
+*.log
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+*.xdv
+
+# Bibliography
+*.bib.bak
+
+# Glossaries and acronyms
+*.acn
+*.acr
+*.alg
+*.glg
+*.glo
+*.gls
+
+# Nomenclature
+*.nlo
+*.nls
+
+# Indexing
+*.ist
+
+# Minted
+_minted*
+*.pyg
+
+# TikZ externalization
+*.dpth
+*.md5
+
+# Beamer
+*.nav
+*.snm
+
+# Latexmk
+latexmkrc.local
+
+# Temporary editor files
+*~
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# VS Code
+.vscode/
+
+# TeXstudio
+*.txss
+
+# TeXmaker
+*.synctex.gz(busy)
+
+# Build directory (if you use one)
+build/
+
+# Generated PDFs
+# Uncomment if PDFs should not be tracked
+# *.pdf

@@ -1,10 +1,12 @@
 #|
 
-Algorithmic overview. The primary method used is summation of the series DLMF 15.15.E1 using a well-chosen value of z0​. 
+Algorithmic overview
+
+The primary method used is summation of the series DLMF 15.15.E1 using a well-chosen value of z0​. 
 When convergence of this series is too slow, the code may instead:
 
  o apply a connection formula such as DLMF 15.8.E1,
- o dispatch to a special-case evaluation (for example, 2F1(a,b;a;x)), or
+ o dispatch to a special-case evaluation, for example, 2F1(a,b;a;x), or
  o evaluate an exact symbolic expression numerically using nfloat.
 
 In an effort to reduce rounding errors, the series summation uses Kahan summation. It also accumulates the sum of the absolute 
@@ -12,6 +14,15 @@ values of the terms, allowing estimation of the accuracy of the result.
 
 For the cases of 2F1(integer,integer,integer,x), where x lies outside the unit circle, the code uses hgfred to find an exact symbolic formula 
 for the hypergeometic function and dispatches nfloat on the symbolic expression.
+
+References:
+
+(a) Hypergeometric Functions, E Norlund, (1955), especially Eq 1-21. https://www.scribd.com/document/959992072/N-E-N%C3%B8rlund-1955-Hypergeometric-Functions
+
+(b) An extension of hypergeometric functions, T W Chaundry, Quart J. Math, Oxford Series 14 (1943), 55-58 
+    https://academic.oup.com/qjmath/article-abstract/os-14/1/55/1578280?re 
+
+(c) DLMF http://dlmf.nist.gov/15.15.E1 and http://dlmf.nist.gov/16.10.E2
 
 |#
 
@@ -164,7 +175,7 @@ for the hypergeometic function and dispatches nfloat on the symbolic expression.
 
 (in-package #:bigfloat)
 
-(defparameter *hg-debug* t)
+(defparameter *hg-debug* nil)
 
 (defmacro hg-debug (fmt &rest args)
   `(when *hg-debug*
