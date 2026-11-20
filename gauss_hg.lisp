@@ -419,17 +419,18 @@ This code fails for negative integer a, it's almost surely slower, and I have no
 |#
 
 (defun f21-numeric-helper (a b c x z real-case)
-  (let* ((phi (- 1 (* 2 (epsilon x)))) ; consider making phi negative for some cases?
+  (let* ((phi (- 1 (epsilon x))) ; consider making phi negative for some cases?
          (h0 1)
          (h1 (if real-case  
-              (* (- 1 (* 2 (/ b c))) phi) ; (1-2b/c) phi
+              (* (- 1 (* 2 (/ b c))) phi) ; (1-2b/c) * phi
               (* (- 1 (/ (* b x) (* c z))) phi))) ; (1 - b*x/(c*z)) * phi
          
          (p1 (if real-case
               (/ (* a x) (* phi (- x 2))); a x /(phi * (x - 2))
               (/ (* a z) (* phi (- z 1))))) ; a*z /(phi * (z - 1))
 
-         (s (+ h0 (* p1 h1)))
+         ;; The product p1*h1 involves phi/phi, but I don't think we gain much by simplifying this
+         (s (+ h0 (* p1 h1))) 
          (c-comp 0)
          (repeat-count 0)
          (sum-abs 0)
