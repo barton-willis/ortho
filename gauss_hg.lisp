@@ -419,7 +419,6 @@ This code fails for negative integer a, it's almost surely slower, and I have no
 |#
 
 (defun f21-numeric-helper (a b c x z real-case)
-  ;; Possibly there are cases where phi should be negative. And I'm not entirely sure about this scheme:
   (let* ((phi (- 1 (* 2 (epsilon x)))) ; consider making phi negative for some cases?
          (h0 1)
          (h1 (if real-case  
@@ -427,8 +426,8 @@ This code fails for negative integer a, it's almost surely slower, and I have no
               (* (- 1 (/ (* b x) (* c z))) phi))) ; (1 - b*x/(c*z)) * phi
          
          (p1 (if real-case
-              (/ a (- 1 (/ 2 x))) ; a x /(x - 2) 
-              (/ (* a z) (- z 1)))) ; a*z /(z-1)
+              (/ (* a x) (* phi (- x 2))); a x /(phi * (x - 2))
+              (/ (* a z) (* phi (- z 1))))) ; a*z /(phi * (z - 1))
 
          (s (+ h0 (* p1 h1)))
          (c-comp 0)
