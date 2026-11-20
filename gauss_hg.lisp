@@ -460,7 +460,7 @@ This code fails for negative integer a, it's almost surely slower, and I have no
           ((or (>= repeat-count 3)
                (>= k +max-series-iterations+)))
         (declare (type fixnum k)) 
-        (setq kk k) ;; only for debugging...
+        (setq kk k)
 
         ;; Save previous h_k
         (setf hs h1)
@@ -497,14 +497,8 @@ This code fails for negative integer a, it's almost surely slower, and I have no
 
         ;; Ensure we didn't bail out purely due to hitting the safety ceiling. Should never happen.
         (when (>= kk +max-series-iterations+)
-         (maxima::merror "Series failed to numerically converge after ~M iterations ~%." +max-series-iterations+))
-
-        (hg-debug "s = ~M ~%" (maxima::$float (maxima::to s)))
-        (hg-debug "sum-abs = ~M ~%" (maxima::$float (maxima::to sum-abs)))
-        (hg-debug "terms summed = ~M ~%" kk)
-       
+         (values nil 0 nil))
         (let ((bbits (maxima::$round (maxima::to bits))))
-            (hg-debug "bits = ~M ~%" bbits)
             (values (* cnst s) bbits kk))))))
 
 (defun bf-gamma (x)
