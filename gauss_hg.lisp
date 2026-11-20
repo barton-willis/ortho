@@ -390,7 +390,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
   (let* ((y (- term compensator))
          (new-sum (+ sum y))
          (new-compensator (- (- new-sum sum) y)))
-    (values new-sum new-compensator)))
+    (values new-sum new-compensator y)))
 
 (defun complex-max-norm (z)
 "Return max(|real(z)|, |imag(z)|)."
@@ -471,11 +471,8 @@ This code fails for negative integer a, it's almost surely slower, and I have no
         ;; accumulate the sum of the absolute values of the real & imaginary parts
         (setf sum-abs (+ sum-abs (map-abs-onto-complex term-val)))
         ;; Kahan accumulation
-        (setf y-val (- term-val c-comp))
-        (setf t-val (+ s y-val))
-        (setf c-comp (- (- t-val s) y-val))
-        (setf s t-val)
-
+        (multiple-value-setq (s c-comp y-val)
+           (kahan-add s c-comp term-val))
         ;; Convergence check--maybe this should be more closely tied to the asymptotics?
           (if (< (complex-max-norm y-val) (* macheps (max 1 (complex-max-norm s))))
              (incf repeat-count)
