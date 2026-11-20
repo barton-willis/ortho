@@ -678,10 +678,10 @@ Returns two values:
          (bits2 0))
 
     (multiple-value-bind (A1 A-status)
-        (gamma-quotient c (- a b) a (- c b))
+        (gamma-quotient c (- c a b) (- c a) (- c b))
 
       (multiple-value-bind (B1 B-status)
-          (gamma-quotient c (- b a) b (- c a))
+          (gamma-quotient c (+ a b (- c)) a b)
 
         ;; Logarithmic / exceptional cases.
         (when (or (eq A-status :exceptional)
@@ -695,18 +695,18 @@ Returns two values:
           (multiple-value-bind (ff bb)
               (f21-numeric a
                            (+ a 1 (- c))
-                           (+ a 1 (- b))
+                           (+ a b (- c) 1)
                            w)
             (setf f1 ff
                   bits1 bb)))
 
         ;; Second contribution.
         (unless (eq B-status :zero)
-          (setf coeff2 (* B1 (expt z (- b))))
+          (setf coeff2 (* B1 (expt z (- a c)) (expt (- 1 z) (- c a b))))
           (multiple-value-bind (ff bb)
-              (f21-numeric b
-                           (+ b 1 (- c))
-                           (+ b 1 (- a))
+              (f21-numeric (- c a)
+                           (- 1 a)
+                           (+ 1 (- c a b))
                            w)
             (setf f2 ff
                   bits2 bb)))
@@ -851,7 +851,7 @@ Power series centered at zero--I hope this isn't needed.
      (let* ((best (car (stable-sort candidates #'< :key #'car)))
             (transform (cadr best)))
           
-    (hg-debug "transform = ~M ~%" transform)
+    (hg-debug "Large x transform = ~M ~%" transform)
 
     (case transform
       (:inverse             (hg-connection-inverse a b c x))
