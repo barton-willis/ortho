@@ -445,13 +445,13 @@ This code fails for negative integer a, it's almost surely slower, and I have no
          ;; no w2 because w2 = w1.
          (w3 (if real-case
              (* (- c (* 2 b)) phi)                          ; (c - 2b) phi
-            (/ (* (- (* (+ c 2) z) (+ (* b x) x)) phi) z))) ; ( c z + 2 z - bx - x) phi / z
+             (/ (* (- (* (+ c 2) z) (+ (* b x) x)) phi) z))) ; ( c z + 2 z - bx - x) phi / z
          (w4 (if real-case
              0                               ; 0
              (/ (* (- (* 2 z) x) phi) z)))   ;(2 z - x) phi/z
          
          (kk 0)
-         (ss (/ z (* phi (- z 1)))) ; z * phi /(z-1)
+         (ss (/ z (* phi (- z 1)))) ; z /(phi (z-1))
          term-val y-val t-val hs)
     (flet ((next-h (k h0 h1) (/ (+ (* (+ k 1) w1 h0) (* (+ w3 (* k w4)) h1)) (+ k cp1)))
            (next-cf (k q) (/ (* ss q (+ ap1 k)) (+ k 2)))) ; q * (z/(z-1)) * (1/phi) * (a+1+k) / (k+2) = ss * q (ap1 + k) /(k + 2)
