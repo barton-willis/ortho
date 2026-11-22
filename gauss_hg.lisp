@@ -388,8 +388,10 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
               (/ (* (- (* c z) (* b x)) phi) (* c z)))) ; (1 - b*x/(c*z)) * phi
          
          (p1 a) 
-         ;; The product p1*h1 involves phi/phi, but I don't think we gain much by simplifying this
-         (s (+ h0 (* p1 h1))) 
+         ;; initialize the partial sum s to (+ h0 (* p1 h1))) 
+         (s (if real-case
+                (/ (+ c (* a (- c (* 2 b)) phi)) c) ; equivalent to h0 + p1 * h1, but possibly better.
+                (+ h0 (* p1 h1))))
          (c-comp 0)
          (repeat-count 0)
          (sum-abs 0)
