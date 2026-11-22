@@ -380,20 +380,6 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 (defconstant +max-series-iterations+ 1000000
   "Hard safety ceiling to prevent infinite loops in numerical series.")
 
-#| The function f21-numeric-helper computes w^k pochhammer(a+k) / k! recursively.  Here is a non-recursive way:
-
-(defun bf-log-gamma (x)
-  (let ((maxima::$numer t))
-  (bigfloat::to
-    (maxima::ftake 'maxima::%log_gamma (maxima::to x)))))
-
-(defun pochhammer-over-factorial (a w k)
-  ;(/ (* (expt w k) (bf-gamma (+ a k))) (* (bf-gamma a) (bf-gamma (+ k 1)))))
-  (let ((kk (bigfloat::to k)))
-  (/ (* (expt w k) (exp (- (bf-log-gamma (+ a kk)) (bf-log-gamma (+ kk 1))))) (bf-gamma a))))
-
-This code fails for negative integer a, it's almost surely slower, and I have no examples that it boost accuracy all that much.
-|#
 (defun f21-numeric-helper (a b c x z real-case)
   (let* ((phi (/ z (- z 1)))
          (h0 1)
