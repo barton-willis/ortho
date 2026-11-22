@@ -376,7 +376,186 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
       (max (abs (realpart z)) (abs (imagpart z)))
       (abs z)))
       
+;;;;;;;;;;;;;;;;;;;;;;;
+;;; ----------------------------------------------------------------------
+;;; RUNERR -- value with a running absolute error estimate.
+;;;
+;;; A RUNERR object represents
+;;;
+;;;     value ± error
+;;;
+;;; where ERROR is a conservative absolute error bound satisfying
+;;;
+;;;     |true-value - value| <= error.
+;;;
+;;; Design choices:
+;;;
+;;;  1. The error estimate is an absolute error, not a relative error.
+;;;     Relative errors become meaningless near zeros and during
+;;;     cancellation, both of which occur naturally in the recurrences
+;;;     used by the hypergeometric code.
+;;;
+;;;  2. Error propagation is performed using first-order forward
+;;;     error analysis. This is inexpensive and sufficiently
+;;;     conservative for the intended use.
+;;;
+;;;  3. A floating-point roundoff contribution is added at each
+;;;     arithmetic operation.
+;;;
+;;;  4. A single scalar error bound is maintained even for complex
+;;;     values. The error bound is measured using MAP-ABS-ONTO-COMPLEX,
+;;;     which provides a conservative magnitude estimate for complex
+;;;     quantities.
+;;;
+;;;  5. This machinery is intended to estimate term-generation error.
+;;;     Summation error is handled separately by Kahan compensated
+;;;     summation.
+;;;
+;;; The goal is not a rigorous interval enclosure. Instead, the goal
+;;; is a lightweight, pessimistic estimate of the numerical error
+;;; accumulated while constructing the terms of the hypergeometric
+;;; series.
+;;; ----------------------------------------------------------------------
 
+;;; Arithmetic on RUNERR objects.
+;;;
+;;; The propagated error estimate is intentionally pessimistic.
+;;; Since the 2F1 evaluator favors reliability over speed, false
+;;; positives (unnecessary reevaluation at higher precision) are
+;;; preferred to false negatives (overstated accuracy).
+
+(defstruct (runerr
+             (:constructor make-runerr (value error)))
+  value
+  error)
+
+(defun runner-exact (x)
+  (make-runerr x 0))
+
+(defun runner-copy (x)
+  (make-runerr (runerr-value x)
+               (runerr-error x)))
+
+(declaim (inline runner-mag runner-roundoff))
+
+(defun runner-mag (x)
+  "Magnitude used for error propagation."
+  (map-abs-onto-complex x))
+
+(defun runner-roundoff (x)
+  "Bound for one floating-point rounding operation."
+  (* (epsilon x)
+     (runner-mag x)))
+
+;;; ----------------------------------------------------------------------
+;;; RUNERR -- value with a running absolute error estimate.
+;;;
+;;; A RUNERR object represents
+;;;
+;;;     value ± error
+;;;
+;;; where ERROR is a conservative absolute error bound satisfying
+;;;
+;;;     |true-value - value| <= error.
+;;;
+;;; Design choices:
+;;;
+;;;   1. ERROR is an absolute error, not a relative error.
+;;;   2. Errors are propagated using first-order forward analysis.
+;;;   3. A roundoff term is added at every arithmetic operation.
+;;;   4. Complex magnitudes are measured using MAP-ABS-ONTO-COMPLEX.
+;;;   5. RUNERR estimates errors in term generation. Summation errors
+;;;      are handled separately by Kahan summation.
+;;;
+;;; Reliability is preferred over speed. Conservative error estimates
+;;; are acceptable if they occasionally trigger unnecessary
+;;; reevaluation at higher precision.
+;;; ----------------------------------------------------------------------
+#| 
+(defstruct (runerr
+             (:constructor make-runerr (value error)))
+  value
+  error)
+
+(defun runner-exact (x)
+  (make-runerr x 0))
+
+(defun runner+ (x y)
+  "Addition with propagated absolute error."
+  (let* ((vx (runerr-value x))
+         (vy (runerr-value y))
+         (v (+ vx vy))
+         (e (+ (runerr-error x)
+               (runerr-error y)
+               (runner-roundoff v))))
+    (make-runerr v e)))
+
+(defun runner- (x y)
+  "Subtraction with propagated absolute error."
+  (let* ((vx (runerr-value x))
+         (vy (runerr-value y))
+         (v (- vx vy))
+         (e (+ (runerr-error x)
+               (runerr-error y)
+               (runner-roundoff v))))
+    (make-runerr v e)))
+
+(defun runner* (x y)
+  "Multiplication with propagated absolute error."
+  (let* ((vx (runerr-value x))
+         (vy (runerr-value y))
+         (ex (runerr-error x))
+         (ey (runerr-error y))
+         (v (* vx vy))
+         (e (+ (* (runner-mag vy) ex)
+               (* (runner-mag vx) ey)
+               (* ex ey)
+               (runner-roundoff v))))
+    (make-runerr v e)))
+
+(defun runner/ (x y)
+  "Division with propagated absolute error."
+  (let* ((vx (runerr-value x))
+         (vy (runerr-value y))
+         (ex (runerr-error x))
+         (ey (runerr-error y))
+         (den (- (runner-mag vy) ey)))
+    (cond
+      ((<= den 0)
+       (error "RUNNER/: denominator uncertainty includes zero"))
+      (t
+       (let* ((v (/ vx vy))
+              (e (+ (/ ex den)
+                    (/ (* (runner-mag vx) ey)
+                       (* den den))
+                    (runner-roundoff v))))
+         (make-runerr v e))))))
+
+(defun runner-scale (a x)
+  "Multiply by an exact scalar."
+  (let* ((vx (runerr-value x))
+         (ex (runerr-error x))
+         (v (* a vx))
+         (e (+ (* (runner-mag a) ex)
+               (runner-roundoff v))))
+    (make-runerr v e)))
+
+(defun runner-negate (x)
+  "Negation."
+  (make-runerr (- (runerr-value x))
+               (runerr-error x)))
+|#
+#|
+(defun next-h (k q0 q1)
+  (runner/
+   (runner+
+    (runner-scale (* (+ k 1) w1) q0)
+    (runner-scale (+ w3 (* k w4)) q1))
+   (runner-exact (+ k cp1))))
+
+ |#
+
+;;;;;;;;;;;;;;;;;;;;;;
 (defconstant +max-series-iterations+ 1000000
   "Hard safety ceiling to prevent infinite loops in numerical series.")
 
@@ -384,8 +563,8 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
   (let* ((phi (/ z (- z 1)))
          (h0 1)
          (h1 (if real-case  
-              (/ (* (- c (* 2 b)) phi) c) ; (1-2b/c) * phi
-              (/ (* (- (* c z) (* b x)) phi) (* c z)))) ; (1 - b*x/(c*z)) * phi
+              (/ (* (- c (* 2 b)) x) (* c (- x 2)))      ;((c-2*b)*x)/(c*(x-2))
+              (/ (- (* c z) (* b x)) (* c (- z 1)))))    ;(c*z-b*x)/(c*(z-1))
          
          (p1 a) 
          ;; initialize the partial sum s to (+ h0 (* p1 h1))) 
