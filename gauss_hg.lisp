@@ -343,46 +343,22 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 
 ;;  (c) Let's compute  ( (c + 2) z - (b + 1) x)) phi / z as it is, but maybe factoring out a z would be better?
 ;;  
-;;  (d) Evaluate ((k+1) w1 h0 + (w3 + k w4) h1)/(k+cp) as is. Some would partially factor the
-;;      numerator with respect to k.
+;;  (d) Evaluate ((k+1) w1 h0 + (w3 + k w4) h1)/(k+cp) as is. 
 
 ;; Notes about phi
 
-;;  A fundamental solution set (FSS) for the asymptotic solutions to the recreance for k -> 2f1(-k,b,c,x/z) is
+;;  A fundamental solution set (FSS) for the asymptotic solutions to the recurace for 
+;;  k -> 2f1(-k,b,c,x/z) phi, where phi = z/(z-1)
 ;;
-;;    {k -> ((z-x)/z)^k k^(b-c), k -> k^(-b)}.
+;;    {k -> ((z-x)/(z-1))^k k^(b-c), k -> phi k^(-b)}.
 ;;
-;; For convergence, we need |(z-x)/z| < 1, so the first member of the FSS decreases exponentially. For stability,
+;; For convergence, we need |(z-x)/z| < 1 and |phi| < 1, so both members of the FSS decreases exponentially. 
+;; That makes the recursion stable.
 ;; we need the second member to also decrease. This requires that Re(br) > 0. When Re(br) < 0, we need to
-;; use a trick. For this case, we recursively compute k -> phi 2F1(-k,b,c,x/z), where phi is a nonzero 
-;; complex number. Now a FSS is
-;;
-;;    {k -> phi^k ((z-x)/z)^k k^(b-c), k -> phi^k k^(-b)}.
-;;
-;; For convergence we already have |(z-x)/z|< 1, so we only need to choose |phi| < 1.  Of course, to 
-;; compensate for phi in the hypergeometric term, the term pochhammer(a,k) * (z/(z-1))^k / k! needs
-;; a factor of 1/phi.  The value of phi does not affect convergence, just the stability of the recursion
-;; for the hypergeometric term.
 
-;; Conjecture: Making |phi| << 1 could possibly make the term k -> phi 2f1(-k,b,c,x/z) decrease very
-;; fast and the other factor k -> pochhammer(a,k) (z/(z-1))^k / (phi^k k!) grow very fast. This could
-;; cause problems with overflow or underflow. We'll take |phi| to be very close to one.
+;; One last tiny refinement: When x is real, the auxillary parameter z is x/2. For this case, the 
+;; recursion simplifes considerable. So we special case z = x/2.
 
-;; One last tiny refinement: Including phi, for the real case (including all arguments real)
-;; the recursion for the hypergeometric term is
-;; 
-;;  hh(k+2)=((k+1)*hh(k)*phi^2+(c-2*b)*hh(k+1)*phi)/(k+c+1)
-;;
-;; Possibly there is some advantage to require that
-;;  
-;;   sign((k+1) phi^2) = (sign((c-2b) phi)
-;;
-;; So we would like sign(phi) = sign(c-2b). But I'm not sure about this.
-
-;; Last observation:  When c = 2 b, z = x/2, the recursion is simply
-;;
-;;    hh(k+2)=((k+1)*hh(k)*phi^2)/(k+2*b+1)
-;; 
 ;; Kahan summation: This code uses Kahan summation for the main summation loop. This method does not 
 ;; convert an ill-conditioned sum into a well conditioned sum. A compiler that doesn't respect associativity 
 ;; might simplify the  compensation away.
