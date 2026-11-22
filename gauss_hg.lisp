@@ -6,14 +6,14 @@ The primary method used is summation of the series DLMF 15.15.E1 using a well-ch
 When convergence of this series is too slow, the code may instead:
 
  o apply a connection formula such as DLMF 15.8.E1,
- o dispatch to a special-case evaluation, for example, 2F1(a,b;a;x), or
+ o dispatch to a special-case evaluation, for example 2F1(a,b;a;x), or ...
  o evaluate an exact symbolic expression numerically using nfloat.
 
-In an effort to reduce rounding errors, the series summation uses Kahan summation. It also accumulates the sum of the absolute 
-values of the terms, allowing estimation of the accuracy of the result.
+In an effort to reduce rounding errors, the series summation uses Kahan summation. It also accumulates the sum of 
+the absolute values of the terms, allowing estimation of the accuracy of the result.
 
-For the cases of 2F1(integer,integer,integer,x), where x lies outside the unit circle, the code uses hgfred to find an exact symbolic formula 
-for the hypergeometic function and dispatches nfloat on the symbolic expression.
+For the cases of 2F1(integer,integer,integer,x), where x lies outside the unit circle, the code uses hgfred 
+to find an exact symbolic formula for the hypergeometic function and dispatches nfloat on the symbolic expression.
 
 References:
 
@@ -24,6 +24,9 @@ References:
 
 (c) DLMF http://dlmf.nist.gov/15.15.E1 and http://dlmf.nist.gov/16.10.E2
 
+Recent papers on numerical evaluation of the Gauss hypergeometric function
+
+(a)  https://link.springer.com/article/10.1007/s11075-026-02436-2 
 |#
 
 (in-package :maxima)
@@ -39,8 +42,6 @@ References:
 (defmvar $hg_terms nil
 "Number of termss summed in recent gauss_hg computation."
  :properties ((assign 'neverset)))
-
-;; For many other possibilities, see  https://link.springer.com/article/10.1007/s11075-026-02436-2 
 
 (defun multiplicative-identity (&rest a)
   "Return the appropriate multiplicative identity (1 for rational numbers, 1.0d0 for binary64, and 1.0b0 for bigfloats)
@@ -417,13 +418,12 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 
 This code fails for negative integer a, it's almost surely slower, and I have no examples that it boost accuracy all that much.
 |#
-
 (defun f21-numeric-helper (a b c x z real-case)
-  (let* ((phi (- 1 (epsilon x))) ; consider making phi negative for some cases?
+  (let* ((phi (/ z (- z 1)))
          (h0 1)
          (h1 (if real-case  
-              (* (- 1 (* 2 (/ b c))) phi) ; (1-2b/c) * phi
-              (* (- 1 (/ (* b x) (* c z))) phi))) ; (1 - b*x/(c*z)) * phi
+              (/ (* (- c (* 2 b)) phi) c) ; (1-2b/c) * phi
+              (/ (* (- (* c z) (* b x)) phi) (* c z)))) ; (1 - b*x/(c*z)) * phi
          
          (p1 (if real-case
               (/ (* a x) (* phi (- x 2))); a x /(phi * (x - 2))
@@ -445,16 +445,15 @@ This code fails for negative integer a, it's almost surely slower, and I have no
          ;; no w2 because w2 = w1.
          (w3 (if real-case
              (* (- c (* 2 b)) phi)                          ; (c - 2b) phi
-             (/ (* (- (* (+ c 2) z) (+ (* b x) x)) phi) z))) ; ( c z + 2 z - bx - x) phi / z
+             (/ (* (- (* (+ c 2) z) (* (+ b 1) x)) phi) z))) ; ( c z + 2 z - bx - x) phi / z
          (w4 (if real-case
              0                               ; 0
              (/ (* (- (* 2 z) x) phi) z)))   ;(2 z - x) phi/z
          
          (kk 0)
-         (ss (/ z (* phi (- z 1)))) ; z /(phi (z-1))
-         term-val y-val t-val hs)
+         term-val y-val  hs)
     (flet ((next-h (k h0 h1) (/ (+ (* (+ k 1) w1 h0) (* (+ w3 (* k w4)) h1)) (+ k cp1)))
-           (next-cf (k q) (/ (* ss q (+ ap1 k)) (+ k 2)))) ; q * (z/(z-1)) * (1/phi) * (a+1+k) / (k+2) = ss * q (ap1 + k) /(k + 2)
+           (next-cf (k q) (/ (* q (+ ap1 k)) (+ k 2)))) ;
       ;; --- Main loop ---
       (do ((k 0 (1+ k)))
           ((or (>= repeat-count 3)
