@@ -387,10 +387,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
               (/ (* (- c (* 2 b)) phi) c) ; (1-2b/c) * phi
               (/ (* (- (* c z) (* b x)) phi) (* c z)))) ; (1 - b*x/(c*z)) * phi
          
-         (p1 (if real-case
-              (/ (* a x) (* phi (- x 2))); a x /(phi * (x - 2))
-              (/ (* a z) (* phi (- z 1))))) ; a*z /(phi * (z - 1))
-
+         (p1 a) 
          ;; The product p1*h1 involves phi/phi, but I don't think we gain much by simplifying this
          (s (+ h0 (* p1 h1))) 
          (c-comp 0)
