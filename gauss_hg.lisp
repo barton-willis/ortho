@@ -585,7 +585,7 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
          ;; no w2 because w2 = w1.
          (w3 (if real-case
              (* (- c (* 2 b)) phi)                          ; (c - 2b) phi
-             (/ (* (- (* (+ c 2) z) (* (+ b 1) x)) phi) z))) ; ( c z + 2 z - bx - x) phi / z
+             (/ (- (* (+ c 2) z) (* (+ b 1) x)) (- z 1))))  ; ( c z + 2 z - bx - x) phi / z
          (w4 (if real-case
              0                               ; 0
              (/ (* (- (* 2 z) x) phi) z)))   ;(2 z - x) phi/z
