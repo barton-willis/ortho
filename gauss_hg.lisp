@@ -901,9 +901,8 @@ Returns two values:
          bits1 bits2)))))
 
 
-#| 
 
-Power series centered at zero--I hope this isn't needed.
+;;;Power series centered at zero--I hope this isn't needed.
 
 (defun hypergeometric-2f1-series (a b c x)
   (labels ((kahan-add (term sum comp)
@@ -950,7 +949,7 @@ Power series centered at zero--I hope this isn't needed.
 
         (let ((bbits (maxima::$round (maxima::to bits))))
             (values sum bbits kk)))))))
-|#
+
 
 (defun exponential-rate (x)
   (multiple-value-bind (z r) (choose-z x)
@@ -997,5 +996,13 @@ Power series centered at zero--I hope this isn't needed.
       ((otherwise (values nil 0 'gauss-hg-large-x)))))))
 
 
+(in-package :maxima)
 
-
+(defmfun $gauss_series (a b c x)
+    (let* ((one (multiplicative-identity a b c x))
+           (aa (bigfloat::to (orthopoly-number-coerce a one)))
+           (bb (bigfloat::to (orthopoly-number-coerce b one)))
+           (cc (bigfloat::to (orthopoly-number-coerce c one)))
+           (xx (bigfloat::to (orthopoly-number-coerce x one))))
+     
+      (maxima::to  (bigfloat::hypergeometric-2f1-series aa bb cc xx))))

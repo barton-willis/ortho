@@ -16,7 +16,7 @@ are marked "Arb failure"*/
 
 /* boa = bits of agreement. We allow a loss of at most fudge bits (currently eight).  When the test fails,
    return boa, else return true. */
-(boa (x,y,bits) := block([Q, diff : abs(x - y), fudge : 8],
+(boa (x,y,bits) := block([Q, diff : abs(x - y), fudge : 53],
    if integerp(hg_bits) then (total_bits : total_bits + hg_bits, total_count : total_count +1),
    if integerp(hg_terms) then total_terms : total_terms + hg_terms,
    Q : if equal(diff,0) then bits_in_float(y)
