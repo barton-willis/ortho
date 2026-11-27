@@ -284,18 +284,23 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
                       (realpart (+ a -1 (- b))))))
 
           (let* ((candidates
+
                    (list
-                     ;; plain-1 & plain-2
+                     ;; identity
                      (list a b c x z real-case :plain-1)
                      (list b a c x z real-case :plain-2)
 
-                     ;; pfaff-1 & pfaff-2
-                     (list b (- c a) c x-pfaff z-pfaff real-case :pfaff-1)
-                     (list (- c a) b c x-pfaff z-pfaff real-case :pfaff-2)
+                     ;; Pfaff (exponent -b)
+                     (list b (- c a) c x-pfaff z-pfaff real-case :pfaff-b-1)
+                     (list (- c a) b c x-pfaff z-pfaff real-case :pfaff-b-2)
 
-                     ;; euler-1 * euler-2
-                     (list (- c a) (- c b) c x z real-case :euler-1) 
-                     (list (- c b) (- c a) c x z real-case :euler-2)))
+                    ;; Pfaff (exponent -a)
+                    (list a (- c b) c x-pfaff z-pfaff real-case :pfaff-a-1)
+                    (list (- c b) a c x-pfaff z-pfaff real-case :pfaff-a-2)
+
+                    ;; Euler
+                    (list (- c a) (- c b) c x z real-case :euler-1)
+                    (list (- c b) (- c a) c x z real-case :euler-2)))
 
                  (best (car (stable-sort candidates #'< :key #'(lambda (w) (algebraic-growth (first w) (second w) (third w)))))))
             (destructuring-bind
@@ -304,14 +309,21 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
                (hg-debug "transform = ~M ~%" transform)
               (let ((qqq
                       (case transform
-                        (:plain-1 1)
-                        (:plain-2 1)
-                        (:pfaff-1 (expt (- 1 x) (- b)))
-                        (:pfaff-2 (expt (- 1 x) (- b)))
-                        (:euler-1 (expt (- 1 x) (- c (+ a b))))
-                        (:euler-2 (expt (- 1 x ) (- c (+ a b))))
-                        (otherwise (error "Unknown transform ~A" transform)))))
+                         (:plain-1 1)
+                         (:plain-2 1)
 
+                         (:pfaff-b-1 (expt (- 1 x) (- b)))
+                         (:pfaff-b-2 (expt (- 1 x) (- b)))
+
+                         (:pfaff-a-1 (expt (- 1 x) (- a)))
+                         (:pfaff-a-2 (expt (- 1 x) (- a)))
+
+                         (:euler-1 (expt (- 1 x) (- c (+ a b))))
+                         (:euler-2 (expt (- 1 x) (- c (+ a b))))
+
+                        (otherwise
+                           (error "Unknown transform ~A" transform)))))
+                      
                 (multiple-value-bind (val bits nterms)
                     (f21-numeric-helper aa bb cc xx zz rr)
 
