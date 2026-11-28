@@ -203,6 +203,9 @@ Recent papers on numerical evaluation of the Gauss hypergeometric function
                   (> (realpart (- c a b)) 0))
              (gamma-quotient c (- c a b) (- c a) (- c b)))
 
+            ((and (= x 1) (<= (realpart (- c a b)) 0))
+             'maxima::$inf)
+
             ;; Kummer theorem
             ((and (= x -1)
                   (equal c (+ 1 a (- b))))
@@ -215,9 +218,8 @@ Recent papers on numerical evaluation of the Gauss hypergeometric function
             ((zerop x) 1)
 
             (t nil))))
-    (values f
-            (if f bits 0)
-            'elementary)))
+
+    (values f (if f bits 0) 'elementary)))
 
 
 (defun choose-z (x)
