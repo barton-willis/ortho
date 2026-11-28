@@ -267,7 +267,6 @@ hh(k+1)*(-((c*z+2*z-b*x-x)/(z-1))-(k*(2*z-x))/(z-1)) +hh(k)*((k*z*(z-x))/(z-1)^2
 
  |#
 
-
 (defun f21-numeric (a b c x)
   (let* ((x-pfaff (/ x (- x 1))))
 
