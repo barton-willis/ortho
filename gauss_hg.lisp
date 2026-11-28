@@ -47,7 +47,7 @@ Recent papers on numerical evaluation of the Gauss hypergeometric function
   "Return the appropriate multiplicative identity (1 for rational numbers, 1.0d0 for binary64, and 1.0b0 for bigfloats)
   for the numbers in the list a."
   (flet ((local-one (s) 
-           (cond ((complex-number-p s #'$ratnump) 1.0d0)
+           (cond ((complex-number-p s #'$ratnump) 1)
                  ((complex-number-p s #'(lambda (q) (or ($ratnump q) (floatp q)))) 1.0d0)
                  ((complex-number-p s #'(lambda (q) (or ($ratnump q) (floatp q) ($bfloatp q)))) *bigfloatone*)
                  (t nil)))) ;not a complex number, return nil
@@ -90,6 +90,7 @@ Recent papers on numerical evaluation of the Gauss hypergeometric function
 
 (defparameter *gauss-hg-methods*
   '(bigfloat::gauss-hg-elementary-case
+    bigfloat::gauss-series-polynomial-rational-case
     bigfloat::f21-numeric
     bigfloat::gauss-hg-large-x
     gauss-hg-by-nfloat
@@ -99,7 +100,7 @@ Recent papers on numerical evaluation of the Gauss hypergeometric function
    the given arguments must return nil as its primary value. A successful method returns a 
    bigfloat numeric primary value together with the estimated precision in bits.
 
-  The each of the four arguments to a method must be bigfloat number, and the result must
+  Each of the four arguments to a method must be bigfloat number, and the result must
   also be a bigfloat number.")
 
 (defun gauss-hg-dispatch (a b c x)
@@ -1019,3 +1020,56 @@ Returns two values:
            (xx (bigfloat::to (orthopoly-number-coerce x one))))
      
       (maxima::to  (bigfloat::hypergeometric-2f1-series aa bb cc xx))))
+
+
+(defmfun $gauss_polynomial (a b c x)
+   (cond ((maxima::hg-denominator-pole-p a b c) nil)
+         ((and (or (and (integerp a) (< a 1))
+                    (and (integerp b) (< b 1)))   
+                (complex-number-p a #'$ratnump)
+                (complex-number-p b #'$ratnump)
+                (complex-number-p c #'$ratnump)
+                (complex-number-p x #'$ratnump))
+          (let ((aa (bigfloat::to a))
+                (bb (bigfloat::to b))
+                (cc (bigfloat::to c))
+                (xx (bigfloat::to x)))
+          (maxima::to (bigfloat::gauss-series-polynomial-rational-case aa bb cc xx))))
+          (t nil)))
+
+(defun gauss-hg-polynomial-case-p (a b c x)
+  (let ((aa (maxima::to a))
+        (bb (maxima::to b))
+        (cc (maxima::to c))
+        (xx (maxima::to x)))
+    (and (or (and (integerp aa) (< aa 1)) (and (integerp bb) (< bb 1)))   
+         (maxima::complex-number-p aa #'$ratnump)
+         (complex-number-p bb #'$ratnump)
+         (complex-number-p cc #'$ratnump)
+         (complex-number-p xx #'$ratnump))))
+
+(in-package #:bigfloat)
+
+(defun gauss-series-polynomial-rational-case (a b c x)
+        (cond
+              ((maxima::gauss-hg-polynomial-case-p a b c x)
+                (flet ((next-cf (q k) (/ (* q x (+ k a) (+ k b)) (* (+ k 1) (+ k c)))))
+                  (let ((term 1) 
+                        (s 0)
+                        (n (cond ((and (integerp a) (<= a 0)
+                                         (integerp b) (<= b 0))
+                                         (- (max a b)))
+
+                                        ((and (integerp a) (<= a 0))
+                                          (- a))
+
+                                        (t
+                                          (- b)))))
+
+               (dotimes (k n)
+                 (setq s (+ s term))
+                 (setq term (next-cf term k)))
+                
+                (values (+ s term) 'maxima::$inf 'maxima::$polynomial_case))))
+             (t nil)))
+
